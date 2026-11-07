@@ -1,0 +1,5 @@
+# Большие медиафайлы не храним в git
+projects/*/render/
+*.mp4
+*.mov
+*.wav
