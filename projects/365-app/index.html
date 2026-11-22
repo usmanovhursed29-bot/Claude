@@ -195,7 +195,8 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .chart .ln2{fill:none;stroke:var(--fg3);stroke-width:1.5;stroke-dasharray:4 4}
 .chart .ar{fill:var(--accent-soft);stroke:none}
 .chart .pt{fill:var(--card);stroke:var(--accent);stroke-width:2}
-.chart .bar{fill:var(--line2)}
+.chart .bar{fill:var(--fg);opacity:.82}
+.chart .bar.hl{opacity:1}
 .chart .bar.hl{fill:var(--accent)}
 .chart .vl{fill:var(--fg);font-size:12px}
 
@@ -381,6 +382,8 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{height:34px;padding:0 14px;border-radius:17px;box-shadow:inset 0 0 0 1px var(--line2);font-size:13px;color:var(--fg2);transition:background-color .15s var(--ease),color .15s var(--ease)}
 .chips button[aria-pressed="true"]{background:var(--fg);color:var(--bg);box-shadow:none}
+.toast button{pointer-events:auto;margin-left:12px;color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.qs.open~.toast{top:calc(16px + env(safe-area-inset-top,0px));bottom:auto}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:var(--float);pointer-events:none;opacity:0;transition:opacity .2s var(--ease),transform .2s var(--ease)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (max-width:1100px){.ov-top{grid-template-columns:repeat(2,minmax(0,1fr))}.ov-top>:last-child{grid-column:1/-1}.qa{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -809,7 +812,7 @@ function ftLen(ph){const f=S.settings.focus;return(ph==="work"?f.work:ph==="shor
 function focusPill(){
   if(FT.left==null)FT.left=ftLen("work");
   const m=Math.floor(FT.left/60),s=FT.left%60;
-  const lbl=FT.phase==="work"?(FT.running?"Фокус":"Пауза"):"Перерыв";
+  const lbl=FT.phase==="work"?(FT.running?"Фокус":FT.left<ftLen("work")?"Пауза":"Фокус"):"Перерыв";
   const C=2*Math.PI*14,fr=1-FT.left/ftLen(FT.phase);
   return`<div class="focus-pill"><span class="lbl">${lbl}</span><span class="t">${pad(m)}:${pad(s)}</span><span class="play-w"><button class="play" data-a="ft-toggle" aria-label="${FT.running?"Пауза":"Старт"}">${ic(FT.running?"pause":"play")}</button>${fr>0.002?`<svg class="fring" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" stroke-dasharray="${(C*fr).toFixed(1)} ${C.toFixed(1)}"/></svg>`:""}</span></div>`;
 }
@@ -836,6 +839,10 @@ const PCOL={"Привычки":"var(--c1)","Сон":"var(--c4)","Вода":"var(
 function vOverview(){
   const T=today(),d=new Date();
   const sc=dayScore(T),yS=dayScore(iso(addDays(d,-1))).score;
+  const per=ui.ovP||"d";
+  const avgOf=n=>{const v=[...Array(n)].map((_,i)=>dayScore(iso(addDays(d,-i))).score).filter(x=>x!=null);return{v:v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):null,n:v.length}};
+  const W7=avgOf(7),M30=avgOf(30);
+  const shown=per==="w"?W7.v:per==="m"?M30.v:sc.score;
   const days=[...Array(14)].map((_,i)=>iso(addDays(d,i-13)));
   const vals=days.map(x=>dayScore(x).score);const known=vals.filter(v=>v!=null);
   const tToday=S.tasks.filter(t=>t.bucket==="today"||t.due===T);const tDone=tToday.filter(t=>t.done).length;
@@ -848,16 +855,17 @@ function vOverview(){
   return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день")}
   ${quickActions()}
   <div class="scoreblock">
-    <span class="sec">Счёт дня</span>
-    <div class="row" style="gap:16px;align-items:flex-end"><span class="bigscore">${sc.score!=null?cnt("score",sc.score):"—"}</span>
-      <span class="meta" style="padding-bottom:8px">${sc.score!=null&&yS!=null?`${sc.score-yS>=0?"+":""}${fmt(sc.score-yS)} к вчера<br>`:""}${known.length>1?`лучший за 2 недели: ${Math.max(...known)}`:sc.score==null?"Отметьте привычку, воду, сон или шаги, и появится счёт":""}</span></div>
-    ${sc.parts.length?`<div class="segs">${sc.parts.map(p=>`<div style="flex:${p[1]}"><i><b style="width:${Math.round(p[2]*100)}%;background:${PCOL[p[0]]}"></b></i><span>${p[0]}</span></div>`).join("")}</div>`:""}
+    <span class="sec">${per==="w"?"Средний счёт за неделю":per==="m"?"Средний счёт за месяц":"Счёт дня"}</span>
+    <div class="row" style="gap:16px;align-items:flex-end"><span class="bigscore">${shown!=null?cnt("score"+per,shown):"—"}</span>
+      <span class="meta" style="padding-bottom:8px">${per!=="d"?`дней с данными: ${per==="w"?W7.n:M30.n}`:sc.score!=null&&yS!=null?`${sc.score-yS>=0?"+":""}${fmt(sc.score-yS)} к вчера<br>`:""}${known.length>1?`лучший за 2 недели: ${Math.max(...known)}`:sc.score==null?"Отметьте привычку, воду, сон или шаги, и появится счёт":""}</span></div>
+    <div class="tabs" role="tablist" style="max-width:420px">${[["d","Сегодня",sc.score??"—"],["w","Неделя",W7.v??"—"],["m","Месяц",M30.v??"—"]].map(([k,n,c])=>`<button role="tab" aria-selected="${per===k}" data-a="ov-p" data-v="${k}">${n} <span class="meta mono">${c}</span></button>`).join("")}</div>
+    ${per==="d"&&sc.parts.length?`<div class="segs">${sc.parts.map(p=>`<div style="flex:${p[1]}"><i><b style="width:${Math.round(p[2]*100)}%;background:${PCOL[p[0]]}"></b></i><span>${p[0]}</span></div>`).join("")}</div>`:""}
   </div>
   <div class="ov-top">
     <button class="gcard grad-blue" data-a="ft-toggle" aria-label="${FT.running?"Пауза таймера фокуса":"Запустить таймер фокуса"}">
       <span class="gicon">${ic("timer","s")}</span><span class="garrow">${ic(FT.running?"pause":"play","s")}</span>
       <span><span class="gl">Время фокуса</span><span class="gv" style="display:block">${hm(fMin)}</span></span>
-      <span class="gfoot"><span>Сессий<b>${fSes}</b></span><span class="r">Цель<b>${hm(fGoal)}</b></span></span></button>
+      <span class="gfoot"><span>Сессий<b>${fSes||(fMin>0?"—":0)}</b></span><span class="r">Цель<b>${hm(fGoal)}</b></span></span></button>
     <button class="gcard grad-orange" data-a="qs" data-v="expense" aria-label="Записать расход">
       <span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("plus","s")}</span>
       <span><span class="gl">Потрачено в ${MP[d.getMonth()]}</span><span class="gv" style="display:block">${cnt("os",sp,"rub")}</span></span>
@@ -884,13 +892,16 @@ function vOverview(){
       <div class="meter acc ${P&&e.kcal>P.kcal*1.05?"over":""}"><i style="width:${P?clamp(e.kcal/P.kcal*100,0,100):0}%"></i></div>
       <span class="meta">${P?`Б ${fmt(e.p)}/${P.prot} · Ж ${fmt(e.f)}/${P.fat} · У ${fmt(e.c)}/${P.carb} г`:"Заполните цель по весу, и появится норма"}</span>
       <button class="btn" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>
-    <div class="card"><div class="card-h"><h2>${ic("cal","s")}Ближайшее</h2><a class="meta" href="#calendar">Календарь</a></div>
-      <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет</div>`}</div>
+    <div class="card"><div class="card-h"><h2>${ic("health","s")}Здоровье сегодня</h2><a class="meta" href="#health">Подробно</a></div>
       <div class="list">
         <div class="li">${ic("drop","s")}<span class="t">Вода</span><span class="r">${fmt1((l.water||0)/1000)} / ${fmt1(S.settings.goals.water/1000)} л</span><button class="btn sm" data-a="qs" data-v="water250">+250</button></div>
         <div class="li">${ic("bed","s")}<span class="t">Сон</span><span class="r">${l.sleep?hm(l.sleep):"—"}</span><button class="btn sm" data-a="qs" data-v="sleep">Записать</button></div>
+        <div class="li">${ic("steps","s")}<span class="t">Шаги</span><span class="r">${l.steps?fmt(l.steps):"—"}</span><button class="btn sm" data-a="qs" data-v="steps">Записать</button></div>
+        <div class="li">${ic("mood","s")}<span class="t">Настроение</span><span class="r">${l.mood?l.mood+" / 5":"—"}</span><button class="btn sm" data-a="qs" data-v="mood">Отметить</button></div>
       </div></div>
-  </div>`;
+  </div>
+  <div class="card"><div class="card-h"><h2>${ic("cal","s")}Ближайшее</h2><a class="meta" href="#calendar">Календарь</a></div>
+    <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет. Добавьте их в календаре</div>`}</div></div>`;
 }
 function taskLi(t){
   const late=!t.done&&t.due&&t.due<today();
@@ -902,7 +913,7 @@ function vTasks(){
   const T=today(),open=openTasks(),od=overdue();
   const cols=[["today","Сегодня","var(--c3)"],["week","На неделе","var(--c2)"],["later","Потом","var(--fg3)"]];
   const days=[...Array(7)].map((_,i)=>iso(addDays(new Date(),i)));
-  const load=days.map(x=>S.tasks.filter(t=>!t.done&&(t.due===x||(x===T&&t.bucket==="today"&&!t.due))).length+S.events.filter(e=>e.date===x).length);
+  const load=days.map(x=>S.tasks.filter(t=>!t.done&&(t.due===x||(x===T&&t.bucket==="today"&&(!t.due||t.due<T)))).length+S.events.filter(e=>e.date===x).length);
   const tToday=S.tasks.filter(t=>t.bucket==="today"||t.due===T),tDone=tToday.filter(t=>t.done).length;
   const f=ui.taskTagFilter;
   const card=t=>{const late=!t.done&&t.due&&t.due<T;return`<div class="task ${t.done?"done":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><div class="body"><span class="t">${esc(t.title)}</span><span class="row" style="gap:12px"><span class="chip"><span class="tag-dot" style="background:${TAGS[t.tag]?.[1]}"></span>${TAGS[t.tag]?.[0]||""}</span>${t.due?`<span class="meta ${late?"late":""}">${late?"просрочено, ":""}${t.due===T?"сегодня":dLabel(t.due)}</span>`:""}</span></div><div class="acts"><button class="btn sm ghost" data-a="task-move" data-id="${t.id}" title="Перенести в следующую колонку" aria-label="Перенести">${ic("right","s")}</button><button class="btn sm ghost x ${ui.armed===t.id?"armed":""}" data-a="del" data-k="tasks" data-id="${t.id}" aria-label="Удалить">${ui.armed===t.id?"Удалить?":ic("x","s")}</button></div></div>`};
@@ -974,19 +985,22 @@ function vHabits(){
   const spanSum=H.reduce((a,h)=>a+span(h),0);
   const rate=H.length?Math.round(H.reduce((a,h)=>a+d30.filter(x=>h.log[x]).length,0)/spanSum*100):0;
   const hasPrev=H.length&&H.every(h=>daysBetween(h.created||S.meta.created||T,T)>=59);
+  const prevLeft=H.length?Math.max(1,59-Math.max(...H.map(h=>daysBetween(h.created||S.meta.created||T,T)))):0;
   const prevRate=hasPrev?Math.round(H.reduce((a,h)=>a+[...Array(30)].map((_,i)=>iso(addDays(d,i-59))).filter(x=>h.log[x]).length,0)/(H.length*30)*100):0;
   const d7=[...Array(7)].map((_,i)=>iso(addDays(d,i-6)));
   return`${head("Привычки",H.length?`${done} из ${H.length} отмечено сегодня`:"Добавьте первую привычку",`<button class="btn pri" data-a="qs" data-v="habit">${ic("plus","s")}Привычка</button>`)}
   ${!H.length?`<button class="add-card" data-a="qs" data-v="habit" style="min-height:160px">${ic("plus","s")}Добавьте первую привычку, например «Зарядка» или «Вода 2 л». Отмечать её — одно нажатие</button>`:`<div class="grid g4">
     <div class="card stat"><span class="lbl">Отмечено сегодня</span><span class="val">${done}<small>/${H.length}</small></span><span class="chg">${!H.length?"пока нет привычек":H.length-done?`осталось ${H.length-done}`:"всё сделано"}</span></div>
     <div class="card stat"><span class="lbl">Текущая серия</span><span class="val">${cur}<small> ${plural(cur,"день","дня","дней")}</small></span><span class="chg">самая длинная из идущих</span></div>
-    <div class="card stat"><span class="lbl">Выполнено за 30 дней</span><span class="val">${cnt("hr",rate)}<small>%</small></span><span class="chg ${hasPrev?(rate>=prevRate?"up":"down"):""}">${hasPrev?`${rate>=prevRate?"+":"−"}${Math.abs(rate-prevRate)} п. п. к прошлым 30 дням`:"сравнение появится через 60 дней"}</span></div>
+    <div class="card stat"><span class="lbl">Выполнено за 30 дней</span><span class="val">${cnt("hr",rate)}<small>%</small></span><span class="chg ${hasPrev?(rate>=prevRate?"up":"down"):""}">${hasPrev?`${rate>=prevRate?"+":"−"}${Math.abs(rate-prevRate)} п. п. к прошлым 30 дням`:`сравнение появится через ${prevLeft} ${plural(prevLeft,"день","дня","дней")}`}</span></div>
     <div class="card stat"><span class="lbl">Лучшая серия</span><span class="val">${best}<small> ${plural(best,"день","дня","дней")}</small></span><span class="chg">за всё время</span></div>
   </div>`}
+  ${H.length?`<div class="card-h"><h2>Сегодня</h2><span class="meta">нажмите круг, чтобы отметить</span></div>`:""}
   <div class="hab-grid">${H.map(h=>{const c=HCOL[h.color%HCOL.length];const on=!!h.log[T];const r=d30.filter(x=>h.log[x]).length;
-    return`<div class="card tight"><div class="card-h"><div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(h.name)}</h2><span class="meta">серия ${streak(h)} · ${Math.round(r/span(h)*100)}% за ${span(h)} ${plural(span(h),"день","дня","дней")}</span></div><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить сегодня">${ic("check")}</button></div>
+    return`<div class="card tight"><div class="card-h"><div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(h.name)}</h2></div><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить сегодня">${ic("check")}</button></div>
       <div class="days7">${d7.map(x=>`<span class="wd">${WD[parse(x).getDay()]}</span>`).join("")}${d7.map(x=>`<button class="${h.log[x]?"on":""}" style="${h.log[x]?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${x}" aria-label="${dLabel(x)}" aria-pressed="${!!h.log[x]}"></button>`).join("")}</div>
-      <div class="row" style="justify-content:flex-end"><button class="btn sm ghost x ${ui.armed===h.id?"armed":""}" data-a="del" data-k="habits" data-id="${h.id}">${ui.armed===h.id?"Удалить привычку?":"Удалить"}</button></div></div>`}).join("")}
+      <div class="meter"><i style="width:${Math.round(r/span(h)*100)}%;background:${c}"></i></div>
+      <div class="row" style="justify-content:space-between"><span class="meta">серия ${streak(h)} · ${Math.round(r/span(h)*100)}% за ${span(h)} ${plural(span(h),"день","дня","дней")}</span><button class="btn sm ghost x ${ui.armed===h.id?"armed":""}" data-a="del" data-k="habits" data-id="${h.id}">${ui.armed===h.id?"Удалить?":"Удалить"}</button></div></div>`}).join("")}
     ${H.length?`<button class="add-card" data-a="qs" data-v="habit">${ic("plus","s")}Новая привычка</button>`:""}
   </div>
   <div class="card"><div class="card-h"><h2>Ритм за 30 дней</h2><span class="meta">${dLabel(d30[0])} – ${dLabel(T)}</span></div>
@@ -996,13 +1010,14 @@ function vHabits(){
 function vHealth(){
   const tab=ui.healthTab||"main";
   const T=today(),d=new Date(),l=hlog(T),g=S.settings.goals,sc=dayScore(T);
-  const tabs=`<div class="tabs" role="tablist">${[["main","Общее"],["gym","Тренировки"],["food","Питание"]].map(([k,n])=>`<button role="tab" aria-selected="${tab===k}" data-a="health-tab" data-v="${k}">${n}</button>`).join("")}</div>`;
+  const tabs=`<div class="tabs" role="tablist">${[["main","Общее"],["gym","Тренировки"],["food","Питание"],["state","Состояние"]].map(([k,n])=>`<button role="tab" aria-selected="${tab===k}" data-a="health-tab" data-v="${k}">${n}</button>`).join("")}</div>`;
   const sub=tab==="food"?"КБЖУ под вашу цель по весу":tab==="gym"?"Тренировки и активность":sc.score!=null?`Счёт дня ${sc.score} из 100`:"Запишите воду, сон или шаги за сегодня";
   if(tab==="food")return head("Здоровье",sub)+tabs+foodView();
   if(tab==="gym")return head("Здоровье",sub)+tabs+gymView();
+  if(tab==="state")return head("Здоровье","Настроение, энергия и давление")+tabs+stateView();
   const d7=[...Array(7)].map((_,i)=>iso(addDays(d,i-6))),p7=[...Array(7)].map((_,i)=>iso(addDays(d,i-13)));
   const avg=(ds,k)=>{const v=ds.map(x=>hlog(x)[k]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
-  const rows=[["bed","Сон в среднем",avg(d7,"sleep"),avg(p7,"sleep"),v=>hm(v)],["mood","Настроение",avg(d7,"mood"),avg(p7,"mood"),v=>fmt1(v)+" / 5"],["steps","Шаги в день",avg(d7,"steps"),avg(p7,"steps"),v=>fmt(v)],["drop","Вода в день",avg(d7,"water"),avg(p7,"water"),v=>fmt1(v/1000)+" л"]];
+  const rows=[["bed","Сон в среднем",avg(d7,"sleep"),avg(p7,"sleep"),v=>hm(v)],["mood","Настроение",avg(d7,"mood"),avg(p7,"mood"),v=>fmt1(v)+" / 5"],["sun","Энергия",avg(d7,"energy"),avg(p7,"energy"),v=>fmt1(v)+" / 5"],["steps","Шаги в день",avg(d7,"steps"),avg(p7,"steps"),v=>fmt(v)],["drop","Вода в день",avg(d7,"water"),avg(p7,"water"),v=>fmt1(v/1000)+" л"]];
   const wkScores=d7.map(x=>dayScore(x).score).filter(v=>v!=null),pkScores=p7.map(x=>dayScore(x).score).filter(v=>v!=null);
   const wAvg=wkScores.length?Math.round(wkScores.reduce((a,b)=>a+b,0)/wkScores.length):null,pAvg=pkScores.length?Math.round(pkScores.reduce((a,b)=>a+b,0)/pkScores.length):null;
   const d21=[...Array(21)].map((_,i)=>iso(addDays(d,i-20)));
@@ -1022,7 +1037,7 @@ function vHealth(){
   <div class="grid g-main" style="align-items:start">
     <div class="card"><div class="card-h"><h2>Показатели за неделю</h2><span class="meta">к прошлой неделе</span></div>
       <div class="list">${rows.map(([i,n,a,b,f])=>{const ch=a!=null&&b?Math.round((a-b)/b*100):null;return`<div class="li">${ic(i,"s")}<span class="t">${n}</span><span class="r">${a!=null?f(a):"—"}</span><span class="chg ${ch>0?"up":ch<0?"down":""}" style="width:48px;text-align:right">${ch!=null?(ch>0?"+":"")+fmt(ch)+"%":""}</span></div>`}).join("")}</div></div>
-    <div class="card"><div class="card-h"><h2>Быстрая запись</h2><span class="meta">одно касание</span></div>
+    <div class="card"><div class="card-h"><h2>Быстрая запись</h2><span class="meta">нажмите и введите число</span></div>
       <div class="tiles">
         ${tile("qs","water250","drop","Вода +250 мл",`сегодня ${fmt1((l.water||0)/1000)} л`)}
         ${tile("qs","workout","gym","Тренировка","тип и минуты")}
@@ -1031,10 +1046,25 @@ function vHealth(){
         ${tile("qs","weight","scale","Вес",l.weight?fmt1(l.weight)+" кг":"не записан")}
         ${tile("qs","steps","steps","Шаги",l.steps?fmt(l.steps):"не записаны")}
         ${tile("qs","mood","mood","Настроение",l.mood?l.mood+" из 5":"не отмечено")}
+        ${tile("qs","energy","sun","Энергия",l.energy?l.energy+" из 5":"не отмечена")}
+        ${tile("qs","bp","health","Давление",l.bp||"не записано")}
       </div></div>
   </div>
   <div class="card"><div class="card-h"><h2>Вес за 3 недели</h2><span class="meta">${+S.food.profile.target>0?`цель ${fmt1(S.food.profile.target)} кг`:""}</span></div>
     ${lineChart(d21.map(x=>hlog(x).weight??null),d21.map(x=>parse(x).getDate()),{h:200,fy:v=>fmt1(v),aria:"Вес за 21 день"})}</div>`;
+}
+function stateView(){
+  const d=new Date(),l=hlog(today());const d14=[...Array(14)].map((_,i)=>iso(addDays(d,i-13)));
+  const tile=(v,i,t,m)=>`<button data-a="qs" data-v="${v}">${ic(i,"s")}<span>${t}<br><span class="meta">${m}</span></span></button>`;
+  const rows=d14.slice().reverse().filter(x=>{const h=hlog(x);return h.mood||h.energy||h.bp||h.sleep});
+  return`<div class="grid g-main-r" style="align-items:start">
+    <div class="card"><div class="card-h"><h2>Отметить сейчас</h2></div><div class="tiles">
+      ${tile("mood","mood","Настроение",l.mood?l.mood+" из 5":"не отмечено")}${tile("energy","sun","Энергия",l.energy?l.energy+" из 5":"не отмечена")}${tile("bp","health","Давление",l.bp||"не записано")}${tile("sleep","bed","Сон",l.sleep?hm(l.sleep):"не записан")}</div></div>
+    <div class="card"><div class="card-h"><h2>Настроение за 2 недели</h2><span class="meta">из 5</span></div>
+      ${lineChart(d14.map(x=>hlog(x).mood??null),d14.map(x=>parse(x).getDate()),{h:180,min:1,max:5,fy:v=>fmt1(v),aria:"Настроение за 14 дней"})}</div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Журнал</h2><span class="meta">последние 14 дней</span></div>
+    <div class="list">${rows.map(x=>{const h=hlog(x);return`<div class="li"><span class="t">${dLabel(x)}</span><span class="meta mono">настр. ${h.mood||"—"} · энерг. ${h.energy||"—"} · давл. ${h.bp||"—"} · сон ${h.sleep?hm(h.sleep):"—"}</span></div>`}).join("")||`<div class="empty">Пока пусто. Нажмите «Настроение» или «Энергия» выше, это одно касание</div>`}</div></div>`;
 }
 function planHtml(){
   const P=plan(),p=S.food.profile;
@@ -1126,7 +1156,7 @@ function vMoney(){
   const spToday=spent(ms.filter(x=>x.date===T)),perDay=sp/Math.max(1,d.getDate());
   const accCol=["var(--c3)","var(--c1)","var(--c4)","var(--c2)","var(--c6)","var(--c5)"];
   return`${head("Финансы",`${MN[d.getMonth()].toLowerCase()} · потрачено ${rub(sp)}`,`<button class="btn acc" data-a="qs" data-v="income">${ic("plus","s")}Доход</button><button class="btn pri" data-a="qs" data-v="expense">−&nbsp;Расход</button>`)}
-  <div class="acc-row">${S.money.accounts.map((a,i)=>`<button class="card tight acc-card" data-a="qs" data-v="accEdit" data-id="${a.id}" aria-label="Изменить счёт ${esc(a.name)}"><div class="card-h"><span class="muted">${ic(AKIND[a.kind]?.[1]||"money","s")}</span><span class="meta">${AKIND[a.kind]?.[0]||"Счёт"}</span></div><span class="sec" style="font-size:13px">${esc(a.name)}</span><span class="stat"><span class="val" style="font-size:24px;line-height:28px">${rub(a.balance)}</span></span><span class="bar"><i style="width:${bal>0?clamp(a.balance/bal*100,0,100):0}%;background:${accCol[i%accCol.length]}"></i></span></button>`).join("")}<button class="add-card" data-a="qs" data-v="accNew">${ic("plus","s")}${S.money.accounts.length?"Счёт":"Добавьте свой первый счёт"}</button></div>
+  <div class="acc-row">${S.money.accounts.map((a,i)=>`<button class="card tight acc-card" data-a="qs" data-v="accEdit" data-id="${a.id}" aria-label="Изменить счёт ${esc(a.name)}"><div class="card-h"><span class="muted">${ic(AKIND[a.kind]?.[1]||"money","s")}</span><span class="meta">${AKIND[a.kind]?.[0]||"Счёт"}</span></div><span class="sec" style="font-size:13px">${esc(a.name)}</span><span class="stat"><span class="val" style="font-size:24px;line-height:28px">${rub(a.balance)}</span></span><span class="bar"><i style="width:${bal>0?clamp(a.balance/bal*100,0,100):0}%;background:${accCol[i%accCol.length]}"></i></span></button>`).join("")}<button class="add-card" data-a="qs" data-v="accNew" ${S.money.accounts.length?"":'style="grid-column:1/-1"'}>${ic("plus","s")}${S.money.accounts.length?"Счёт":"Добавьте свой первый счёт"}</button></div>
   <div class="grid g3">
     <div class="gcard grad-blue"><span class="gicon">${ic("money","s")}</span>
       <span><span class="gl">Всего денег</span><span class="gv" style="display:block">${cnt("bal",bal,"rub")}</span></span>
@@ -1134,7 +1164,7 @@ function vMoney(){
     <button class="gcard grad-orange" data-a="qs" data-v="expense" aria-label="Записать расход"><span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("plus","s")}</span>
       <span><span class="gl">Потрачено в ${MP[d.getMonth()]}</span><span class="gv" style="display:block">${cnt("msp",sp,"rub")}</span></span>
       <span class="gfoot"><span>Сегодня<b>${rub(spToday)}</b></span><span class="r">В день<b>${rub(perDay)}</b></span></span></button>
-    <button class="card stat acc-card" data-a="qs" data-v="income" style="justify-content:space-between" aria-label="Записать доход"><div class="card-h"><span class="muted">${ic("check","s")}</span><span class="btn sm">${ic("plus","s")}Доход</span></div>
+    <button class="card stat acc-card" data-a="qs" data-v="income" style="justify-content:space-between" aria-label="Записать доход"><div class="card-h"><span class="muted">${ic("check","s")}</span><span class="muted">${ic("plus","s")}</span></div>
       <span class="lbl">Доход в ${MP[d.getMonth()]}</span><span class="val" style="font-size:34px;line-height:40px">${cnt("minc",inc,"rub")}</span>
       <span class="meter"><i style="width:${inc>0?clamp((inc-sp)/inc*100,0,100):0}%"></i></span><span class="chg ${inc>0?(inc-sp>=0?"up":"down"):""}">${inc>0?`${inc-sp>=0?"остаётся":"расходы больше на"} ${rub(Math.abs(inc-sp))}`:"доходов пока нет"}</span></button>
   </div>
@@ -1196,7 +1226,7 @@ function contextText(){
   if(see.calendar){const ev=S.events.filter(e=>e.date>=T&&e.date<=iso(addDays(d,7))).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));L.push("События на 7 дней: "+(ev.map(e=>`${e.date} ${e.time} ${e.title} (${hm(e.dur||60)})`).join("; ")||"нет"))}
   if(see.habits&&S.habits.length){const d30=[...Array(30)].map((_,i)=>iso(addDays(d,i-29)));L.push("Привычки: "+S.habits.map(h=>`${h.name}: сегодня ${h.log[T]?"да":"нет"}, серия ${streak(h)}, за 30 дней ${d30.filter(x=>h.log[x]).length}/30`).join("; "))}
   if(see.health){const l=hlog(T),P=plan(),e=eaten(T),p=S.food.profile;
-    L.push(`Здоровье сегодня: сон ${l.sleep?hm(l.sleep):"не записан"}, вода ${l.water||0} мл из ${S.settings.goals.water}, шаги ${l.steps||0}, настроение ${l.mood||"—"}/5, последний вес ${lastWeight()?lastWeight()+" кг":"не указан"}.`);
+    L.push(`Здоровье сегодня: сон ${l.sleep?hm(l.sleep):"не записан"}, вода ${l.water||0} мл из ${S.settings.goals.water}, шаги ${l.steps||0}, настроение ${l.mood||"—"}/5, энергия ${l.energy||"—"}/5, давление ${l.bp||"не записано"}, последний вес ${lastWeight()?lastWeight()+" кг":"не указан"}.`);
     if(P)L.push(`Питание: цель ${p.weight}→${p.target} кг к ${p.deadline}, норма ${P.kcal} ккал (Б ${P.prot} / Ж ${P.fat} / У ${P.carb} г). Съедено сегодня ${e.kcal} ккал (Б ${e.p} / Ж ${e.f} / У ${e.c}): ${meals(T).map(m=>m.name).join(", ")||"ничего"}.`);
     const W=S.workouts.filter(w=>w.date>=iso(addDays(d,-7)));L.push(`Тренировки за 7 дней: ${W.map(w=>`${w.date} ${WTYPES[w.type]?.[0]} ${w.min} мин`).join("; ")||"нет"}. Цель ${S.settings.goals.workouts} в неделю.`)}
   if(see.money){const ms=monthTx(),byCat={};ms.filter(x=>x.type==="exp").forEach(x=>byCat[CATS[x.cat]?.[0]]=(byCat[CATS[x.cat]?.[0]]||0)+(+x.amount));
@@ -1252,7 +1282,7 @@ async function ask(q){
 }
 
 /* ---------- quick entry sheet: tap, type a number, save ---------- */
-function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(ui.toastT);ui.toastT=setTimeout(()=>t.classList.remove("show"),2200)}
+function toast(msg,undo){const t=$("#toast");ui.undo=undo||null;t.innerHTML=esc(msg)+(undo?`<button data-a="undo">Отменить</button>`:"");t.classList.add("show");clearTimeout(ui.toastT);ui.toastT=setTimeout(()=>{t.classList.remove("show");ui.undo=null},undo?5000:2200)}
 const hl=()=>S.health.log[today()]=S.health.log[today()]||{};
 const QS={
   income:{t:"Доход",f:[["amount","number","Сколько заработали, ₽",1],["note","text","Откуда, например «Зарплата»"]],acc:1,
@@ -1269,7 +1299,11 @@ const QS={
     save:v=>{const n=Math.round(+v.n);if(!(n>=0))return{err:"Введите число шагов"};hl().steps=n;persist("health");return`${fmt(n)} шагов записано`}},
   mood:{t:"Настроение",chips:[["1","1 плохо"],["2","2"],["3","3 нормально"],["4","4"],["5","5 отлично"]],instant:1,
     save:(v,ch)=>{hl().mood=+ch;persist("health");return`Настроение ${ch} из 5`}},
-  meal:{t:"Приём пищи",f:[["name","text","Что съели",1],["kcal","number","Калории",1],["p","number","Белки, г"],["f","number","Жиры, г"],["c","number","Углеводы, г"]],hint:"Не знаете калорийность? Напишите ассистенту, что съели, он посчитает и запишет сам",
+  energy:{t:"Энергия",chips:[["1","1 нет сил"],["2","2"],["3","3 норма"],["4","4"],["5","5 много"]],instant:1,
+    save:(v,ch)=>{hl().energy=+ch;persist("health");return`Энергия ${ch} из 5`}},
+  bp:{t:"Давление",f:[["sys","number","Верхнее, например 120",1],["dia","number","Нижнее, например 80",1]],
+    save:v=>{const a=Math.round(+v.sys),b=Math.round(+v.dia);if(!(a>=60&&a<=260&&b>=30&&b<=180))return{err:"Проверьте значения: верхнее 60–260, нижнее 30–180"};hl().bp=`${a}/${b}`;persist("health");return`Давление ${a}/${b} записано`}},
+  meal:{t:"Приём пищи",f:[["name","text","Что съели",1],["kcal","number","Калории",1],["p","number","Белки, г",0,1],["f","number","Жиры, г",0,1],["c","number","Углеводы, г",0,1]],recent:1,hint:"Не знаете калорийность? Напишите ассистенту, что съели, он посчитает и запишет сам",
     save:v=>{const k=Math.round(+v.kcal);if(!v.name||!(k>=0))return{err:"Укажите блюдо и калории"};const T=today();(S.food.meals[T]=S.food.meals[T]||[]).push({id:rid(),name:v.name,kcal:k,p:+v.p||0,f:+v.f||0,c:+v.c||0});persist("food");return`${v.name}: ${fmt(k)} ккал`}},
   workout:{t:"Тренировка",chips:Object.entries(WTYPES).map(([k,v])=>[k,v[0]]),def:"strength",f:[["min","number","Сколько минут",1],["note","text","Заметка, например «ноги и пресс»"]],
     save:(v,ch)=>{const m=Math.round(+v.min);if(!(m>0))return{err:"Введите минуты"};S.workouts.push({id:rid(),type:ch||"other",min:m,date:today(),note:v.note||""});persist("workouts");return`${WTYPES[ch]?.[0]||"Тренировка"}, ${m} мин`}},
@@ -1287,13 +1321,16 @@ const QS={
     remove:q=>{S.money.accounts=S.money.accounts.filter(x=>x.id!==q.id);persist("money");return"Счёт удалён"}}
 };
 function openQS(type,id){
-  if(type==="water250"){const l=hl();l.water=(l.water||0)+250;persist("health");render();toast(`+250 мл воды · сегодня ${fmt1(l.water/1000)} л`);return}
+  if(type==="water250"){const l=hl();l.water=(l.water||0)+250;persist("health");render();toast(`+250 мл воды · сегодня ${fmt1(l.water/1000)} л`,()=>{const x=hl();x.water=Math.max(0,(x.water||0)-250);persist("health")});return}
+  $("#toast").classList.remove("show");
   const c=QS[type];if(!c)return;
   ui.qs={type,id,chip:c.def||null,acc:(ui.lastAcc&&S.money.accounts.some(a=>a.id===ui.lastAcc))?ui.lastAcc:(S.money.accounts[0]?.id||"")};
   const pre=c.pre?c.pre(ui.qs):{};const q=ui.qs;
   $("#qsPanel").innerHTML=`<form data-f="qs" class="grid" style="gap:14px" novalidate><div class="card-h"><h2 style="font-size:18px">${typeof c.t==="function"?c.t(q):c.t}</h2><button type="button" class="btn icon ghost" data-a="qs-close" aria-label="Закрыть">${ic("x")}</button></div>
     ${c.chips&&!c.f?"":""}
-    ${(c.f||[]).map(([n,t,ph,req],i)=>`<input class="in ${i===0&&t==="number"?"big-in":""}" name="${n}" type="${t==="number"?"text":t}" ${t==="number"?'inputmode="decimal"':""} placeholder="${esc(ph)}" aria-label="${esc(ph)}" value="${esc(pre[n]??"")}" autocomplete="off" ${i===0?"data-first":""}>`).join("")}
+    ${c.recent&&recentMeals().length?`<div class="field"><span class="meta">Недавнее, одно касание</span><div class="chips">${recentMeals().map((m,i)=>`<button type="button" data-a="qs-recent" data-v="${i}">${esc(m.name)} · ${fmt(m.kcal)}</button>`).join("")}</div></div>`:""}
+    <div class="${c.recent?"row":"grid"}" style="gap:8px">${(c.f||[]).filter(x=>!x[4]).map(([n,t,ph,req],i,arr)=>`<input class="in ${i===0&&t==="number"?"big-in":""} ${c.recent?(i===0?"grow":""):""}" ${c.recent&&i>0?'style="width:110px"':""} name="${n}" type="${t==="number"?"text":t}" ${t==="number"?'inputmode="decimal"':""} enterkeyhint="${i<arr.length-1?"next":"done"}" placeholder="${esc(ph)}" aria-label="${esc(ph)}" value="${esc(pre[n]??"")}" autocomplete="off" ${i===0?"data-first":""}>`).join("")}</div>
+    ${(c.f||[]).some(x=>x[4])?`<details><summary class="meta" style="cursor:pointer">+ БЖУ (необязательно)</summary><div class="row" style="gap:8px;margin-top:8px">${c.f.filter(x=>x[4]).map(([n,t,ph])=>`<input class="in" style="flex:1 1 80px" name="${n}" type="text" inputmode="decimal" placeholder="${esc(ph)}" aria-label="${esc(ph)}" autocomplete="off">`).join("")}</div></details>`:""}
     ${c.chips?`<div class="chips" role="group">${c.chips.map(([k,l])=>`<button type="button" data-a="qs-chip" data-v="${k}" aria-pressed="${q.chip===k}">${esc(l)}</button>`).join("")}</div>`:""}
     ${c.acc&&S.money.accounts.length?`<div class="field"><span class="meta">Счёт</span><div class="chips" role="group">${S.money.accounts.map(a=>`<button type="button" data-a="qs-acc" data-v="${a.id}" aria-pressed="${q.acc===a.id}">${esc(a.name)} · ${rub(a.balance)}</button>`).join("")}</div></div>`:c.acc?`<span class="meta">Добавьте счёт в финансах, и сумма будет списываться с него сама</span>`:""}
     ${c.hint?`<span class="meta">${c.hint}</span>`:""}
@@ -1302,13 +1339,16 @@ function openQS(type,id){
   $("#qs").classList.add("open");
   const f0=$("#qsPanel [data-first]");if(f0){f0.focus();try{f0.select()}catch{}}
 }
+function recentMeals(){const seen=new Set(),out=[];Object.keys(S.food.meals).sort().reverse().forEach(d=>(S.food.meals[d]||[]).slice().reverse().forEach(m=>{const k=(m.name||"").toLowerCase();if(k&&!seen.has(k)&&out.length<6){seen.add(k);out.push(m)}}));return out}
 function closeQS(){$("#qs").classList.remove("open");ui.qs=null}
 function saveQS(chipOverride){
   const q=ui.qs;if(!q)return;const c=QS[q.type];const form=$('#qsPanel form');const v={};
   (c.f||[]).forEach(([n])=>{v[n]=(form.elements[n]?.value||"").trim().replace(",",".")});
+  const snap=JSON.stringify(Object.fromEntries(KEYS.map(k=>[k,S[k]])));
   const r=c.save(v,chipOverride??q.chip,q);
   if(r&&r.err){$("#qsErr").textContent=r.err;return}
-  closeQS();render();toast(r);
+  closeQS();render();
+  toast(r,()=>{const o=JSON.parse(snap);KEYS.forEach(k=>{if(JSON.stringify(S[k])!==JSON.stringify(o[k])){S[k]=o[k];persist(k)}})});
 }
 /* ---------- settings ---------- */
 function vPrefs(){
@@ -1359,12 +1399,15 @@ document.addEventListener("click",e=>{
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"qs":openQS(v,id);break;
+    case"undo":if(ui.undo){ui.undo();ui.undo=null;$("#toast").classList.remove("show");render()}break;
     case"qs-close":if(e.target===el||el.tagName==="BUTTON")closeQS();break;
     case"qs-chip":{const q=ui.qs,c=QS[q.type];q.chip=v;el.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===el));
       if(c.instant){saveQS(v)}else if(c.fill){const f=$('#qsPanel form');f.elements[c.fill].value=v;saveQS()}break}
+    case"qs-recent":{const m=recentMeals()[+v];if(m){const T=today();const nm={...m,id:rid()};(S.food.meals[T]=S.food.meals[T]||[]).push(nm);persist("food");closeQS();render();toast(`${m.name}: ${fmt(m.kcal)} ккал`,()=>{S.food.meals[T]=(S.food.meals[T]||[]).filter(x=>x.id!==nm.id);persist("food")})}break}
     case"qs-acc":ui.qs.acc=v;el.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===el));break;
     case"qs-del":{if(ui.armed==="qsdel"){ui.armed=null;const m=QS[ui.qs.type].remove(ui.qs);closeQS();render();toast(m)}else{ui.armed="qsdel";e.target.closest("button").textContent="Точно удалить"}break}
     case"health-tab":ui.healthTab=v;render();break;
+    case"ov-p":ui.ovP=v;render();break;
     case"qs-workout":openQS("workout");ui.qs.chip=v;document.querySelectorAll('#qsPanel [data-a="qs-chip"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
     case"sheet-close":if(e.target===el||el.tagName==="BUTTON")$("#sheet").classList.remove("open");break;
     case"task-done":{const t=find("tasks",id);t.done=!t.done;ui.flash=`[data-a="task-done"][data-id="${id}"]`;commit("tasks");break}
@@ -1424,6 +1467,7 @@ document.addEventListener("submit",e=>{
 function refocus(sel){setTimeout(()=>$(sel)?.focus(),0)}
 document.addEventListener("keydown",e=>{
   if(e.target.id==="ask"&&e.key==="Enter"&&!e.shiftKey){e.preventDefault();e.target.form.requestSubmit()}
+  if(e.key==="Enter"&&e.target.closest?.("#qsPanel")&&e.target.matches("input")){const ins=[...e.target.form.querySelectorAll("input")].filter(x=>x.offsetParent);const i=ins.indexOf(e.target);if(i>-1&&i<ins.length-1&&!ins[i+1].value&&ins[i+1].closest("details")==null){e.preventDefault();ins[i+1].focus()}}
   if(e.key==="Escape"){$("#sheet").classList.remove("open");closeQS()}
 });
 let profT;
@@ -1451,6 +1495,7 @@ document.addEventListener("change",e=>{
     else if(path.startsWith("goals."))s.goals[path.slice(6)]=+val||0;
     commit("settings")}
 });
+window.visualViewport?.addEventListener("resize",()=>{const q=$("#qs");if(q)q.style.paddingBottom=Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop)+"px"});
 matchMedia("(max-width:760px)").addEventListener?.("change",()=>{if(ui.view==="calendar")render()});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(ui.view==="prefs")render()});
 setInterval(()=>{if(ui.view==="calendar"&&!document.activeElement?.matches("input,textarea,select"))render()},60000);
