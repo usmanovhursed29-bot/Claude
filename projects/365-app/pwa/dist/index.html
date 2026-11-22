@@ -405,7 +405,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:var(--float);pointer-events:none;opacity:0;transition:opacity .2s var(--ease),transform .2s var(--ease)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 @media (max-width:1100px){.ov-top{grid-template-columns:repeat(2,minmax(0,1fr))}.ov-top>:last-child{grid-column:1/-1}.qa{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:900px){.qs{align-items:flex-end;padding:0}.qs .panel{max-width:none;border-radius:18px 18px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+@media (max-width:900px){.qs{align-items:flex-start;padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 12px max(12px,env(safe-area-inset-left,0px))}.qs .panel{max-width:none;border-radius:18px;max-height:calc(100% - 24px)}.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   .in,select.in,textarea.in,.composer textarea,.note-body,.note-title{font-size:16px}.bigscore{font-size:60px;line-height:60px}}
 @media (max-width:520px){.ov-top{grid-template-columns:minmax(0,1fr)}.gcard{min-height:150px}}
 /* first-run onboarding and greeting splash */
@@ -439,8 +439,10 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
   body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
   .topbar{display:flex;position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--bg);border-bottom:1px solid var(--line);height:56px;align-items:center;gap:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
   .topbar .brand{padding:0;margin-right:auto}
-  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
-  .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:56px;font-size:11px;color:var(--fg3);text-decoration:none}
+  .tabbar{display:flex;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .tabbar::-webkit-scrollbar{display:none}
+  .tabbar a,.tabbar button{flex:0 0 auto;min-width:76px;padding:0 6px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:56px;font-size:11px;color:var(--fg3);text-decoration:none;white-space:nowrap;position:relative}
+  .tabbar [aria-current="page"]::after{content:"";position:absolute;top:0;left:22px;right:22px;height:2px;border-radius:0 0 2px 2px;background:var(--accent)}
   .tabbar [aria-current="page"]{color:var(--fg)}
   .main{padding-block:20px 104px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
   .head h1{font-size:26px;line-height:32px}
@@ -791,6 +793,9 @@ function route(){
   render(true);
 }
 window.addEventListener("hashchange",route);
+function go(view){if(("#"+view)!==location.hash){try{history.pushState(null,"","#"+view)}catch{location.hash="#"+view;return}}route()}
+window.addEventListener("popstate",route);
+document.addEventListener("click",e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const v=a.getAttribute("href").slice(1);if(!v||e.metaKey||e.ctrlKey)return;e.preventDefault();go(v)});
 function navHtml(){
   const cnt={tasks:openTasks().length,habits:S.habits.length?`${S.habits.filter(h=>h.log[today()]).length}/${S.habits.length}`:""};
   const main=VIEWS.slice(0,7),tail=VIEWS.slice(7);
@@ -800,9 +805,8 @@ function navHtml(){
 function renderChrome(){
   $("#topFocus").innerHTML=focusPill();
   $("#nav").innerHTML=navHtml();$("#sheetNav").innerHTML=navHtml();
-  const tb=[["overview","Обзор","home"],["tasks","Задачи","tasks"],["health","Здоровье","health"],["money","Финансы","money"]];
-  const inMore=!tb.some(t=>t[0]===ui.view);
-  $("#tabbar").innerHTML=tb.map(v=>`<a href="#${v[0]}" ${ui.view===v[0]?'aria-current="page"':""}>${ic(v[2])}<span>${v[1]}</span></a>`).join("")+`<button data-a="sheet-open" ${inMore?'aria-current="page"':""}>${ic("more")}<span>Ещё</span></button>`;
+  $("#tabbar").innerHTML=VIEWS.map(v=>`<a href="#${v[0]}" ${ui.view===v[0]?'aria-current="page"':""}>${ic(v[2])}<span>${v[1]}</span></a>`).join("");
+  const cur=$('#tabbar [aria-current="page"]');if(cur){const tb=$("#tabbar");const l=cur.offsetLeft-(tb.clientWidth-cur.offsetWidth)/2;if(Math.abs(tb.scrollLeft-l)>4)tb.scrollTo({left:l,behavior:ui.tbInit?"smooth":"auto"});ui.tbInit=1}
 }
 let lastView=null;
 function render(enter){
@@ -1324,17 +1328,17 @@ async function ask(q){
 function toast(msg,undo){const t=$("#toast");ui.undo=undo||null;t.innerHTML=esc(msg)+(undo?`<button data-a="undo">Отменить</button>`:"");t.classList.add("show");clearTimeout(ui.toastT);ui.toastT=setTimeout(()=>{t.classList.remove("show");ui.undo=null},undo?5000:2200)}
 const hl=()=>S.health.log[today()]=S.health.log[today()]||{};
 const QS={
-  income:{t:"Доход",f:[["amount","number","Сколько заработали, ₽",1],["note","text","Откуда, например «Зарплата»"]],acc:1,
+  income:{t:"Доход",f:[["amount","number","Сумма, ₽",1],["note","text","Откуда, например «Зарплата»"]],acc:1,
     save:(v,ch,q)=>{const a=Math.round(+v.amount);if(!(a>0))return{err:"Введите сумму больше нуля"};S.money.tx.push({id:rid(),date:today(),type:"inc",amount:a,cat:"other",note:v.note||"Доход",acc:q.acc||""});const A=S.money.accounts.find(x=>x.id===q.acc);if(A)A.balance+=a;ui.lastAcc=q.acc;persist("money");return`Доход ${rub(a)} записан`}},
-  expense:{t:"Расход",f:[["amount","number","Сколько потратили, ₽",1],["note","text","На что (необязательно)"]],chips:Object.entries(CATS).map(([k,v])=>[k,v[0]]),def:"food",acc:1,
+  expense:{t:"Расход",f:[["amount","number","Сумма, ₽",1],["note","text","На что (необязательно)"]],chips:Object.entries(CATS).map(([k,v])=>[k,v[0]]),def:"food",acc:1,
     save:(v,ch,q)=>{const a=Math.round(+v.amount);if(!(a>0))return{err:"Введите сумму больше нуля"};S.money.tx.push({id:rid(),date:today(),type:"exp",amount:a,cat:ch||"other",note:v.note||"",acc:q.acc||""});const A=S.money.accounts.find(x=>x.id===q.acc);if(A)A.balance-=a;ui.lastAcc=q.acc;persist("money");return`Расход ${rub(a)} записан`}},
-  water:{t:"Вода",f:[["ml","number","Сколько мл",1]],chips:[["250","250 мл"],["330","330 мл"],["500","500 мл"],["750","750 мл"]],fill:"ml",
+  water:{t:"Вода",f:[["ml","number","Миллилитры",1]],chips:[["250","250 мл"],["330","330 мл"],["500","500 мл"],["750","750 мл"]],fill:"ml",
     save:v=>{const m=Math.round(+v.ml);if(!(m>0))return{err:"Введите объём"};const l=hl();l.water=(l.water||0)+m;persist("health");return`+${fmt(m)} мл воды`}},
-  sleep:{t:"Сон",f:[["h","number","Сколько часов спали",1]],chips:[["6","6 ч"],["7","7 ч"],["7.5","7,5 ч"],["8","8 ч"],["9","9 ч"]],fill:"h",
+  sleep:{t:"Сон",f:[["h","number","Часы сна",1]],chips:[["6","6 ч"],["7","7 ч"],["7.5","7,5 ч"],["8","8 ч"],["9","9 ч"]],fill:"h",
     save:v=>{const h=parseFloat(String(v.h).replace(",","."));if(!(h>0&&h<=16))return{err:"Введите от 1 до 16 часов"};hl().sleep=Math.round(h*60);persist("health");return`Сон ${hm(h*60)} записан`}},
   weight:{t:"Вес",f:[["kg","number","Вес, кг",1]],pre:()=>({kg:lastWeight()||""}),
     save:v=>{const k=parseFloat(String(v.kg).replace(",","."));if(!(k>=30&&k<=300))return{err:"Введите вес от 30 до 300 кг"};hl().weight=Math.round(k*10)/10;S.food.profile.weight=hl().weight;persist("health");persist("food");return`Вес ${fmt1(k)} кг записан`}},
-  steps:{t:"Шаги",f:[["n","number","Сколько шагов",1]],
+  steps:{t:"Шаги",f:[["n","number","Шаги",1]],
     save:v=>{const n=Math.round(+v.n);if(!(n>=0))return{err:"Введите число шагов"};hl().steps=n;persist("health");return`${fmt(n)} шагов записано`}},
   mood:{t:"Настроение",chips:[["1","1 плохо"],["2","2"],["3","3 нормально"],["4","4"],["5","5 отлично"]],instant:1,
     save:(v,ch)=>{hl().mood=+ch;persist("health");return`Настроение ${ch} из 5`}},
@@ -1344,7 +1348,7 @@ const QS={
     save:v=>{const a=Math.round(+v.sys),b=Math.round(+v.dia);if(!(a>=60&&a<=260&&b>=30&&b<=180))return{err:"Проверьте значения: верхнее 60–260, нижнее 30–180"};hl().bp=`${a}/${b}`;persist("health");return`Давление ${a}/${b} записано`}},
   meal:{t:"Приём пищи",f:[["name","text","Что съели",1],["kcal","number","Калории",1],["p","number","Белки, г",0,1],["f","number","Жиры, г",0,1],["c","number","Углеводы, г",0,1]],recent:1,hint:STANDALONE?"":"Не знаете калорийность? Напишите ассистенту, что съели, он посчитает и запишет сам",
     save:v=>{const k=Math.round(+v.kcal);if(!v.name||!(k>=0))return{err:"Укажите блюдо и калории"};const T=today();(S.food.meals[T]=S.food.meals[T]||[]).push({id:rid(),name:v.name,kcal:k,p:+v.p||0,f:+v.f||0,c:+v.c||0});persist("food");return`${v.name}: ${fmt(k)} ккал`}},
-  workout:{t:"Тренировка",chips:Object.entries(WTYPES).map(([k,v])=>[k,v[0]]),def:"strength",f:[["min","number","Сколько минут",1],["note","text","Заметка, например «ноги и пресс»"]],
+  workout:{t:"Тренировка",chips:Object.entries(WTYPES).map(([k,v])=>[k,v[0]]),def:"strength",f:[["min","number","Минуты",1],["note","text","Заметка, например «ноги и пресс»"]],
     save:(v,ch)=>{const m=Math.round(+v.min);if(!(m>0))return{err:"Введите минуты"};S.workouts.push({id:rid(),type:ch||"other",min:m,date:today(),note:v.note||""});persist("workouts");return`${WTYPES[ch]?.[0]||"Тренировка"}, ${m} мин`}},
   task:{t:"Задача",f:[["title","text","Что нужно сделать",1]],chips:[["today","Сегодня"],["week","На неделе"],["later","Потом"]],def:"today",
     save:(v,ch)=>{if(!v.title)return{err:"Напишите задачу"};S.tasks.push({id:rid(),title:v.title,tag:"personal",bucket:ch,due:ch==="today"?today():ch==="week"?iso(addDays(new Date(),3)):null,done:false});persist("tasks");return"Задача добавлена"}},
@@ -1379,7 +1383,7 @@ function openQS(type,id){
   const f0=$("#qsPanel [data-first]");if(f0){f0.focus();try{f0.select()}catch{}}
 }
 function recentMeals(){const seen=new Set(),out=[];Object.keys(S.food.meals).sort().reverse().forEach(d=>(S.food.meals[d]||[]).slice().reverse().forEach(m=>{const k=(m.name||"").toLowerCase();if(k&&!seen.has(k)&&out.length<6){seen.add(k);out.push(m)}}));return out}
-function closeQS(){$("#qs").classList.remove("open");ui.qs=null}
+function closeQS(){const q=$("#qs");q.classList.remove("open");q.style.height="";q.style.top="";ui.qs=null}
 function saveQS(chipOverride){
   const q=ui.qs;if(!q)return;const c=QS[q.type];const form=$('#qsPanel form');const v={};
   (c.f||[]).forEach(([n])=>{v[n]=(form.elements[n]?.value||"").trim().replace(",",".")});
@@ -1539,7 +1543,7 @@ document.addEventListener("change",e=>{
     else if(path.startsWith("goals."))s.goals[path.slice(6)]=+val||0;
     commit("settings")}
 });
-window.visualViewport?.addEventListener("resize",()=>{const q=$("#qs");if(q)q.style.paddingBottom=Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop)+"px"});
+window.visualViewport?.addEventListener("resize",()=>{const q=$("#qs");if(!q||!q.classList.contains("open"))return;q.style.height=visualViewport.height+"px";q.style.top=visualViewport.offsetTop+"px";const a=document.activeElement;if(a&&q.contains(a))a.scrollIntoView({block:"nearest"})});
 matchMedia("(max-width:760px)").addEventListener?.("change",()=>{if(ui.view==="calendar")render()});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(ui.view==="prefs")render()});
 setInterval(()=>{if(ui.view==="calendar"&&!document.activeElement?.matches("input,textarea,select"))render()},60000);
@@ -1607,8 +1611,8 @@ if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.
     if(S.settings.theme==="system"){document.documentElement.setAttribute("data-theme",tg.colorScheme==="dark"?"dark":"light");tg.onEvent("themeChanged",()=>{if(S.settings.theme==="system"){document.documentElement.setAttribute("data-theme",tg.colorScheme==="dark"?"dark":"light");paint()}})}
     paint();new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme","data-accent"]});
     const back=()=>{if(ui.view!=="overview"){tg.BackButton.show()}else tg.BackButton.hide()};
-    tg.BackButton.onClick(()=>{if($("#qs").classList.contains("open"))closeQS();else location.hash="#overview"});
-    addEventListener("hashchange",back);back();
+    tg.BackButton.onClick(()=>{if($("#qs").classList.contains("open"))closeQS();else go("overview")});
+    addEventListener("hashchange",back);addEventListener("popstate",back);document.addEventListener("click",()=>setTimeout(back,0));back();
     document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!el)return;const a=el.dataset.a;try{if(a==="hab"||a==="task-done")tg.HapticFeedback.impactOccurred("light");else if(a==="qs-chip"||a==="qs")tg.HapticFeedback.selectionChanged()}catch(e){}},true);
     document.addEventListener("submit",e=>{if(e.target.dataset.f==="qs")try{tg.HapticFeedback.notificationOccurred("success")}catch(err){}},true);
   };

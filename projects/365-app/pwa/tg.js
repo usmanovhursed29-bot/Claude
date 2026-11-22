@@ -9,8 +9,8 @@
     if(S.settings.theme==="system"){document.documentElement.setAttribute("data-theme",tg.colorScheme==="dark"?"dark":"light");tg.onEvent("themeChanged",()=>{if(S.settings.theme==="system"){document.documentElement.setAttribute("data-theme",tg.colorScheme==="dark"?"dark":"light");paint()}})}
     paint();new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme","data-accent"]});
     const back=()=>{if(ui.view!=="overview"){tg.BackButton.show()}else tg.BackButton.hide()};
-    tg.BackButton.onClick(()=>{if($("#qs").classList.contains("open"))closeQS();else location.hash="#overview"});
-    addEventListener("hashchange",back);back();
+    tg.BackButton.onClick(()=>{if($("#qs").classList.contains("open"))closeQS();else go("overview")});
+    addEventListener("hashchange",back);addEventListener("popstate",back);document.addEventListener("click",()=>setTimeout(back,0));back();
     document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!el)return;const a=el.dataset.a;try{if(a==="hab"||a==="task-done")tg.HapticFeedback.impactOccurred("light");else if(a==="qs-chip"||a==="qs")tg.HapticFeedback.selectionChanged()}catch(e){}},true);
     document.addEventListener("submit",e=>{if(e.target.dataset.f==="qs")try{tg.HapticFeedback.notificationOccurred("success")}catch(err){}},true);
   };
