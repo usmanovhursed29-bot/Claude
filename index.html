@@ -441,6 +441,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
   .topbar .brand{padding:0;margin-right:auto}
   .tabbar{display:flex;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
   .tabbar::-webkit-scrollbar{display:none}
+  .tabbar button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer;background:none;border:0}
   .tabbar a,.tabbar button{flex:0 0 auto;min-width:76px;padding:0 6px;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:56px;font-size:11px;color:var(--fg3);text-decoration:none;white-space:nowrap;position:relative}
   .tabbar [aria-current="page"]::after{content:"";position:absolute;top:0;left:22px;right:22px;height:2px;border-radius:0 0 2px 2px;background:var(--accent)}
   .tabbar [aria-current="page"]{color:var(--fg)}
@@ -784,17 +785,23 @@ const VIEWS=[
   ["assistant","Ассистент","ai"],["prefs","Настройки","set"]].filter(v=>!(STANDALONE&&v[0]==="assistant"));
 const ui={seen:{},evEdit:null,view:"overview",bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
 function pruneNotes(keep){const n0=S.notes.length;S.notes=S.notes.filter(n=>n.id===keep||(n.title||"").trim()||(n.body||"").trim());if(S.notes.length!==n0)persist("notes")}
-function route(){
+function route(view){
   pruneNotes(null);
-  let h=(location.hash||"").slice(1);
+  let h=typeof view==="string"?view:(location.hash||"").slice(1);
   if(h==="body"){ui.healthTab="food";h="health"}
+  if(typeof view!=="string"&&!VIEWS.some(v=>v[0]===h)&&lastView)h=ui.view; /* empty or foreign hash (e.g. Telegram launch data): keep current view */
   ui.view=VIEWS.some(v=>v[0]===h)?h:"overview";
-  $("#sheet").classList.remove("open");
+  $("#sheet").classList.remove("open");closeQS&&$("#qs")?.classList.contains("open")&&closeQS();
   render(true);
 }
-window.addEventListener("hashchange",route);
-function go(view){if(("#"+view)!==location.hash){try{history.pushState(null,"","#"+view)}catch{location.hash="#"+view;return}}route()}
-window.addEventListener("popstate",route);
+window.addEventListener("hashchange",()=>route());
+/* navigation does not depend on the address bar: Telegram's webview may ignore hash/history changes */
+function go(view){if(view==="body"){ui.healthTab="food";view="health"}route(view);try{if(("#"+view)!==location.hash)history.pushState(null,"","#"+view)}catch(e){}}
+window.addEventListener("popstate",()=>route());
+(()=>{let sx=0,sy=0,t=null;const tb=document.getElementById("tabbar");
+  tb.addEventListener("touchstart",e=>{const x=e.touches[0];sx=x.clientX;sy=x.clientY;t=e.target.closest('[data-a="nav"]')},{passive:true});
+  tb.addEventListener("touchend",e=>{const x=e.changedTouches[0];if(!t)return;if(Math.abs(x.clientX-sx)<10&&Math.abs(x.clientY-sy)<10){e.preventDefault();go(t.dataset.v)}t=null},{passive:false});
+})();
 document.addEventListener("click",e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const v=a.getAttribute("href").slice(1);if(!v||e.metaKey||e.ctrlKey)return;e.preventDefault();go(v)});
 function navHtml(){
   const cnt={tasks:openTasks().length,habits:S.habits.length?`${S.habits.filter(h=>h.log[today()]).length}/${S.habits.length}`:""};
