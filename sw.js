@@ -1,4 +1,4 @@
-const C="kwantoww-a4ff7bc0";
+const C="kwantoww-9ea23c15";
 const FILES=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-180.png"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(C).then(c=>c.addAll(FILES.map(f=>new Request(f,{cache:"reload"})))).then(()=>self.skipWaiting()));
