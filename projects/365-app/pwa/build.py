@@ -8,7 +8,7 @@ src=src.replace("const STANDALONE=false;","const STANDALONE=true;",1)
 title=re.search(r"<title>(.*?)</title>",src).group(1)
 body=re.sub(r"<title>.*?</title>\n?","",src,count=1)
 body=body.replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
-ver=hashlib.sha1(body.encode()).hexdigest()[:8]
+ver=hashlib.sha1((body+open(os.path.join(here,"tg.js"),encoding="utf-8").read()).encode()).hexdigest()[:8]
 head=f'''<!doctype html>
 <html lang="ru">
 <head>
@@ -25,12 +25,15 @@ head=f'''<!doctype html>
 <meta name="apple-mobile-web-app-title" content="Kwantoww">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png" type="image/png">
+<script src="https://telegram.org/js/telegram-web-app.js?59" async onload="window.__tgReady&&window.__tgReady()"></script>
 <style>:root{{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}}body{{margin:0}}img{{max-width:100%}}[hidden]{{display:none!important}}</style>
 </head>
 <body>
 '''
+TG=open(os.path.join(here,"tg.js"),encoding="utf-8").read()
 tail=f'''
-<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{{}}));</script>
+<script>
+{TG}if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{{}}));</script>
 </body>
 </html>
 '''
