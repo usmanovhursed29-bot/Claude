@@ -921,7 +921,7 @@ function vOverview(){
     <div class="card"><div class="card-h"><h2>Продуктивность</h2><span class="meta">счёт дня за 2 недели</span></div>
       ${lineChart(vals,days.map(x=>parse(x).getDate()),{h:220,min:0,max:100,aria:"Счёт дня за 14 дней"})}</div>
     <div class="card"><div class="card-h"><h2>Привычки сегодня</h2><span class="meta">${hDone}/${H.length}</span></div>
-      <div class="list">${H.map(h=>{const on=!!h.log[T],c=HCOL[h.color%HCOL.length];return`<div class="li"><span class="t">${esc(h.name)}</span><span class="meta">серия ${streak(h)}</span><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:`box-shadow:inset 0 0 0 1.5px ${c}`}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить: ${esc(h.name)}">${ic("check")}</button></div>`}).join("")||`<div class="empty">Привычек пока нет</div>`}</div>
+      <div class="list">${H.map(h=>{const on=!!h.log[T],c=HCOL[h.color%HCOL.length];return`<div class="li"><span class="t">${esc(h.name)}</span><span class="meta">серия ${streak(h)}</span><button class="btn sm ghost tdel" data-a="hab-del" data-id="${h.id}" aria-label="Удалить привычку" title="Удалить">${ic("trash","s")}</button><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:`box-shadow:inset 0 0 0 1.5px ${c}`}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить: ${esc(h.name)}">${ic("check")}</button></div>`}).join("")||`<div class="empty">Привычек пока нет</div>`}</div>
       <button class="btn" data-a="qs" data-v="habit">${ic("plus","s")}Новая привычка</button></div>
   </div>
   <div class="grid g3" style="align-items:start">
@@ -1042,7 +1042,7 @@ function vHabits(){
     return`<div class="card tight"><div class="card-h"><div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(h.name)}</h2></div><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить сегодня">${ic("check")}</button></div>
       <div class="days7">${d7.map(x=>`<span class="wd">${WD[parse(x).getDay()]}</span>`).join("")}${d7.map(x=>`<button class="${h.log[x]?"on":""}" style="${h.log[x]?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${x}" aria-label="${dLabel(x)}" aria-pressed="${!!h.log[x]}"></button>`).join("")}</div>
       <div class="meter"><i style="width:${Math.round(r/span(h)*100)}%;background:${c}"></i></div>
-      <div class="row" style="justify-content:space-between"><span class="meta">серия ${streak(h)} · ${Math.round(r/span(h)*100)}% за ${span(h)} ${plural(span(h),"день","дня","дней")}</span><button class="btn sm ghost x ${ui.armed===h.id?"armed":""}" data-a="del" data-k="habits" data-id="${h.id}">${ui.armed===h.id?"Удалить?":"Удалить"}</button></div></div>`}).join("")}
+      <div class="row" style="justify-content:space-between"><span class="meta">серия ${streak(h)} · ${Math.round(r/span(h)*100)}% за ${span(h)} ${plural(span(h),"день","дня","дней")}</span><button class="btn sm ghost tdel" data-a="hab-del" data-id="${h.id}" aria-label="Удалить привычку" title="Удалить">${ic("trash","s")}</button></div></div>`}).join("")}
     ${H.length?`<button class="add-card" data-a="qs" data-v="habit">${ic("plus","s")}Новая привычка</button>`:""}
   </div>
   <div class="card"><div class="card-h"><h2>Ритм за 30 дней</h2><span class="meta">${dLabel(d30[0])} – ${dLabel(T)}</span></div>
@@ -1453,6 +1453,7 @@ document.addEventListener("click",e=>{
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"nav":go(v);break;
+    case"hab-del":{const i=S.habits.findIndex(x=>x.id===id);if(i<0)break;const [h]=S.habits.splice(i,1);commit("habits");toast(`Привычка «${h.name}» удалена`,()=>{S.habits.splice(Math.min(i,S.habits.length),0,h);persist("habits")});break}
     case"task-del":{const i=S.tasks.findIndex(x=>x.id===id);if(i<0)break;const [t]=S.tasks.splice(i,1);commit("tasks");toast("Задача удалена",()=>{S.tasks.splice(Math.min(i,S.tasks.length),0,t);persist("tasks")});break}
     case"hard-reload":(async()=>{try{const rs=await navigator.serviceWorker?.getRegistrations();await Promise.all((rs||[]).map(r=>r.unregister()));const ks=await caches?.keys();await Promise.all((ks||[]).map(k=>caches.delete(k)))}catch{}location.replace(location.pathname+"?v="+Date.now()+location.hash)})();break;
     case"qs":openQS(v,id);break;
