@@ -75,6 +75,7 @@
 :root[data-theme="dark"][data-accent="graphite"]{--accent:#e6e4df;--accent-ink:#e6e4df;--on-accent:#141413;--accent-soft:rgba(230,228,223,.10);--card-a:#2c2c2a;--card-a2:#262624}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -559,7 +560,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 </svg>
 
 <script>
-"use strict";
+(()=>{"use strict"; /* everything lives in this scope: other scripts (e.g. Telegram's) cannot overwrite our functions */
 /* ---------- utils ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -590,7 +591,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="2f7f0804";
+const BUILD="f205f220";
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
 window.addEventListener("unhandledrejection",e=>{const m=String(e.reason&&e.reason.message||e.reason||"ошибка");try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}});
 const KEYS=["settings","tasks","events","habits","health","food","workouts","money","notes","chats","focus","meta"];
@@ -1613,6 +1614,8 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
 
 boot();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
+window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$};
+})();
 </script>
 
 <script>
@@ -1621,6 +1624,7 @@ if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.
   const inTG=/tgWebApp/.test(location.hash+location.search)||!!window.TelegramWebviewProxy;
   if(inTG)document.documentElement.classList.add("tg");
   window.__tgReady=function(){
+    const K=window.KW;if(!K)return;const {S,ui,go,closeQS,$}=K;
     const tg=window.Telegram&&Telegram.WebApp;if(!tg||!tg.initData&&!inTG)return;
     try{tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes()}catch(e){}
     const paint=()=>{try{const bg=getComputedStyle(document.body).backgroundColor;tg.setHeaderColor(bg);tg.setBackgroundColor(bg);if(tg.setBottomBarColor)tg.setBottomBarColor(bg)}catch(e){}};
