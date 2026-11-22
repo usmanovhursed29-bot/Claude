@@ -787,7 +787,7 @@ function navHtml(){
 function renderChrome(){
   $("#topFocus").innerHTML=focusPill();
   $("#nav").innerHTML=navHtml();$("#sheetNav").innerHTML=navHtml();
-  $("#tabbar").innerHTML=VIEWS.map(v=>`<a href="#${v[0]}" ${ui.view===v[0]?'aria-current="page"':""}>${ic(v[2])}<span>${v[1]}</span></a>`).join("");
+  $("#tabbar").innerHTML=VIEWS.map(v=>`<button type="button" data-a="nav" data-v="${v[0]}" ${ui.view===v[0]?'aria-current="page"':""}>${ic(v[2])}<span>${v[1]}</span></button>`).join("");
   const cur=$('#tabbar [aria-current="page"]');if(cur){const tb=$("#tabbar");const l=cur.offsetLeft-(tb.clientWidth-cur.offsetWidth)/2;if(Math.abs(tb.scrollLeft-l)>4)tb.scrollTo({left:l,behavior:ui.tbInit?"smooth":"auto"});ui.tbInit=1}
 }
 let lastView=null;
@@ -1426,6 +1426,7 @@ document.addEventListener("click",e=>{
     case"dark-toggle":{const dark=el.getAttribute("aria-checked")==="true";S.settings.theme=dark?"light":"dark";applyTheme();commit("settings");break}
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
+    case"nav":go(v);break;
     case"qs":openQS(v,id);break;
     case"undo":if(ui.undo){ui.undo();ui.undo=null;$("#toast").classList.remove("show");render()}break;
     case"qs-close":if(e.target===el||el.tagName==="BUTTON")closeQS();break;

@@ -33,7 +33,7 @@ head=f'''<!doctype html>
 TG=open(os.path.join(here,"tg.js"),encoding="utf-8").read()
 tail=f'''
 <script>
-{TG}if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{{}}));</script>
+{TG}if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{{updateViaCache:"none"}}).then(r=>r.update()).catch(()=>{{}}));</script>
 </body>
 </html>
 '''
@@ -41,11 +41,7 @@ open(os.path.join(dist,"index.html"),"w",encoding="utf-8").write(head+body+tail)
 manifest={"name":"Kwantoww","short_name":"Kwantoww","description":"Личный пульт: задачи, привычки, здоровье, питание, финансы","lang":"ru","start_url":"./","scope":"./","display":"standalone","orientation":"any","background_color":"#f6f5f2","theme_color":"#f6f5f2",
  "icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"},{"src":"icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}]}
 json.dump(manifest,open(os.path.join(dist,"manifest.webmanifest"),"w",encoding="utf-8"),ensure_ascii=False,indent=1)
-sw=f'''const C="kwantoww-{ver}";const FILES=["./","index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-180.png"];
-self.addEventListener("install",e=>{{e.waitUntil(caches.open(C).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()))}});
-self.addEventListener("activate",e=>{{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))}});
-self.addEventListener("fetch",e=>{{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{{if(res.ok&&(new URL(e.request.url).origin===location.origin||e.request.url.includes("fonts.g"))){{const cp=res.clone();caches.open(C).then(c=>c.put(e.request,cp))}}return res}}).catch(()=>e.request.mode==="navigate"?caches.match("index.html"):Response.error())))}});
-'''
+sw=open(os.path.join(here,"sw.template.js"),encoding="utf-8").read().replace("__VER__",ver)
 open(os.path.join(dist,"sw.js"),"w").write(sw)
 def icon(size,maskable=False):
     im=Image.new("RGBA",(size,size),(0,0,0,0));d=ImageDraw.Draw(im)
