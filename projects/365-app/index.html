@@ -58,6 +58,15 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;align-items:start}
+.wgrid .wide{grid-column:span 2}
+.wbox{position:relative;min-width:0;display:flex;flex-direction:column}
+.wbox>.gcard,.wbox>.card,.wbox>a.card{width:100%}
+.wbox.edit{border-radius:16px;box-shadow:0 0 0 2px var(--accent-soft);padding:4px;gap:4px;animation:wig .25s var(--ease)}
+.wbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px 2px 10px;font-size:13px;font-weight:500;position:relative;z-index:2}
+.wcover{position:absolute;inset:40px 0 0 0;z-index:1;border-radius:14px;background:transparent}
+@keyframes wig{from{transform:scale(.98)}}
+@media(max-width:700px){.wgrid{grid-template-columns:minmax(0,1fr)}.wgrid .wide{grid-column:auto}}
 .tdel{color:var(--fg3);flex:none;width:32px;padding:0}.tdel:hover{color:var(--bad)}
 .task .acts{opacity:1!important}
 button,a,[data-a],label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
@@ -878,6 +887,19 @@ function ftToggle(){
 function greet(){const h=new Date().getHours();return h<5?"Доброй ночи":h<12?"Доброе утро":h<18?"Добрый день":"Добрый вечер"}
 function quickActions(){return`<div class="qa">${[["income","plus","Доход"],["expense","money","Расход"],["meal","food","Еда"],["task","tasks","Задача"],["workout","gym","Тренировка"]].map(([k,i,l])=>`<button data-a="qs" data-v="${k}">${ic(i,"s")}${l}</button>`).join("")}</div>`}
 const PCOL={"Привычки":"var(--c1)","Сон":"var(--c4)","Вода":"var(--c6)","Питание":"var(--c2)","Движение":"var(--c5)"};
+const WDEF=["water","spent","tasksStat","chart","habits","todayTasks","food","health","events"];
+const WCAT={water:["Вода","drop","Сколько выпито, добавить одним касанием"],spent:["Расходы за месяц","money","Потрачено и остаток"],balance:["Всего денег","money","Сумма на всех счетах"],budget:["Бюджет и накопления","money","Сколько осталось из бюджета"],
+  tasksStat:["Задачи: счётчик","tasks","Сколько сделано сегодня"],todayTasks:["Задачи на сегодня","tasks","Список с галочками"],habits:["Привычки","habit","Отметить одним касанием"],chart:["Продуктивность","home","График счёта дня"],
+  food:["Питание","food","Калории и БЖУ за сегодня"],workouts:["Тренировки","gym","Сколько за неделю"],steps:["Шаги","steps","Шаги за сегодня"],sleep:["Сон","bed","Сколько спали"],mood:["Настроение","mood","Отметить настроение"],
+  health:["Здоровье сегодня","health","Вода, сон, шаги, настроение"],events:["Ближайшие события","cal","Из календаря"],notes:["Заметки","note","Последняя заметка"]};
+function wList(){return (S.settings.widgets||WDEF).slice()}
+function openWidgetPicker(){
+  const have=new Set(wList());const opts=Object.keys(WCAT).filter(k=>!have.has(k));
+  ui.qs={type:"_picker"};
+  $("#qsPanel").innerHTML=`<div class="grid" style="gap:14px"><div class="card-h"><h2 style="font-size:18px">Добавить виджет</h2><button type="button" class="btn icon ghost" data-a="qs-close" aria-label="Закрыть">${ic("x")}</button></div>
+    ${opts.length?`<div class="tiles">${opts.map(k=>`<button data-a="w-add" data-v="${k}">${ic(WCAT[k][1],"s")}<span>${WCAT[k][0]}<br><span class="meta">${WCAT[k][2]}</span></span></button>`).join("")}</div>`:`<div class="empty">Все виджеты уже на главном экране</div>`}</div>`;
+  $("#toast").classList.remove("show");$("#qs").classList.add("open");
+}
 function vOverview(){
   const T=today(),d=new Date();
   const sc=dayScore(T),yS=dayScore(iso(addDays(d,-1))).score;
@@ -893,6 +915,71 @@ function vOverview(){
   const evs=S.events.filter(x=>x.date>=T).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,4);
   const name=S.settings.name;
   const H=S.habits,hDone=H.filter(h=>h.log[T]).length;
+
+  const G=S.settings.goals,bal=totalBal(),ws=weekStart(d),wk=S.workouts.filter(w=>parse(w.date)>=ws);
+  const note=S.notes.slice().sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated))[0];
+  const WG={
+    water:{w:0,h:()=>`<button class="gcard grad-blue" data-a="qs" data-v="water" aria-label="Добавить воду">
+      <span class="gicon">${ic("drop","s")}</span><span class="garrow">${ic("plus","s")}</span>
+      <span><span class="gl">Вода сегодня</span><span class="gv" style="display:block">${fmt1((l.water||0)/1000)}<small> из ${fmt1(S.settings.goals.water/1000)} л</small></span><span class="gl" style="display:block;margin-top:4px">Нажмите и выберите, сколько выпили</span></span>
+      <span class="gfoot"><span>Выпито<b>${fmt(l.water||0)} мл</b></span><span class="r">Осталось<b>${fmt(Math.max(0,S.settings.goals.water-(l.water||0)))} мл</b></span></span></button>`},
+    spent:{w:0,h:()=>`<button class="gcard grad-orange" data-a="qs" data-v="expense" aria-label="Записать расход">
+      <span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("plus","s")}</span>
+      <span><span class="gl">Потрачено в ${MP[d.getMonth()]}</span><span class="gv" style="display:block">${cnt("os",sp,"rub")}</span></span>
+      <span class="gfoot"><span>Сегодня<b>${rub(spToday)}</b></span><span class="r">${inc>0?`Остаток<b>${rub(inc-sp)}</b>`:`Доход<b>не внесён</b>`}</span></span></button>`},
+    tasksStat:{w:0,h:()=>`<a class="card" href="#tasks" style="text-decoration:none;color:inherit;justify-content:space-between">
+      <span class="sec">Задачи сегодня</span>
+      <span class="stat"><span class="val">${cnt("ot",tDone)}<small>/${tToday.length}</small></span></span>
+      <span class="dashes">${tToday.length?tToday.map(t=>`<i class="${t.done?"on":""}"></i>`).join(""):"<i></i><i></i><i></i>"}</span>
+      <span class="meta">${tToday.length?(overdue().length?`${overdue().length} просрочено`:"без просрочек"):"задач на сегодня нет"}</span></a>`},
+    chart:{w:1,h:()=>`<div class="card"><div class="card-h"><h2>Продуктивность</h2><span class="meta">счёт дня за 2 недели</span></div>
+      ${lineChart(vals,days.map(x=>parse(x).getDate()),{h:220,min:0,max:100,aria:"Счёт дня за 14 дней"})}</div>`},
+    habits:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>Привычки сегодня</h2><span class="meta">${hDone}/${H.length}</span></div>
+      <div class="list">${H.map(h=>{const on=!!h.log[T],c=HCOL[h.color%HCOL.length];return`<div class="li"><span class="t">${esc(h.name)}</span><span class="meta">серия ${streak(h)}</span><button class="btn sm ghost tdel" data-a="hab-del" data-id="${h.id}" aria-label="Удалить привычку" title="Удалить">${ic("trash","s")}</button><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:`box-shadow:inset 0 0 0 1.5px ${c}`}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить: ${esc(h.name)}">${ic("check")}</button></div>`}).join("")||`<div class="empty">Привычек пока нет</div>`}</div>
+      <button class="btn" data-a="qs" data-v="habit">${ic("plus","s")}Новая привычка</button></div>`},
+    todayTasks:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("tasks","s")}Сегодня</h2><a class="meta" href="#tasks">Все задачи</a></div>
+      <div class="list">${tToday.length?tToday.slice(0,6).map(taskLi).join(""):`<div class="empty">На сегодня задач нет</div>`}</div>
+      ${quickTaskForm("today")}</div>`},
+    food:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("food","s")}Питание</h2><a class="meta" href="#body">Подробно</a></div>
+      <div class="stat"><span class="val">${cnt("ok",e.kcal)}<small> / ${P?fmt(P.kcal):"—"} ккал</small></span></div>
+      <div class="meter acc ${P&&e.kcal>P.kcal*1.05?"over":""}"><i style="width:${P?clamp(e.kcal/P.kcal*100,0,100):0}%"></i></div>
+      <span class="meta">${P?`Б ${fmt(e.p)}/${P.prot} · Ж ${fmt(e.f)}/${P.fat} · У ${fmt(e.c)}/${P.carb} г`:"Заполните цель по весу, и появится норма"}</span>
+      <button class="btn" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>`},
+    health:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("health","s")}Здоровье сегодня</h2><a class="meta" href="#health">Подробно</a></div>
+      <div class="list">
+        <div class="li">${ic("drop","s")}<span class="t">Вода</span><span class="r">${fmt1((l.water||0)/1000)} / ${fmt1(S.settings.goals.water/1000)} л</span></div>
+        <div class="li">${ic("bed","s")}<span class="t">Сон</span><span class="r">${l.sleep?hm(l.sleep):"—"}</span><button class="btn sm" data-a="qs" data-v="sleep">Записать</button></div>
+        <div class="li">${ic("steps","s")}<span class="t">Шаги</span><span class="r">${l.steps?fmt(l.steps):"—"}</span><button class="btn sm" data-a="qs" data-v="steps">Записать</button></div>
+        <div class="li">${ic("mood","s")}<span class="t">Настроение</span><span class="r">${l.mood?l.mood+" / 5":"—"}</span><button class="btn sm" data-a="qs" data-v="mood">Отметить</button></div>
+      </div></div>`},
+    events:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("cal","s")}Ближайшее</h2><a class="meta" href="#calendar">Календарь</a></div>
+    <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет. Добавьте их в календаре</div>`}</div></div>`},
+    balance:{w:0,h:()=>`<button class="gcard grad-blue" data-a="nav" data-v="money" aria-label="Открыть финансы"><span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("right","s")}</span>
+      <span><span class="gl">Всего денег</span><span class="gv" style="display:block">${rub(bal)}</span></span>
+      <span class="gfoot"><span>Доход за месяц<b>${rub(inc)}</b></span><span class="r">Расход<b>${rub(sp)}</b></span></span></button>`},
+    budget:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("money","s")}Бюджет</h2><a class="meta" href="#money">Финансы</a></div>
+      ${G.budget?`<div class="stat"><span class="val">${rub(Math.max(0,G.budget-sp))}</span><span class="lbl">осталось из ${rub(G.budget)}</span></div><div class="meter acc ${sp>G.budget?"over":""}"><i style="width:${clamp(sp/G.budget*100,0,100)}%"></i></div>`:`<div class="empty">Задайте бюджет в «Настройки → Цели»</div>`}
+      ${G.save?`<span class="meta">Накопления: ${rub(bal)} из ${rub(G.save)}</span><div class="meter"><i style="width:${clamp(bal/G.save*100,0,100)}%;background:var(--good)"></i></div>`:""}
+      <button class="btn" data-a="qs" data-v="expense">− Расход</button></div>`},
+    workouts:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("gym","s")}Тренировки</h2><span class="meta">эта неделя</span></div>
+      <div class="stat"><span class="val">${wk.length}<small>/${G.workouts}</small></span><span class="lbl">${fmt(wk.reduce((a,w)=>a+(+w.min||0),0))} мин</span></div>
+      <span class="dashes">${[...Array(Math.max(G.workouts,wk.length))].map((_,i)=>`<i class="${i<wk.length?"on":""}"></i>`).join("")}</span>
+      <button class="btn" data-a="qs" data-v="workout">${ic("plus","s")}Тренировка</button></div>`},
+    steps:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("steps","s")}Шаги</h2><span class="meta">цель ${fmt(G.steps)}</span></div>
+      <div class="stat"><span class="val">${fmt(l.steps||0)}</span></div><div class="meter acc"><i style="width:${clamp((l.steps||0)/G.steps*100,0,100)}%"></i></div>
+      <button class="btn" data-a="qs" data-v="steps">Записать шаги</button></div>`},
+    sleep:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("bed","s")}Сон</h2><span class="meta">цель ${hm(G.sleep)}</span></div>
+      <div class="stat"><span class="val">${l.sleep?hm(l.sleep):"—"}</span></div><div class="meter"><i style="width:${clamp((l.sleep||0)/G.sleep*100,0,100)}%;background:var(--c4)"></i></div>
+      <button class="btn" data-a="qs" data-v="sleep">Записать сон</button></div>`},
+    mood:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("mood","s")}Настроение</h2></div>
+      <div class="stat"><span class="val">${l.mood?l.mood+"<small> из 5</small>":"—"}</span></div>
+      <button class="btn" data-a="qs" data-v="mood">Отметить</button></div>`},
+    notes:{w:0,h:()=>`<div class="card"><div class="card-h"><h2>${ic("note","s")}Заметки</h2><a class="meta" href="#notes">Все</a></div>
+      ${note?`<button class="note-item" data-a="w-note" data-id="${note.id}"><span class="nt">${note.pinned?ic("pin","s")+" ":""}${esc(note.title||"Без названия")}</span><span class="np" style="white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical">${esc((note.body||"").slice(0,200)||"Пусто")}</span></button>`:`<div class="empty">Заметок пока нет</div>`}
+      <button class="btn" data-a="w-newnote">${ic("plus","s")}Новая заметка</button></div>`}
+  };
+  const list=(S.settings.widgets||WDEF).filter(k=>WG[k]);
+  const ed=!!ui.wEdit;
   return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день")}
   ${quickActions()}
   <div class="scoreblock">
@@ -902,47 +989,9 @@ function vOverview(){
     <div class="tabs" role="tablist" style="max-width:420px">${[["d","Сегодня",sc.score??"—"],["w","Неделя",W7.v??"—"],["m","Месяц",M30.v??"—"]].map(([k,n,c])=>`<button role="tab" aria-selected="${per===k}" data-a="ov-p" data-v="${k}">${n} <span class="meta mono">${c}</span></button>`).join("")}</div>
     ${per==="d"&&sc.parts.length?`<div class="segs">${sc.parts.map(p=>`<div style="flex:${p[1]}"><i><b style="width:${Math.round(p[2]*100)}%;background:${PCOL[p[0]]}"></b></i><span>${p[0]}</span></div>`).join("")}</div>`:""}
   </div>
-  <div class="ov-top">
-    <button class="gcard grad-blue" data-a="qs" data-v="water" aria-label="Добавить воду">
-      <span class="gicon">${ic("drop","s")}</span><span class="garrow">${ic("plus","s")}</span>
-      <span><span class="gl">Вода сегодня</span><span class="gv" style="display:block">${fmt1((l.water||0)/1000)}<small> из ${fmt1(S.settings.goals.water/1000)} л</small></span><span class="gl" style="display:block;margin-top:4px">Нажмите и выберите, сколько выпили</span></span>
-      <span class="gfoot"><span>Выпито<b>${fmt(l.water||0)} мл</b></span><span class="r">Осталось<b>${fmt(Math.max(0,S.settings.goals.water-(l.water||0)))} мл</b></span></span></button>
-    <button class="gcard grad-orange" data-a="qs" data-v="expense" aria-label="Записать расход">
-      <span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("plus","s")}</span>
-      <span><span class="gl">Потрачено в ${MP[d.getMonth()]}</span><span class="gv" style="display:block">${cnt("os",sp,"rub")}</span></span>
-      <span class="gfoot"><span>Сегодня<b>${rub(spToday)}</b></span><span class="r">${inc>0?`Остаток<b>${rub(inc-sp)}</b>`:`Доход<b>не внесён</b>`}</span></span></button>
-    <a class="card" href="#tasks" style="text-decoration:none;color:inherit;justify-content:space-between">
-      <span class="sec">Задачи сегодня</span>
-      <span class="stat"><span class="val">${cnt("ot",tDone)}<small>/${tToday.length}</small></span></span>
-      <span class="dashes">${tToday.length?tToday.map(t=>`<i class="${t.done?"on":""}"></i>`).join(""):"<i></i><i></i><i></i>"}</span>
-      <span class="meta">${tToday.length?(overdue().length?`${overdue().length} просрочено`:"без просрочек"):"задач на сегодня нет"}</span></a>
-  </div>
-  <div class="grid g-main" style="align-items:start">
-    <div class="card"><div class="card-h"><h2>Продуктивность</h2><span class="meta">счёт дня за 2 недели</span></div>
-      ${lineChart(vals,days.map(x=>parse(x).getDate()),{h:220,min:0,max:100,aria:"Счёт дня за 14 дней"})}</div>
-    <div class="card"><div class="card-h"><h2>Привычки сегодня</h2><span class="meta">${hDone}/${H.length}</span></div>
-      <div class="list">${H.map(h=>{const on=!!h.log[T],c=HCOL[h.color%HCOL.length];return`<div class="li"><span class="t">${esc(h.name)}</span><span class="meta">серия ${streak(h)}</span><button class="btn sm ghost tdel" data-a="hab-del" data-id="${h.id}" aria-label="Удалить привычку" title="Удалить">${ic("trash","s")}</button><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:`box-shadow:inset 0 0 0 1.5px ${c}`}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить: ${esc(h.name)}">${ic("check")}</button></div>`}).join("")||`<div class="empty">Привычек пока нет</div>`}</div>
-      <button class="btn" data-a="qs" data-v="habit">${ic("plus","s")}Новая привычка</button></div>
-  </div>
-  <div class="grid g3" style="align-items:start">
-    <div class="card"><div class="card-h"><h2>${ic("tasks","s")}Сегодня</h2><a class="meta" href="#tasks">Все задачи</a></div>
-      <div class="list">${tToday.length?tToday.slice(0,6).map(taskLi).join(""):`<div class="empty">На сегодня задач нет</div>`}</div>
-      ${quickTaskForm("today")}</div>
-    <div class="card"><div class="card-h"><h2>${ic("food","s")}Питание</h2><a class="meta" href="#body">Подробно</a></div>
-      <div class="stat"><span class="val">${cnt("ok",e.kcal)}<small> / ${P?fmt(P.kcal):"—"} ккал</small></span></div>
-      <div class="meter acc ${P&&e.kcal>P.kcal*1.05?"over":""}"><i style="width:${P?clamp(e.kcal/P.kcal*100,0,100):0}%"></i></div>
-      <span class="meta">${P?`Б ${fmt(e.p)}/${P.prot} · Ж ${fmt(e.f)}/${P.fat} · У ${fmt(e.c)}/${P.carb} г`:"Заполните цель по весу, и появится норма"}</span>
-      <button class="btn" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>
-    <div class="card"><div class="card-h"><h2>${ic("health","s")}Здоровье сегодня</h2><a class="meta" href="#health">Подробно</a></div>
-      <div class="list">
-        <div class="li">${ic("drop","s")}<span class="t">Вода</span><span class="r">${fmt1((l.water||0)/1000)} / ${fmt1(S.settings.goals.water/1000)} л</span></div>
-        <div class="li">${ic("bed","s")}<span class="t">Сон</span><span class="r">${l.sleep?hm(l.sleep):"—"}</span><button class="btn sm" data-a="qs" data-v="sleep">Записать</button></div>
-        <div class="li">${ic("steps","s")}<span class="t">Шаги</span><span class="r">${l.steps?fmt(l.steps):"—"}</span><button class="btn sm" data-a="qs" data-v="steps">Записать</button></div>
-        <div class="li">${ic("mood","s")}<span class="t">Настроение</span><span class="r">${l.mood?l.mood+" / 5":"—"}</span><button class="btn sm" data-a="qs" data-v="mood">Отметить</button></div>
-      </div></div>
-  </div>
-  <div class="card"><div class="card-h"><h2>${ic("cal","s")}Ближайшее</h2><a class="meta" href="#calendar">Календарь</a></div>
-    <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет. Добавьте их в календаре</div>`}</div></div>
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:17px;font-weight:500">Мои виджеты</h2><button class="btn sm ${ed?"pri":""}" data-a="w-edit">${ed?"Готово":"Настроить"}</button></div>
+  <div class="wgrid">${list.map((k,i)=>`<div class="wbox ${WG[k].w?"wide":""} ${ed?"edit":""}">${ed?`<div class="wbar"><span>${esc(WCAT[k][0])}</span><span class="row" style="gap:2px"><button class="btn sm ghost icon" data-a="w-up" data-v="${k}" aria-label="Выше" ${i===0?"disabled":""}>${ic("left","s")}</button><button class="btn sm ghost icon" data-a="w-down" data-v="${k}" aria-label="Ниже" ${i===list.length-1?"disabled":""}>${ic("right","s")}</button><button class="btn sm ghost icon tdel" data-a="w-del" data-v="${k}" aria-label="Убрать виджет">${ic("x","s")}</button></span></div>`:""}${WG[k].h()}${ed?`<div class="wcover"></div>`:""}</div>`).join("")}
+    <button class="add-card" data-a="w-pick" style="min-height:120px">${ic("plus","s")}Добавить виджет</button></div>
   ${STANDALONE?`<p class="meta mono" style="text-align:center;margin:0">версия ${BUILD}${(()=>{let e="";try{e=localStorage.getItem("kwantoww:lastError")||""}catch{}return e?` · <span style="color:var(--bad)">${esc(e)}</span>`:""})()}</p>`:""}`;
 }
 function taskLi(t){
@@ -1453,6 +1502,13 @@ document.addEventListener("click",e=>{
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"nav":go(v);break;
+    case"w-edit":ui.wEdit=!ui.wEdit;render();break;
+    case"w-pick":openWidgetPicker();break;
+    case"w-add":{const l=wList();l.push(v);S.settings.widgets=l;closeQS();commit("settings");toast(`Виджет «${WCAT[v][0]}» добавлен`);setTimeout(()=>{const b=document.querySelectorAll(".wbox");b[b.length-1]?.scrollIntoView({block:"center",behavior:"smooth"})},50);break}
+    case"w-del":{const l=wList();const i=l.indexOf(v);if(i<0)break;l.splice(i,1);S.settings.widgets=l;commit("settings");toast(`Виджет «${WCAT[v][0]}» убран`,()=>{const x=wList();x.splice(i,0,v);S.settings.widgets=x;persist("settings")});break}
+    case"w-up":case"w-down":{const l=wList();const i=l.indexOf(v),j=a==="w-up"?i-1:i+1;if(i<0||j<0||j>=l.length)break;[l[i],l[j]]=[l[j],l[i]];S.settings.widgets=l;commit("settings");break}
+    case"w-note":ui.noteId=id;ui.noteEditing=true;go("notes");break;
+    case"w-newnote":{const n={id:rid(),title:"",body:"",updated:Date.now(),pinned:false};S.notes.push(n);ui.noteId=n.id;ui.noteEditing=true;ui.noteQ="";persist("notes");go("notes");setTimeout(()=>$("#noteTitle")?.focus(),50);break}
     case"hab-del":{const i=S.habits.findIndex(x=>x.id===id);if(i<0)break;const [h]=S.habits.splice(i,1);commit("habits");toast(`Привычка «${h.name}» удалена`,()=>{S.habits.splice(Math.min(i,S.habits.length),0,h);persist("habits")});break}
     case"task-del":{const i=S.tasks.findIndex(x=>x.id===id);if(i<0)break;const [t]=S.tasks.splice(i,1);commit("tasks");toast("Задача удалена",()=>{S.tasks.splice(Math.min(i,S.tasks.length),0,t);persist("tasks")});break}
     case"hard-reload":(async()=>{try{const rs=await navigator.serviceWorker?.getRegistrations();await Promise.all((rs||[]).map(r=>r.unregister()));const ks=await caches?.keys();await Promise.all((ks||[]).map(k=>caches.delete(k)))}catch{}location.replace(location.pathname+"?v="+Date.now()+location.hash)})();break;
