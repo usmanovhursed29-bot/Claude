@@ -58,6 +58,10 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+button,a,[data-a],label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.task.new,.li.new{animation:taskin .5s var(--ease) both}
+@keyframes taskin{0%{opacity:0;transform:translateY(-6px);background:var(--accent-soft)}60%{opacity:1;background:var(--accent-soft)}100%{transform:none}}
+.check{transition:background-color .12s ease,box-shadow .12s ease}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -819,6 +823,7 @@ function render(enter){
   tweenNums(false);
   if(ui.flash){const el=document.querySelector(ui.flash);if(el)el.classList.add("pop");ui.flash=null}
   after(fresh,cs);
+  ui.newTask=null;
 }
 function after(fresh,cs){
   if(ui.view==="assistant"){const m=$("#msgs");if(m)m.scrollTop=m.scrollHeight}
@@ -899,7 +904,7 @@ function vOverview(){
   <div class="ov-top">
     <button class="gcard grad-blue" data-a="ft-toggle" aria-label="${FT.running?"Пауза таймера фокуса":"Запустить таймер фокуса"}">
       <span class="gicon">${ic("timer","s")}</span><span class="garrow">${ic(FT.running?"pause":"play","s")}</span>
-      <span><span class="gl">Время фокуса</span><span class="gv" style="display:block">${hm(fMin)}</span></span>
+      <span><span class="gl">Время фокуса</span><span class="gv" style="display:block">${hm(fMin)}</span><span class="gl" style="display:block;margin-top:4px">${FT.running?"Идёт фокус. Нажмите, чтобы поставить на паузу":fMin?"Нажмите, чтобы начать ещё "+S.settings.focus.work+" мин":"Нажмите и работайте "+S.settings.focus.work+" мин без отвлечений"}</span></span>
       <span class="gfoot"><span>Сессий<b>${fSes||(fMin>0?"—":0)}</b></span><span class="r">Цель<b>${hm(fGoal)}</b></span></span></button>
     <button class="gcard grad-orange" data-a="qs" data-v="expense" aria-label="Записать расход">
       <span class="gicon">${ic("money","s")}</span><span class="garrow">${ic("plus","s")}</span>
@@ -929,7 +934,7 @@ function vOverview(){
       <button class="btn" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>
     <div class="card"><div class="card-h"><h2>${ic("health","s")}Здоровье сегодня</h2><a class="meta" href="#health">Подробно</a></div>
       <div class="list">
-        <div class="li">${ic("drop","s")}<span class="t">Вода</span><span class="r">${fmt1((l.water||0)/1000)} / ${fmt1(S.settings.goals.water/1000)} л</span><button class="btn sm" data-a="qs" data-v="water250">+250</button></div>
+        <div class="li">${ic("drop","s")}<span class="t">Вода</span><span class="r">${fmt1((l.water||0)/1000)} / ${fmt1(S.settings.goals.water/1000)} л</span><button class="btn sm" data-a="qs" data-v="water250">+250</button><button class="btn sm" data-a="qs" data-v="water">Другое</button></div>
         <div class="li">${ic("bed","s")}<span class="t">Сон</span><span class="r">${l.sleep?hm(l.sleep):"—"}</span><button class="btn sm" data-a="qs" data-v="sleep">Записать</button></div>
         <div class="li">${ic("steps","s")}<span class="t">Шаги</span><span class="r">${l.steps?fmt(l.steps):"—"}</span><button class="btn sm" data-a="qs" data-v="steps">Записать</button></div>
         <div class="li">${ic("mood","s")}<span class="t">Настроение</span><span class="r">${l.mood?l.mood+" / 5":"—"}</span><button class="btn sm" data-a="qs" data-v="mood">Отметить</button></div>
@@ -941,7 +946,7 @@ function vOverview(){
 }
 function taskLi(t){
   const late=!t.done&&t.due&&t.due<today();
-  return`<div class="li ${t.done?"done":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><span class="t">${esc(t.title)}</span>${late?`<span class="meta late">просрочено</span>`:""}</div>`;
+  return`<div class="li ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><span class="t">${esc(t.title)}</span>${late?`<span class="meta late">просрочено</span>`:""}</div>`;
 }
 function quickTaskForm(bucket){return`<form class="row" data-f="task-add" data-bucket="${bucket}"><input class="in grow" name="title" placeholder="Новая задача" aria-label="Новая задача" autocomplete="off"><button class="btn icon" aria-label="Добавить">${ic("plus")}</button></form>`}
 
@@ -952,7 +957,7 @@ function vTasks(){
   const load=days.map(x=>S.tasks.filter(t=>!t.done&&(t.due===x||(x===T&&t.bucket==="today"&&(!t.due||t.due<T)))).length+S.events.filter(e=>e.date===x).length);
   const tToday=S.tasks.filter(t=>t.bucket==="today"||t.due===T),tDone=tToday.filter(t=>t.done).length;
   const f=ui.taskTagFilter;
-  const card=t=>{const late=!t.done&&t.due&&t.due<T;return`<div class="task ${t.done?"done":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><div class="body"><span class="t">${esc(t.title)}</span><span class="row" style="gap:12px"><span class="chip"><span class="tag-dot" style="background:${TAGS[t.tag]?.[1]}"></span>${TAGS[t.tag]?.[0]||""}</span>${t.due?`<span class="meta ${late?"late":""}">${late?"просрочено, ":""}${t.due===T?"сегодня":dLabel(t.due)}</span>`:""}</span></div><div class="acts"><button class="btn sm ghost" data-a="task-move" data-id="${t.id}" title="Перенести в следующую колонку" aria-label="Перенести">${ic("right","s")}</button><button class="btn sm ghost x ${ui.armed===t.id?"armed":""}" data-a="del" data-k="tasks" data-id="${t.id}" aria-label="Удалить">${ui.armed===t.id?"Удалить?":ic("x","s")}</button></div></div>`};
+  const card=t=>{const late=!t.done&&t.due&&t.due<T;return`<div class="task ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><div class="body"><span class="t">${esc(t.title)}</span><span class="row" style="gap:12px"><span class="chip"><span class="tag-dot" style="background:${TAGS[t.tag]?.[1]}"></span>${TAGS[t.tag]?.[0]||""}</span>${t.due?`<span class="meta ${late?"late":""}">${late?"просрочено, ":""}${t.due===T?"сегодня":dLabel(t.due)}</span>`:""}</span></div><div class="acts"><button class="btn sm ghost" data-a="task-move" data-id="${t.id}" title="Перенести в следующую колонку" aria-label="Перенести">${ic("right","s")}</button><button class="btn sm ghost x ${ui.armed===t.id?"armed":""}" data-a="del" data-k="tasks" data-id="${t.id}" aria-label="Удалить">${ui.armed===t.id?"Удалить?":ic("x","s")}</button></div></div>`};
   return`${head("Задачи",`${open.length} ${plural(open.length,"открыта","открыто","открыто")}${od.length?` · ${od.length} ${plural(od.length,"просрочена","просрочены","просрочено")}`:""}`,`<button class="btn pri" data-a="qs" data-v="task">${ic("plus","s")}Задача</button>`)}
   <div class="grid g-main-r">
     <button class="gcard grad-blue" data-a="qs" data-v="task" aria-label="Добавить задачу">
@@ -1076,6 +1081,7 @@ function vHealth(){
     <div class="card"><div class="card-h"><h2>Быстрая запись</h2><span class="meta">нажмите и введите число</span></div>
       <div class="tiles">
         ${tile("qs","water250","drop","Вода +250 мл",`сегодня ${fmt1((l.water||0)/1000)} л`)}
+        ${tile("qs","water","drop","Вода, другое","100, 330, 500 мл и любое")}
         ${tile("qs","workout","gym","Тренировка","тип и минуты")}
         ${tile("qs","meal","food","Приём пищи","калории")}
         ${tile("qs","sleep","bed","Сон",l.sleep?hm(l.sleep):"не записан")}
@@ -1326,7 +1332,7 @@ const QS={
     save:(v,ch,q)=>{const a=Math.round(+v.amount);if(!(a>0))return{err:"Введите сумму больше нуля"};S.money.tx.push({id:rid(),date:today(),type:"inc",amount:a,cat:"other",note:v.note||"Доход",acc:q.acc||""});const A=S.money.accounts.find(x=>x.id===q.acc);if(A)A.balance+=a;ui.lastAcc=q.acc;persist("money");return`Доход ${rub(a)} записан`}},
   expense:{t:"Расход",f:[["amount","number","Сумма, ₽",1],["note","text","На что (необязательно)"]],chips:Object.entries(CATS).map(([k,v])=>[k,v[0]]),def:"food",acc:1,
     save:(v,ch,q)=>{const a=Math.round(+v.amount);if(!(a>0))return{err:"Введите сумму больше нуля"};S.money.tx.push({id:rid(),date:today(),type:"exp",amount:a,cat:ch||"other",note:v.note||"",acc:q.acc||""});const A=S.money.accounts.find(x=>x.id===q.acc);if(A)A.balance-=a;ui.lastAcc=q.acc;persist("money");return`Расход ${rub(a)} записан`}},
-  water:{t:"Вода",f:[["ml","number","Миллилитры",1]],chips:[["250","250 мл"],["330","330 мл"],["500","500 мл"],["750","750 мл"]],fill:"ml",
+  water:{t:"Вода",f:[["ml","number","Миллилитры",1]],chips:[["100","100 мл"],["200","200 мл"],["330","330 мл"],["500","500 мл"],["750","750 мл"],["1000","1 л"]],fill:"ml",hint:"Нажмите объём или введите своё число",
     save:v=>{const m=Math.round(+v.ml);if(!(m>0))return{err:"Введите объём"};const l=hl();l.water=(l.water||0)+m;persist("health");return`+${fmt(m)} мл воды`}},
   sleep:{t:"Сон",f:[["h","number","Часы сна",1]],chips:[["6","6 ч"],["7","7 ч"],["7.5","7,5 ч"],["8","8 ч"],["9","9 ч"]],fill:"h",
     save:v=>{const h=parseFloat(String(v.h).replace(",","."));if(!(h>0&&h<=16))return{err:"Введите от 1 до 16 часов"};hl().sleep=Math.round(h*60);persist("health");return`Сон ${hm(h*60)} записан`}},
@@ -1334,9 +1340,9 @@ const QS={
     save:v=>{const k=parseFloat(String(v.kg).replace(",","."));if(!(k>=30&&k<=300))return{err:"Введите вес от 30 до 300 кг"};hl().weight=Math.round(k*10)/10;S.food.profile.weight=hl().weight;persist("health");persist("food");return`Вес ${fmt1(k)} кг записан`}},
   steps:{t:"Шаги",f:[["n","number","Шаги",1]],
     save:v=>{const n=Math.round(+v.n);if(!(n>=0))return{err:"Введите число шагов"};hl().steps=n;persist("health");return`${fmt(n)} шагов записано`}},
-  mood:{t:"Настроение",chips:[["1","1 плохо"],["2","2"],["3","3 нормально"],["4","4"],["5","5 отлично"]],instant:1,
+  mood:{t:"Настроение",chips:[["1","1 плохо"],["2","2 так себе"],["3","3 нормально"],["4","4 хорошо"],["5","5 отлично"]],instant:1,
     save:(v,ch)=>{hl().mood=+ch;persist("health");return`Настроение ${ch} из 5`}},
-  energy:{t:"Энергия",chips:[["1","1 нет сил"],["2","2"],["3","3 норма"],["4","4"],["5","5 много"]],instant:1,
+  energy:{t:"Энергия",chips:[["1","1 нет сил"],["2","2 вялость"],["3","3 норма"],["4","4 бодро"],["5","5 полон сил"]],instant:1,
     save:(v,ch)=>{hl().energy=+ch;persist("health");return`Энергия ${ch} из 5`}},
   bp:{t:"Давление",f:[["sys","number","Верхнее, например 120",1],["dia","number","Нижнее, например 80",1]],
     save:v=>{const a=Math.round(+v.sys),b=Math.round(+v.dia);if(!(a>=60&&a<=260&&b>=30&&b<=180))return{err:"Проверьте значения: верхнее 60–260, нижнее 30–180"};hl().bp=`${a}/${b}`;persist("health");return`Давление ${a}/${b} записано`}},
@@ -1345,7 +1351,7 @@ const QS={
   workout:{t:"Тренировка",chips:Object.entries(WTYPES).map(([k,v])=>[k,v[0]]),def:"strength",f:[["min","number","Минуты",1],["note","text","Заметка, например «ноги и пресс»"]],
     save:(v,ch)=>{const m=Math.round(+v.min);if(!(m>0))return{err:"Введите минуты"};S.workouts.push({id:rid(),type:ch||"other",min:m,date:today(),note:v.note||""});persist("workouts");return`${WTYPES[ch]?.[0]||"Тренировка"}, ${m} мин`}},
   task:{t:"Задача",f:[["title","text","Что нужно сделать",1]],chips:[["today","Сегодня"],["week","На неделе"],["later","Потом"]],def:"today",
-    save:(v,ch)=>{if(!v.title)return{err:"Напишите задачу"};S.tasks.push({id:rid(),title:v.title,tag:"personal",bucket:ch,due:ch==="today"?today():ch==="week"?iso(addDays(new Date(),3)):null,done:false});persist("tasks");return"Задача добавлена"}},
+    save:(v,ch)=>{if(!v.title)return{err:"Напишите задачу"};const nid=rid();ui.newTask=nid;S.tasks.push({id:nid,title:v.title,tag:"personal",bucket:ch,due:ch==="today"?today():ch==="week"?iso(addDays(new Date(),3)):null,done:false});persist("tasks");return`Задача добавлена в «${{today:"Сегодня",week:"На неделе",later:"Потом"}[ch]}»`}},
   habit:{t:"Новая привычка",f:[["name","text","Например, зарядка",1]],
     save:v=>{if(!v.name)return{err:"Напишите название"};S.habits.push({id:rid(),name:v.name,color:S.habits.length%HCOL.length,log:{},created:today()});persist("habits");return"Привычка добавлена"}},
   sub:{t:"Подписка",f:[["name","text","Сервис",1],["amount","number","Сколько в месяц, ₽",1],["day","number","День списания, 1–28",1]],
@@ -1416,6 +1422,17 @@ function vPrefs(){
       <div class="set-row"><span>${ic("gym","s")}Тренировок в неделю</span>${sel("goals.workouts",[[1,"1"],[2,"2"],[3,"3"],[4,"4"],[5,"5"],[6,"6"],[7,"7"]],g.workouts)}</div>
       <span class="meta">Пустое поле калорий означает, что норма считается по цели веса</span>
     </div>
+    <div class="card tight"><div class="card-h"><h2>Шаги автоматически</h2><span class="meta">iPhone</span></div>
+      <p class="sec" style="margin:0;font-size:13px;line-height:20px">Приложение не может само читать шагомер. Но «Команды» на iPhone могут раз в день брать шаги из «Здоровья» и присылать сюда</p>
+      <ol class="sec" style="margin:0;padding-left:18px;font-size:13px;line-height:20px">
+        <li>Команды → Автоматизация → «Время суток», например 21:00</li>
+        <li>Действие «Найти образцы здоровья»: Шаги, за сегодня</li>
+        <li>Действие «Подсчитать статистику»: Сумма</li>
+        <li>Действие «Открыть URL» со ссылкой ниже, вместо ЧИСЛО — результат суммы</li>
+      </ol>
+      <code class="mono" style="font-size:12px;word-break:break-all;background:var(--raised);padding:8px;border-radius:8px">${esc(location.origin&&location.origin!=="null"&&!/claude\.ai|claudeusercontent/.test(location.origin)?location.origin+location.pathname:"https://usmanovhursed29-bot.github.io/Claude/")}?steps=ЧИСЛО</code>
+      <span class="meta">Для Telegram: t.me/ИМЯ_БОТА/ИМЯ_ПРИЛОЖЕНИЯ?startapp=steps_ЧИСЛО</span>
+    </div>
     <div class="card tight"><div class="card-h"><h2>Данные</h2></div>
       <div class="set-row"><span>${ic("auto","s")}Хранилище</span><span class="meta" style="flex:none">${store.mode==="db"?"аккаунт":"это устройство"}</span></div>
       ${STANDALONE?`<div class="set-row"><span>Резервная копия</span><button class="btn sm" data-a="export">Сохранить файл</button></div>
@@ -1456,7 +1473,8 @@ document.addEventListener("click",e=>{
     case"ov-p":ui.ovP=v;render();break;
     case"qs-workout":openQS("workout");ui.qs.chip=v;document.querySelectorAll('#qsPanel [data-a="qs-chip"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
     case"sheet-close":if(e.target===el||el.tagName==="BUTTON")$("#sheet").classList.remove("open");break;
-    case"task-done":{const t=find("tasks",id);t.done=!t.done;ui.flash=`[data-a="task-done"][data-id="${id}"]`;commit("tasks");break}
+    case"task-done":{const t=find("tasks",id);t.done=!t.done;el.setAttribute("aria-checked",t.done);el.closest(".task,.li")?.classList.toggle("done",t.done);ui.flash=`[data-a="task-done"][data-id="${id}"]`;
+      requestAnimationFrame(()=>{commit("tasks");if(t.done)toast("Задача выполнена",()=>{t.done=false;persist("tasks")})});break}
     case"task-move":{const t=find("tasks",id);const o=["today","week","later"];t.bucket=o[(o.indexOf(t.bucket)+1)%3];if(t.bucket==="today")t.due=today();if(t.bucket==="later")t.due=null;if(t.bucket==="week"&&(!t.due||t.due<=today()))t.due=iso(addDays(new Date(),2));commit("tasks");break}
     case"task-filter":ui.taskTagFilter=v;render();break;
     case"del":{const k=el.dataset.k;if(arm(id)){S[k]=S[k].filter(x=>x.id!==id);commit(k)}break}
@@ -1494,7 +1512,7 @@ document.addEventListener("submit",e=>{
   const f=e.target;const k=f.dataset.f;if(!k)return;e.preventDefault();
   const v=n=>(f.elements[n]?.value??"").trim();
   switch(k){
-    case"task-add":if(!v("title"))return;S.tasks.push({id:rid(),title:v("title"),tag:"personal",bucket:f.dataset.bucket,due:f.dataset.bucket==="today"?today():f.dataset.bucket==="week"?iso(addDays(new Date(),3)):null,done:false});commit("tasks");refocus(`form[data-f="task-add"][data-bucket="${f.dataset.bucket}"] input`);break;
+    case"task-add":if(!v("title"))return;{const nt={id:rid(),title:v("title"),tag:"personal",bucket:f.dataset.bucket,due:f.dataset.bucket==="today"?today():f.dataset.bucket==="week"?iso(addDays(new Date(),3)):null,done:false};S.tasks.push(nt);ui.newTask=nt.id;commit("tasks");toast(`Задача добавлена в «${{today:"Сегодня",week:"На неделе",later:"Потом"}[nt.bucket]}»`,()=>{S.tasks=S.tasks.filter(x=>x.id!==nt.id);persist("tasks")})}refocus(`form[data-f="task-add"][data-bucket="${f.dataset.bucket}"] input`);break;
     case"task-add-full":{const due=v("due")||null;const T=today();const b=!due||due<=T?"today":daysBetween(T,due)<=7?"week":"later";S.tasks.push({id:rid(),title:v("title"),tag:v("tag"),bucket:b,due,done:false});commit("tasks");refocus('form[data-f="task-add-full"] input[name=title]');break}
     case"ev-add":{const data={title:v("title"),date:v("date")||ui.calSel,time:v("time")||"12:00",dur:+v("dur")||60,tag:v("tag")};const ex=ui.evEdit&&find("events",ui.evEdit);if(ex)Object.assign(ex,data);else S.events.push({id:rid(),...data});ui.evEdit=null;ui.calSel=data.date;commit("events");break}
     case"hab-add":S.habits.push({id:rid(),name:v("name"),color:S.habits.length%HCOL.length,log:{},created:today()});commit("habits");break;
@@ -1594,7 +1612,18 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
   else if(a==="ob-skip"){if(OB.step===1)OB.data.age="";obNext(null)}
   else if(a==="hello-skip"){clearTimeout(ui.helloT);hideHello()}},true);
 
+/* steps from outside: ?steps=1234 (site) or Telegram start param steps_1234 (t.me/<bot>/<app>?startapp=steps_1234) */
+function importSteps(){
+  try{const q=new URLSearchParams(location.search),h=new URLSearchParams((location.hash||"").replace(/^#/,""));
+    let st=q.get("steps");const sp=h.get("tgWebAppStartParam")||q.get("tgWebAppStartParam")||q.get("startapp")||"";
+    if(!st&&/^steps_\d+$/.test(sp))st=sp.slice(6);
+    if(st&&/^\d{1,6}$/.test(st)){const n=+st;const l=S.health.log[today()]=S.health.log[today()]||{};if(l.steps!==n){l.steps=n;persist("health");render()}
+      setTimeout(()=>toast(`Шаги из «Здоровья»: ${fmt(n)}`),1800);
+      if(q.has("steps"))try{history.replaceState(null,"",location.pathname+location.hash)}catch{}}
+  }catch{}
+}
 boot();
+importSteps();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
 window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$};
 })();
