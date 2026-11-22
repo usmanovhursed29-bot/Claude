@@ -57,6 +57,7 @@
 :root[data-theme="dark"][data-accent="graphite"]{--accent:#e6e4df;--accent-ink:#e6e4df;--on-accent:#141413;--accent-soft:rgba(230,228,223,.10);--card-a:#2c2c2a;--card-a2:#262624}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -541,7 +542,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 </svg>
 
 <script>
-"use strict";
+(()=>{"use strict"; /* everything lives in this scope: other scripts (e.g. Telegram's) cannot overwrite our functions */
 /* ---------- utils ---------- */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1595,4 +1596,6 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
 
 boot();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
+window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$};
+})();
 </script>

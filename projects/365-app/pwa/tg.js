@@ -3,6 +3,7 @@
   const inTG=/tgWebApp/.test(location.hash+location.search)||!!window.TelegramWebviewProxy;
   if(inTG)document.documentElement.classList.add("tg");
   window.__tgReady=function(){
+    const K=window.KW;if(!K)return;const {S,ui,go,closeQS,$}=K;
     const tg=window.Telegram&&Telegram.WebApp;if(!tg||!tg.initData&&!inTG)return;
     try{tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes()}catch(e){}
     const paint=()=>{try{const bg=getComputedStyle(document.body).backgroundColor;tg.setHeaderColor(bg);tg.setBackgroundColor(bg);if(tg.setBottomBarColor)tg.setBottomBarColor(bg)}catch(e){}};
