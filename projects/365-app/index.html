@@ -1109,7 +1109,7 @@ function foodView(){
     <div class="card"><div class="card-h"><h2>Съедено сегодня</h2><button class="btn sm pri" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>
       ${bar("Калории",e.kcal,P?.kcal,"ккал")}
       <div class="grid g3" style="gap:12px">${bar("Белки",e.p,P?.prot,"г")}${bar("Жиры",e.f,P?.fat,"г")}${bar("Углеводы",e.c,P?.carb,"г")}</div>
-      <div class="list">${M.map(m=>`<div class="li"><span class="t">${esc(m.name)}<br><span class="meta mono">Б ${fmt(m.p)} · Ж ${fmt(m.f)} · У ${fmt(m.c)}</span></span><span class="r">${fmt(m.kcal)} ккал</span><button class="btn sm ghost x ${ui.armed===m.id?"armed":""}" data-a="meal-del" data-id="${m.id}" aria-label="Удалить">${ui.armed===m.id?"Удалить?":ic("x","s")}</button></div>`).join("")||`<div class="empty">Пока ничего. Добавьте приём пищи ниже или напишите ассистенту, что вы съели</div>`}</div>
+      <div class="list">${M.map(m=>`<div class="li"><span class="t">${esc(m.name)}<br><span class="meta mono">Б ${fmt(m.p)} · Ж ${fmt(m.f)} · У ${fmt(m.c)}</span></span><span class="r">${fmt(m.kcal)} ккал</span><button class="btn sm ghost x ${ui.armed===m.id?"armed":""}" data-a="meal-del" data-id="${m.id}" aria-label="Удалить">${ui.armed===m.id?"Удалить?":ic("x","s")}</button></div>`).join("")||`<div class="empty">Пока ничего. Добавьте приём пищи${STANDALONE?"":" или напишите ассистенту, что вы съели"}</div>`}</div>
       <form class="grid" data-f="meal-add" style="grid-template-columns:minmax(0,2fr) repeat(4,minmax(0,1fr)) auto;gap:8px">
         <input class="in" name="name" placeholder="Блюдо" aria-label="Блюдо" required autocomplete="off">
         <input class="in" name="kcal" type="number" min="0" placeholder="ккал" aria-label="Калории" required>
@@ -1255,6 +1255,7 @@ function aiTools(acts){
 }
 let sampleNs;
 async function ask(q){
+  if(STANDALONE)return; /* no AI in the public app and bot */
   q=q.trim();if(!q||ui.busy)return;
   ui.aiErr="";
   let c=curChat();
@@ -1304,7 +1305,7 @@ const QS={
     save:(v,ch)=>{hl().energy=+ch;persist("health");return`Энергия ${ch} из 5`}},
   bp:{t:"Давление",f:[["sys","number","Верхнее, например 120",1],["dia","number","Нижнее, например 80",1]],
     save:v=>{const a=Math.round(+v.sys),b=Math.round(+v.dia);if(!(a>=60&&a<=260&&b>=30&&b<=180))return{err:"Проверьте значения: верхнее 60–260, нижнее 30–180"};hl().bp=`${a}/${b}`;persist("health");return`Давление ${a}/${b} записано`}},
-  meal:{t:"Приём пищи",f:[["name","text","Что съели",1],["kcal","number","Калории",1],["p","number","Белки, г",0,1],["f","number","Жиры, г",0,1],["c","number","Углеводы, г",0,1]],recent:1,hint:"Не знаете калорийность? Напишите ассистенту, что съели, он посчитает и запишет сам",
+  meal:{t:"Приём пищи",f:[["name","text","Что съели",1],["kcal","number","Калории",1],["p","number","Белки, г",0,1],["f","number","Жиры, г",0,1],["c","number","Углеводы, г",0,1]],recent:1,hint:STANDALONE?"":"Не знаете калорийность? Напишите ассистенту, что съели, он посчитает и запишет сам",
     save:v=>{const k=Math.round(+v.kcal);if(!v.name||!(k>=0))return{err:"Укажите блюдо и калории"};const T=today();(S.food.meals[T]=S.food.meals[T]||[]).push({id:rid(),name:v.name,kcal:k,p:+v.p||0,f:+v.f||0,c:+v.c||0});persist("food");return`${v.name}: ${fmt(k)} ккал`}},
   workout:{t:"Тренировка",chips:Object.entries(WTYPES).map(([k,v])=>[k,v[0]]),def:"strength",f:[["min","number","Сколько минут",1],["note","text","Заметка, например «ноги и пресс»"]],
     save:(v,ch)=>{const m=Math.round(+v.min);if(!(m>0))return{err:"Введите минуты"};S.workouts.push({id:rid(),type:ch||"other",min:m,date:today(),note:v.note||""});persist("workouts");return`${WTYPES[ch]?.[0]||"Тренировка"}, ${m} мин`}},
