@@ -408,6 +408,24 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 @media (max-width:900px){.qs{align-items:flex-end;padding:0}.qs .panel{max-width:none;border-radius:18px 18px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   .in,select.in,textarea.in,.composer textarea,.note-body,.note-title{font-size:16px}.bigscore{font-size:60px;line-height:60px}}
 @media (max-width:520px){.ov-top{grid-template-columns:minmax(0,1fr)}.gcard{min-height:150px}}
+/* first-run onboarding and greeting splash */
+.ob{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px max(24px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));transition:opacity .45s var(--ease)}
+.ob.out{opacity:0;pointer-events:none}
+.ob-box{width:100%;max-width:400px;display:flex;flex-direction:column;gap:16px}
+.ob-step{font-size:12px;color:var(--fg3);font-family:var(--mono)}
+.ob h1{font-size:30px;line-height:36px;font-weight:500;letter-spacing:-.02em;margin:0}
+.ob p{margin:0;color:var(--fg2);font-size:15px;line-height:22px}
+.ob .in{height:52px;font-size:18px}
+.ob .btn{height:52px;font-size:15px}
+.ob-dots{display:flex;gap:6px}.ob-dots i{width:24px;height:4px;border-radius:2px;background:var(--line2)}.ob-dots i.on{background:var(--accent)}
+.hello{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.hello .mark{width:64px;height:64px;border-radius:18px;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-family:var(--mono);font-size:22px;animation:pop2 .6s var(--ease) both}
+.hello h1{font-size:34px;line-height:42px;text-wrap:balance}
+.hello h1 span span{display:inline-block;animation:letter .5s var(--ease) both}
+.hello p{animation:fadeup .6s var(--ease) both}
+@keyframes letter{from{opacity:0;transform:translateY(14px)}}
+@keyframes fadeup{from{opacity:0;transform:translateY(8px)}}
+@keyframes pop2{from{opacity:0;transform:scale(.8)}}
 /* mobile chrome */
 .topbar,.tabbar,.sheet{display:none}
 @media (max-width:1100px){
@@ -497,6 +515,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
 <div class="sheet" id="sheet" data-a="sheet-close"><div class="panel" data-stop="1"><div class="card-h"><h2>Все разделы</h2><button class="btn icon ghost" data-a="sheet-close" aria-label="Закрыть"><svg class="i"><use href="#i-x"/></svg></button></div><nav class="nav" id="sheetNav"></nav></div></div>
 
 <div class="qs" id="qs" data-a="qs-close" role="dialog" aria-modal="true"><div class="panel" id="qsPanel"></div></div>
+<div class="ob" id="ob" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -1525,7 +1544,55 @@ matchMedia("(max-width:760px)").addEventListener?.("change",()=>{if(ui.view==="c
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{if(ui.view==="prefs")render()});
 setInterval(()=>{if(ui.view==="calendar"&&!document.activeElement?.matches("input,textarea,select"))render()},60000);
 
+/* ---------- first-run onboarding + greeting ---------- */
+function tgName(){try{return window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name||""}catch{return""}}
+function greetPhrase(){const h=new Date().getHours();const g=h<5?"Доброй ночи":h<12?"Доброе утро":h<18?"Добрый день":"Добрый вечер";const alt=["Привет","Приветствую","С возвращением"];return Math.random()<.6?g:alt[Math.floor(Math.random()*alt.length)]}
+function showHello(first){
+  const ob=$("#ob");const name=S.settings.name||"";
+  const text=first?`Добро пожаловать, ${name}`:`${greetPhrase()}, ${name}`;
+  let k=0;const letters=text.split(" ").map(w=>`<span style="white-space:nowrap;animation:none">${[...w].map(c=>`<span style="animation-delay:${200+(k++)*35}ms">${esc(c)}</span>`).join("")}</span>`).join(`<span style="animation:none"> </span>`);
+  const sub=first?"Всё готово. Начнём с малого: отметьте воду или привычку":"Посмотрим, как проходит день";
+  ob.innerHTML=`<div class="hello" data-a="hello-skip"><span class="mark">kw</span><h1 aria-label="${esc(text)}">${letters}</h1><p style="animation-delay:${400+text.length*35}ms">${esc(sub)}</p></div>`;
+  ob.hidden=false;ob.classList.remove("out");
+  const dur=RM.matches?600:Math.min(3200,1500+text.length*35);
+  clearTimeout(ui.helloT);ui.helloT=setTimeout(hideHello,dur);
+}
+function hideHello(){const ob=$("#ob");if(ob.hidden)return;ob.classList.add("out");setTimeout(()=>{ob.hidden=true;ob.innerHTML=""},460)}
+const OB={step:0,data:{}};
+function showOnboarding(){
+  const ob=$("#ob");const st=OB.step;const dots=`<div class="ob-dots">${[0,1,2].map(i=>`<i class="${i<=st?"on":""}"></i>`).join("")}</div>`;
+  const steps=[
+    ()=>`<div class="ob-box"><span class="hello" style="align-items:flex-start"><span class="mark" style="width:48px;height:48px;font-size:17px;border-radius:14px">kw</span></span>${dots}<h1>Как вас зовут?</h1><p>Так приложение будет к вам обращаться</p>
+      <form data-f="ob" class="ob-box" style="gap:12px"><input class="in" name="name" placeholder="Ваше имя" aria-label="Ваше имя" autocomplete="given-name" value="${esc(OB.data.name??tgName())}" maxlength="40"><span class="meta" id="obErr" style="color:var(--bad)"></span><button class="btn pri">Далее</button></form></div>`,
+    ()=>`<div class="ob-box">${dots}<span class="ob-step">шаг 2 из 3</span><h1>Немного о вас</h1><p>Нужно, чтобы посчитать норму калорий. Можно пропустить</p>
+      <form data-f="ob" class="ob-box" style="gap:12px"><input class="in" name="age" inputmode="numeric" placeholder="Возраст" aria-label="Возраст" value="${esc(OB.data.age||"")}">
+      <div class="chips" role="group" aria-label="Пол">${[["m","Мужской"],["f","Женский"]].map(([k,l])=>`<button type="button" data-a="ob-sex" data-v="${k}" aria-pressed="${(OB.data.sex||"m")===k}">${l}</button>`).join("")}</div>
+      <span class="meta" id="obErr" style="color:var(--bad)"></span><button class="btn pri">Далее</button><button type="button" class="btn ghost" data-a="ob-skip">Пропустить</button></form></div>`,
+    ()=>`<div class="ob-box">${dots}<span class="ob-step">шаг 3 из 3</span><h1>Рост и вес</h1><p>Тоже для расчёта питания. Изменить можно в любой момент</p>
+      <form data-f="ob" class="ob-box" style="gap:12px"><div class="row"><input class="in grow" name="height" inputmode="numeric" placeholder="Рост, см" aria-label="Рост, см" value="${esc(OB.data.height||"")}"><input class="in grow" name="weight" inputmode="decimal" placeholder="Вес, кг" aria-label="Вес, кг" value="${esc(OB.data.weight||"")}"></div>
+      <span class="meta" id="obErr" style="color:var(--bad)"></span><button class="btn pri">Готово</button><button type="button" class="btn ghost" data-a="ob-skip">Пропустить</button></form></div>`];
+  ob.innerHTML=steps[st]();ob.hidden=false;ob.classList.remove("out");
+  setTimeout(()=>ob.querySelector("input")?.focus(),50);
+}
+function obNext(form){
+  const v=n=>(form?.elements[n]?.value||"").trim().replace(",",".");
+  const err=m=>{$("#obErr").textContent=m};
+  if(OB.step===0){const n=v("name");if(!n)return err("Напишите имя");OB.data.name=n.slice(0,40)}
+  if(OB.step===1&&form){const a=v("age");if(a&&!(+a>=10&&+a<=100))return err("Возраст от 10 до 100");OB.data.age=a?+a:""}
+  if(OB.step===2&&form){const h=v("height"),w=v("weight");if(h&&!(+h>=120&&+h<=230))return err("Рост от 120 до 230 см");if(w&&!(+w>=30&&+w<=300))return err("Вес от 30 до 300 кг");OB.data.height=h?+h:"";OB.data.weight=w?Math.round(+w*10)/10:""}
+  if(OB.step<2){OB.step++;showOnboarding();return}
+  S.settings.name=OB.data.name;const pr=S.food.profile;pr.sex=OB.data.sex||"m";if(OB.data.age)pr.age=OB.data.age;if(OB.data.height)pr.height=OB.data.height;
+  if(OB.data.weight){pr.weight=OB.data.weight;const l=S.health.log[today()]=S.health.log[today()]||{};l.weight=OB.data.weight;persist("health")}
+  S.meta.onboarded=true;persist("settings");persist("food");persist("meta");render();showHello(true);
+}
+document.addEventListener("submit",e=>{if(e.target.dataset.f==="ob"){e.preventDefault();obNext(e.target)}},true);
+document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!el)return;const a=el.dataset.a;
+  if(a==="ob-sex"){OB.data.sex=el.dataset.v;el.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===el))}
+  else if(a==="ob-skip"){if(OB.step===1)OB.data.age="";obNext(null)}
+  else if(a==="hello-skip"){clearTimeout(ui.helloT);hideHello()}},true);
+
 boot();
+if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
 </script>
 
 <script>
