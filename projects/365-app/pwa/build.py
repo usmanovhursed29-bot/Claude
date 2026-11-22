@@ -5,10 +5,12 @@ from PIL import Image, ImageDraw, ImageFont
 here=os.path.dirname(os.path.abspath(__file__)); dist=os.path.join(here,"dist"); os.makedirs(dist,exist_ok=True)
 src=open(os.path.join(here,"..","index.html"),encoding="utf-8").read()
 src=src.replace("const STANDALONE=false;","const STANDALONE=true;",1)
+
 title=re.search(r"<title>(.*?)</title>",src).group(1)
 body=re.sub(r"<title>.*?</title>\n?","",src,count=1)
 body=body.replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
 ver=hashlib.sha1((body+open(os.path.join(here,"tg.js"),encoding="utf-8").read()).encode()).hexdigest()[:8]
+body=body.replace('const BUILD="dev";',f'const BUILD="{ver}";',1)
 head=f'''<!doctype html>
 <html lang="ru">
 <head>

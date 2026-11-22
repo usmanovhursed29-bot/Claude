@@ -590,6 +590,9 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
+const BUILD="2f7f0804";
+window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
+window.addEventListener("unhandledrejection",e=>{const m=String(e.reason&&e.reason.message||e.reason||"ошибка");try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}});
 const KEYS=["settings","tasks","events","habits","health","food","workouts","money","notes","chats","focus","meta"];
 const S={};
 const TAGS={work:["Работа","var(--c3)"],personal:["Личное","var(--c1)"],study:["Учёба","var(--c4)"],home:["Дом","var(--c2)"],meet:["Встречи","var(--c5)"],sport:["Спорт","var(--c6)"]};
@@ -950,7 +953,8 @@ function vOverview(){
       </div></div>
   </div>
   <div class="card"><div class="card-h"><h2>${ic("cal","s")}Ближайшее</h2><a class="meta" href="#calendar">Календарь</a></div>
-    <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет. Добавьте их в календаре</div>`}</div></div>`;
+    <div class="list">${evs.length?evs.map(x=>`<div class="li"><span class="tag-dot" style="background:${TAGS[x.tag]?.[1]||"var(--fg3)"}"></span><span class="t">${esc(x.title)}</span><span class="r">${x.date===T?"сегодня":dLabel(x.date)}, ${esc(x.time)}</span></div>`).join(""):`<div class="empty">Событий нет. Добавьте их в календаре</div>`}</div></div>
+  ${STANDALONE?`<p class="meta mono" style="text-align:center;margin:0">версия ${BUILD}${(()=>{let e="";try{e=localStorage.getItem("kwantoww:lastError")||""}catch{}return e?` · <span style="color:var(--bad)">${esc(e)}</span>`:""})()}</p>`:""}`;
 }
 function taskLi(t){
   const late=!t.done&&t.due&&t.due<today();
@@ -1434,6 +1438,9 @@ function vPrefs(){
       ${STANDALONE?`<div class="set-row"><span>Резервная копия</span><button class="btn sm" data-a="export">Сохранить файл</button></div>
       <div class="set-row"><span>Восстановить из файла</span><label class="btn sm" for="importFile">Выбрать файл</label><input type="file" id="importFile" accept="application/json,.json" hidden></div>
       <span class="meta">Данные хранятся только на этом телефоне. Сохраняйте копию, чтобы перенести их на другое устройство</span>`:""}
+      <div class="set-row"><span>Версия приложения</span><span class="meta mono" style="flex:none">${BUILD}</span></div>
+      ${STANDALONE?`<div class="set-row"><span>Обновить до последней версии</span><button class="btn sm" data-a="hard-reload">Обновить</button></div>`:""}
+      ${(()=>{let e="";try{e=localStorage.getItem("kwantoww:lastError")||""}catch{}return e?`<div class="set-row"><span class="meta" style="color:var(--bad)">Последняя ошибка: ${esc(e)}</span></div>`:""})()}
       <div class="set-row"><span>Удалить всё</span><button class="btn sm danger" data-a="clear-demo">${ui.armed==="demo"?"Стереть задачи, деньги, заметки и всё остальное? Нажмите ещё раз":"Удалить"}</button></div>
     </div>
   </div>`;
@@ -1452,6 +1459,7 @@ document.addEventListener("click",e=>{
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"nav":go(v);break;
+    case"hard-reload":(async()=>{try{const rs=await navigator.serviceWorker?.getRegistrations();await Promise.all((rs||[]).map(r=>r.unregister()));const ks=await caches?.keys();await Promise.all((ks||[]).map(k=>caches.delete(k)))}catch{}location.replace(location.pathname+"?v="+Date.now()+location.hash)})();break;
     case"qs":openQS(v,id);break;
     case"undo":if(ui.undo){ui.undo();ui.undo=null;$("#toast").classList.remove("show");render()}break;
     case"qs-close":if(e.target===el||el.tagName==="BUTTON")closeQS();break;
