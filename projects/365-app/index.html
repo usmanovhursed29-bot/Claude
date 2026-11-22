@@ -97,6 +97,7 @@ svg.i.s{width:16px;height:16px}
 .focus-pill{display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 8px;border-radius:18px;background:var(--card);box-shadow:var(--shadow),inset 0 0 0 1px var(--line)}
 .focus-pill .t{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
 .focus-pill .lbl{font-size:12px;color:var(--fg3)}
+.topbar .focus-pill .lbl{display:none}
 .focus-pill .play{width:26px;height:26px;border-radius:13px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent)}
 .focus-pill .play svg{width:14px;height:14px}
 
@@ -187,7 +188,8 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .stack i{display:block;height:100%}
 
 /* charts */
-.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart{width:100%;height:auto;display:block;overflow:hidden}
+.chart-slot{min-width:0}
 .chart text{font-family:var(--mono);font-size:11px;fill:var(--fg3)}
 .chart .grid-l{stroke:var(--line);stroke-width:1}
 .chart .ln{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
@@ -285,7 +287,7 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .warnbox svg{color:var(--warn);margin-top:1px}
 
 /* finance */
-.bank{aspect-ratio:1.586;max-width:100%;border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(160deg,var(--card-a),var(--card-a2));color:var(--on-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),var(--float);position:relative;overflow:hidden}
+.bank{min-height:180px;max-width:100%;border-radius:16px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(160deg,var(--card-a),var(--card-a2));color:var(--on-card);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),var(--float);position:relative;overflow:hidden}
 .bank .chip-ic{width:36px;height:28px;border-radius:6px;background:linear-gradient(180deg,#d8c58e,#b9a46a);box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .bank .chip-ic::after{content:"";display:block;margin:6px 8px;height:14px;border-top:1px solid rgba(0,0,0,.25);border-bottom:1px solid rgba(0,0,0,.25)}
 .bank .sum{font-size:32px;line-height:36px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -376,14 +378,14 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
   .card{padding:16px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-.enter{animation:enter .36s var(--ease) both}
+#view.enter{animation:vin .15s ease-out both}
+@keyframes vin{from{opacity:.001}}
 /* motion that explains: charts draw in on arrival, numbers count, toggles confirm */
 .anim .chart .ln{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .9s var(--ease) .1s forwards}
 .anim .chart .ar,.anim .chart .pt,.anim .chart .vl{animation:fade .4s var(--ease) .7s both}
 .anim .chart .bar{transform-box:fill-box;transform-origin:50% 100%;animation:grow .55s var(--ease) both;animation-delay:calc(var(--i,0)*45ms)}
 .anim .meter>i,.anim .stack i,.anim .score .parts b,.anim .heat-row i.on{transform-origin:left center;animation:growx .7s var(--ease) both}
 .anim .ring .arc{animation:ring 1s var(--ease) both}
-.anim .bank{animation:card .6s var(--ease) both}
 .pop{animation:pop .3s var(--ease)}
 .msg.new{animation:enter .3s var(--ease) both}
 .sheet.open .panel{animation:enter .28s var(--ease) both}
@@ -400,7 +402,7 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 @keyframes growx{from{transform:scaleX(0)}}
 @keyframes ring{from{stroke-dasharray:0 300}}
 @keyframes pop{40%{transform:scale(.86)}}
-@keyframes card{from{opacity:.001;transform:translateY(10px) rotate(-1.5deg)}}
+@keyframes enter{from{opacity:.001;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
 @keyframes enter{from{opacity:.001;transform:translateY(8px)}to{opacity:1;transform:none}}
 </style>
@@ -418,7 +420,7 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
     <header class="topbar">
       <div class="brand"><span class="mark">kw</span>kwantoww</div>
       <button class="btn icon ghost" data-a="theme-cycle" aria-label="Сменить тему" id="themeBtn"></button>
-      <a class="btn icon ghost" href="#assistant" aria-label="Ассистент"><svg class="i"><use href="#i-ai"/></svg></a>
+      <div id="topFocus"></div>
     </header>
     <main class="main"><div class="wrap" id="view"></div></main>
   </div>
@@ -476,8 +478,9 @@ const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const today=()=>iso(new Date());
 const rid=()=>Math.random().toString(36).slice(2,10);
 const nf=new Intl.NumberFormat("ru-RU");
-const fmt=n=>nf.format(Math.round(n||0));
-const fmt1=n=>new Intl.NumberFormat("ru-RU",{maximumFractionDigits:1}).format(n||0);
+const fmt=n=>nf.format(Math.round(n||0)).replace("-","−");
+const nf1=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:1});
+const fmt1=n=>nf1.format(n||0).replace("-","−");
 const rub=n=>fmt(n)+" ₽";
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 const MG=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
@@ -487,7 +490,7 @@ const WD=["вс","пн","вт","ср","чт","пт","сб"];
 const WDL=["Воскресенье","Понедельник","Вторник","Среда","Четверг","Пятница","Суббота"];
 const dLabel=s=>{const d=parse(s);return `${d.getDate()} ${MG[d.getMonth()]}`};
 const weekStart=d=>{const x=new Date(d);const k=(x.getDay()+6)%7;x.setDate(x.getDate()-k);x.setHours(0,0,0,0);return x};
-const dayOfYear=d=>Math.floor((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(d.getFullYear(),0,1))/864e5)+1;
+const dayOfYear=d=>Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(d.getFullYear(),0,1))/864e5)+1;
 const daysBetween=(a,b)=>Math.round((parse(b)-parse(a))/864e5);
 const hm=min=>{min=Math.round(min||0);const h=Math.floor(min/60),m=min%60;return h?`${h} ч ${pad(m)}`:`${m} мин`};
 const plural=(n,a,b,c)=>{n=Math.abs(n)%100;const k=n%10;if(n>10&&n<20)return c;if(k>1&&k<5)return b;if(k===1)return a;return c};
@@ -512,20 +515,21 @@ function defaults(){
 }
 
 /* ---------- storage: claude db (synced between devices) with local fallback ---------- */
-const store={mode:"local",db:null,uid:null,timers:{},busy:{},again:{}};
+const store={mode:"local",db:null,uid:null,timers:{},busy:{},again:{},pending:new Set()};
 const LS="kwantoww:v1";
 function lsRead(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch{return null}}
 function lsWrite(){try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(LS,JSON.stringify(o))}catch{}}
 function persist(key){
   lsWrite();
   if(store.mode!=="db")return;
+  store.pending.add(key);
   clearTimeout(store.timers[key]);
   store.timers[key]=setTimeout(()=>flush(key),500);
 }
 async function flush(key){
   if(store.busy[key]){store.again[key]=true;return}
   store.busy[key]=true;setSync("saving");
-  try{await store.db.doc(`data/users/${store.uid}/kw1/${key}`).set({v:S[key],at:Date.now()});setSync("ok")}
+  try{await store.db.doc(`data/users/${store.uid}/kw1/${key}`).set({v:S[key],at:Date.now()});if(!store.again[key])store.pending.delete(key);setSync("ok")}
   catch(e){setSync("err")}
   store.busy[key]=false;
   if(store.again[key]){store.again[key]=false;flush(key)}
@@ -570,9 +574,9 @@ async function boot(){
 }
 document.addEventListener("visibilitychange",async()=>{
   if(document.visibilityState!=="visible"||store.mode!=="db")return;
-  if(Object.values(store.busy).some(Boolean))return;
+  if(store.pending.size||Object.values(store.busy).some(Boolean))return;
   try{const snaps=await Promise.all(KEYS.map(k=>store.db.doc(`data/users/${store.uid}/kw1/${k}`).get()));
-    const o={};snaps.forEach((s,i)=>{if(s.exists)o[KEYS[i]]=s.data().v});
+    const o={};snaps.forEach((s,i)=>{if(s.exists&&!store.pending.has(KEYS[i]))o[KEYS[i]]=s.data().v});
     if(Object.keys(o).length&&!document.activeElement?.matches("input,textarea")){applyLoaded({...Object.fromEntries(KEYS.map(k=>[k,S[k]])),...o});applyTheme();render()}
   }catch{}
 });
@@ -598,7 +602,7 @@ function plan(){
   if(!w||!h||!a)return null;
   const bmr=10*w+6.25*h-5*a+(p.sex==="f"?-161:5);
   const tdee=bmr*(+p.activity||1.2);
-  const hasGoal=tg>0&&!!p.deadline&&p.deadline>today();
+  const hasGoal=tg>0&&/^\d{4}-\d\d-\d\d$/.test(p.deadline||"")&&p.deadline>today()&&p.deadline<=iso(addDays(new Date(),3650));
   const days=hasGoal?Math.max(1,daysBetween(today(),p.deadline)):0;
   const delta=hasGoal?tg-w:0; // negative = lose
   const want=hasGoal?delta*7700/days:0; // kcal/day change
@@ -619,14 +623,16 @@ function plan(){
 }
 
 function dayScore(d){
+  if(d<(S.meta.created||today()))return{score:null,parts:[]};
   const parts=[];const l=hlog(d),g=S.settings.goals;
   if(S.habits.length)parts.push(["Привычки",30,S.habits.filter(h=>h.log[d]).length/S.habits.length]);
   if(l.sleep)parts.push(["Сон",25,clamp(l.sleep/g.sleep,0,1)]);
-  if(l.water!=null)parts.push(["Вода",15,clamp(l.water/g.water,0,1)]);
+  if(l.water>0)parts.push(["Вода",15,clamp(l.water/g.water,0,1)]);
   const P=plan(),e=eaten(d);
   if(P&&e.kcal)parts.push(["Питание",15,1-clamp(Math.abs(e.kcal-P.kcal)/P.kcal/0.35,0,1)]);
-  const moved=S.workouts.some(w=>w.date===d)?1:clamp((l.steps||0)/g.steps,0,1);
-  parts.push(["Движение",15,moved]);
+  const wk=S.workouts.some(w=>w.date===d);
+  if(wk||l.steps)parts.push(["Движение",15,wk?1:clamp(l.steps/g.steps,0,1)]);
+  if(!parts.length)return{score:null,parts};
   const W=parts.reduce((a,p)=>a+p[1],0);
   return{score:W?Math.round(parts.reduce((a,p)=>a+p[1]*p[2],0)/W*100):0,parts};
 }
@@ -640,7 +646,12 @@ const openTasks=()=>S.tasks.filter(t=>!t.done);
 const overdue=()=>openTasks().filter(t=>t.due&&t.due<today());
 
 /* ---------- charts ---------- */
-function lineChart(vals,labels,o={}){
+let CH=[];
+function lineChart(vals,labels,o={}){const id="ch"+CH.length;CH.push([id,lineSvg,vals,labels,o]);return`<div class="chart-slot" id="${id}" style="min-height:${o.h||220}px"></div>`}
+function barChart(vals,labels,o={}){const id="ch"+CH.length;CH.push([id,barSvg,vals,labels,o]);return`<div class="chart-slot" id="${id}" style="min-height:${o.h||180}px"></div>`}
+function drawCharts(){CH.forEach(([id,fn,v,l,o])=>{const el=document.getElementById(id);if(!el)return;const w=Math.max(240,Math.round(el.clientWidth));el.innerHTML=fn(v,l,{...o,w});el.style.minHeight=""})}
+let rsT;window.addEventListener("resize",()=>{clearTimeout(rsT);rsT=setTimeout(drawCharts,150)});
+function lineSvg(vals,labels,o={}){
   const W=o.w||640,H=o.h||220,pl=o.pl??40,pr=16,pt=16,pb=28;
   const nums=vals.filter(v=>v!=null);if(!nums.length)return`<div class="empty">Пока нет данных</div>`;
   let lo=o.min??Math.min(...nums,...(o.extra||[])),hi=o.max??Math.max(...nums,...(o.extra||[]));
@@ -649,7 +660,7 @@ function lineChart(vals,labels,o={}){
   const X=i=>pl+(W-pl-pr)*(vals.length<2?.5:i/(vals.length-1));
   const Y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo));
   let g="";for(let k=0;k<4;k++){const v=lo+(hi-lo)*k/3;g+=`<line class="grid-l" x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${pl-8}" y="${Y(v)+4}" text-anchor="end">${o.fy?o.fy(v):Math.round(v)}</text>`}
-  const step=Math.max(1,Math.ceil(labels.length/8));
+  const step=Math.max(1,Math.ceil(labels.length/Math.max(3,Math.floor((W-pl)/56))));
   let xl="";labels.forEach((l,i)=>{if(i%step===0||i===labels.length-1)xl+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle">${esc(l)}</text>`});
   let d="",area="",first=null,last=null;
   vals.forEach((v,i)=>{if(v==null)return;const c=`${X(i).toFixed(1)},${Y(v).toFixed(1)}`;d+=(d?"L":"M")+c;if(first==null)first=i;last=i});
@@ -659,7 +670,8 @@ function lineChart(vals,labels,o={}){
   const lv=vals[last];
   return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria||"График")}">${g}${xl}${extra}<path class="ar" d="${area}"/><path class="ln" pathLength="1" d="${d}"/><circle class="pt" cx="${X(last)}" cy="${Y(lv)}" r="4"/><text class="vl" x="${Math.min(X(last),W-pr-4)}" y="${Y(lv)-12}" text-anchor="end">${o.fy?o.fy(lv):Math.round(lv)}</text></svg>`;
 }
-function barChart(vals,labels,o={}){
+function barSvg(vals,labels,o={}){
+  if(!vals.some(Boolean))return`<div class="empty">Пока нет данных</div>`;
   const W=o.w||640,H=o.h||180,pl=o.pl??8,pr=8,pt=20,pb=24,n=vals.length;
   const hi=Math.max(1,...vals);const bw=(W-pl-pr)/n;
   let s="";vals.forEach((v,i)=>{const h=(H-pt-pb)*(v/hi);const x=pl+i*bw+bw*.18;const w=bw*.64;
@@ -669,8 +681,8 @@ function barChart(vals,labels,o={}){
   return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria||"Диаграмма")}"><line class="grid-l" x1="${pl}" x2="${W-pr}" y1="${H-pb}" y2="${H-pb}"/>${s}</svg>`;
 }
 function ring(frac,val,sub,color="var(--accent)"){
-  const r=44,c=2*Math.PI*r,f=clamp(frac||0,0,1)||0.0001;
-  return`<svg viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--raised)" stroke-width="8"/><circle cx="56" cy="56" r="${r}" fill="none" class="arc" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c*f} ${c}" transform="rotate(-90 56 56)"/><text class="rv" x="56" y="58" text-anchor="middle">${esc(val)}</text><text class="rs" x="56" y="76" text-anchor="middle">${esc(sub)}</text></svg>`;
+  const r=44,c=2*Math.PI*r,f=clamp(frac||0,0,1);
+  return`<svg viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--raised)" stroke-width="8"/>${f>0?`<circle cx="56" cy="56" r="${r}" fill="none" class="arc" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c*f} ${c}" transform="rotate(-90 56 56)"/>`:""}<text class="rv" x="56" y="58" text-anchor="middle">${esc(val)}</text><text class="rs" x="56" y="76" text-anchor="middle">${esc(sub)}</text></svg>`;
 }
 
 /* ---------- navigation ---------- */
@@ -678,8 +690,10 @@ const VIEWS=[
   ["overview","Обзор","home"],["tasks","Задачи","tasks"],["calendar","Календарь","cal"],["habits","Привычки","habit"],
   ["health","Здоровье","health"],["body","Питание и спорт","food"],["money","Финансы","money"],["notes","Заметки","note"],
   ["assistant","Ассистент","ai"],["prefs","Настройки","set"]];
-const ui={view:"overview",bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
+const ui={seen:{},evEdit:null,view:"overview",bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
+function pruneNotes(keep){const n0=S.notes.length;S.notes=S.notes.filter(n=>n.id===keep||(n.title||"").trim()||(n.body||"").trim());if(S.notes.length!==n0)persist("notes")}
 function route(){
+  pruneNotes(null);
   const h=(location.hash||"").slice(1);
   ui.view=VIEWS.some(v=>v[0]===h)?h:"overview";
   $("#sheet").classList.remove("open");
@@ -693,6 +707,7 @@ function navHtml(){
   return main.map(a).join("")+`<div class="nav-label">Помощь</div>`+tail.map(a).join("");
 }
 function renderChrome(){
+  $("#topFocus").innerHTML=focusPill();
   $("#nav").innerHTML=navHtml();$("#sheetNav").innerHTML=navHtml();
   const tb=[["overview","Обзор","home"],["tasks","Задачи","tasks"],["body","Питание","food"],["money","Финансы","money"]];
   const inMore=!tb.some(t=>t[0]===ui.view);
@@ -702,20 +717,22 @@ let lastView=null;
 function render(enter){
   renderChrome();
   const fn={overview:vOverview,tasks:vTasks,calendar:vCalendar,habits:vHabits,health:vHealth,body:vBody,money:vMoney,notes:vNotes,assistant:vAssistant,prefs:vPrefs}[ui.view];
-  const y=window.scrollY;
+  const y=window.scrollY,cs=$("#weekb")?.scrollTop;
+  CH=[];
   $("#view").innerHTML=fn();
   const fresh=enter&&lastView!==ui.view;
   const V=$("#view");
-  if(fresh){V.classList.remove("enter","anim");void V.offsetWidth;V.classList.add("enter","anim");clearTimeout(ui.animT);ui.animT=setTimeout(()=>V.classList.remove("anim"),1400);window.scrollTo(0,0)}else window.scrollTo(0,y);
+  if(fresh){const first=!ui.seen[ui.view];ui.seen[ui.view]=1;V.classList.remove("enter","anim");void V.offsetWidth;V.classList.add("enter");if(first){V.classList.add("anim");clearTimeout(ui.animT);ui.animT=setTimeout(()=>V.classList.remove("anim"),1400)}window.scrollTo(0,0)}else window.scrollTo(0,y);
   lastView=ui.view;
-  tweenNums(fresh);
-  if(ui.flash){const el=document.querySelector(ui.flash);if(el){el.classList.add(el.matches(".task *,.li *")?"pop":"pop")}ui.flash=null}
-  after();
+  drawCharts();
+  tweenNums(false);
+  if(ui.flash){const el=document.querySelector(ui.flash);if(el)el.classList.add("pop");ui.flash=null}
+  after(fresh,cs);
 }
-function after(){
+function after(fresh,cs){
   if(ui.view==="assistant"){const m=$("#msgs");if(m)m.scrollTop=m.scrollHeight}
   ui.newMsg=false;
-  if(ui.view==="calendar"){const b=$("#weekb");if(b&&!b.dataset.sc){b.scrollTop=48*Math.max(0,(new Date().getHours()-8-2));b.dataset.sc=1}}
+  if(ui.view==="calendar"){const b=$("#weekb");if(b){if(fresh||cs==null)b.scrollTop=48*Math.max(0,(new Date().getHours()-7-2));else b.scrollTop=cs}}
 }
 function head(title,sub,tools=""){
   return`<div class="head"><div><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:""}</div><div class="head-tools">${tools}${focusPill()}</div></div>`;
@@ -741,9 +758,9 @@ function focusPill(){
   const m=Math.floor(FT.left/60),s=FT.left%60;
   const lbl=FT.phase==="work"?(FT.running?"Фокус":"Пауза"):"Перерыв";
   const C=2*Math.PI*14,fr=1-FT.left/ftLen(FT.phase);
-  return`<div class="focus-pill" id="fpill"><span class="lbl">${lbl}</span><span class="t">${pad(m)}:${pad(s)}</span><span class="play-w"><button class="play" data-a="ft-toggle" aria-label="${FT.running?"Пауза":"Старт"}">${ic(FT.running?"pause":"play")}</button><svg class="fring" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" stroke-dasharray="${(C*fr).toFixed(1)} ${C.toFixed(1)}"/></svg></span></div>`;
+  return`<div class="focus-pill"><span class="lbl">${lbl}</span><span class="t">${pad(m)}:${pad(s)}</span><span class="play-w"><button class="play" data-a="ft-toggle" aria-label="${FT.running?"Пауза":"Старт"}">${ic(FT.running?"pause":"play")}</button>${fr>0.002?`<svg class="fring" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" stroke-dasharray="${(C*fr).toFixed(1)} ${C.toFixed(1)}"/></svg>`:""}</span></div>`;
 }
-function ftUpdate(){const el=$("#fpill");if(el)el.outerHTML=focusPill()}
+function ftUpdate(){document.querySelectorAll(".focus-pill").forEach(el=>el.outerHTML=focusPill())}
 function ftToggle(){
   FT.running=!FT.running;
   if(FT.running){FT.last=Date.now();FT.tick=setInterval(()=>{
@@ -764,7 +781,7 @@ function demoNote(){return S.meta.demo?`<div class="demo-note"><span class="grow
 
 function vOverview(){
   const T=today(),d=new Date(),doy=dayOfYear(d),yl=(new Date(d.getFullYear(),11,31)-new Date(d.getFullYear(),0,0))/864e5;
-  const sc=dayScore(T),y=dayScore(iso(addDays(d,-1))).score,diff=sc.score-y;
+  const sc=dayScore(T),y=dayScore(iso(addDays(d,-1))).score,diff=(sc.score||0)-(y||0);
   const wk=Math.ceil(doy/7);
   let ruler="";for(let i=1;i<=53;i++){const firstDay=new Date(d.getFullYear(),0,1+(i-1)*7);ruler+=`<i class="${i<wk?"on":""} ${i===wk?"now":""} ${firstDay.getDate()<=7&&i>1?"m":""}"></i>`}
   const days=[...Array(14)].map((_,i)=>iso(addDays(d,i-13)));
@@ -780,9 +797,9 @@ function vOverview(){
   <div class="ruler" aria-label="Неделя ${wk} из 53">${ruler}</div>
   <div class="grid g-main-r">
     <div class="card solid score">
-      <div class="card-h"><span class="lbl">Счёт дня</span><span class="meta">${diff>=0?"+":""}${diff} к вчера</span></div>
-      <div class="big">${cnt("score",sc.score)}</div>
-      <div class="parts">${sc.parts.map(p=>`<div><i><b style="width:${Math.round(p[2]*100)}%"></b></i>${p[0]}</div>`).join("")}</div>
+      <div class="card-h"><span class="lbl">Счёт дня</span>${sc.score!=null&&y!=null?`<span class="meta">${diff>=0?"+":""}${fmt(diff)} к вчера</span>`:""}</div>
+      <div class="big">${sc.score!=null?cnt("score",sc.score):"—"}</div>
+      ${sc.parts.length?`<div class="parts">${sc.parts.map(p=>`<div><i><b style="width:${Math.round(p[2]*100)}%"></b></i>${p[0]}</div>`).join("")}</div>`:`<span class="lbl" style="max-width:320px">Отметьте привычку, воду, сон или шаги, и здесь появится счёт дня от 0 до 100</span>`}
     </div>
     <div class="card"><div class="card-h"><h2>Счёт за две недели</h2><span class="meta">из 100</span></div>
       ${lineChart(vals,days.map(x=>parse(x).getDate()),{h:200,min:0,max:100,aria:"Счёт дня за 14 дней"})}</div>
@@ -848,7 +865,7 @@ function vCalendar(){
   const hours=[...Array(H1-H0)].map((_,i)=>`<div>${pad(H0+i)}:00</div>`).join("");
   const colsHtml=cols.map(c=>{const ds=iso(c);const evs=S.events.filter(e=>e.date===ds);
     return`<div class="daycol ${ds===T?"today":""}" data-a="cal-slot" data-d="${ds}" style="height:${(H1-H0)*PX}px">${evs.map(e=>{const[h,m]=e.time.split(":").map(Number);const top=((h-H0)*60+m)/60*PX;const ht=Math.max(22,(e.dur||60)/60*PX-2);
-      return`<div class="ev" data-a="ev-del" data-id="${e.id}" style="top:${top}px;height:${ht}px" title="${esc(e.title)}, нажмите, чтобы удалить"><span class="tag-dot" style="background:${TAGS[e.tag]?.[1]}"></span><span class="et">${ui.armed===e.id?"Удалить? Нажмите ещё раз":esc(e.title)}</span>${ht>=70?`<span class="em">${esc(e.time)}, ${hm(e.dur||60)}</span>`:""}</div>`}).join("")}
+      return`<div class="ev" data-a="ev-open" data-id="${e.id}" style="top:${top}px;height:${ht}px;${ui.evEdit===e.id?"box-shadow:inset 0 0 0 1.5px var(--accent)":""}" title="${esc(e.title)}"><span class="tag-dot" style="background:${TAGS[e.tag]?.[1]}"></span><span class="et">${esc(e.title)}</span>${ht>=70?`<span class="em">${esc(e.time)}, ${hm(e.dur||60)}</span>`:""}</div>`}).join("")}
       ${ds===T&&nowMin>0&&nowMin<(H1-H0)*60?`<div class="nowline" style="top:${nowMin/60*PX}px"></div>`:""}</div>`}).join("");
   const sd=parse(sel),m0=new Date(sd.getFullYear(),sd.getMonth(),1),gs=weekStart(m0);
   const mini=[...Array(42)].map((_,i)=>{const x=addDays(gs,i),ds=iso(x);return`<button data-a="cal-pick" data-d="${ds}" class="${x.getMonth()!==sd.getMonth()?"out":""} ${ds===T?"today":""} ${ds===sel?"sel":""} ${S.events.some(e=>e.date===ds)?"has":""}">${x.getDate()}</button>`}).join("");
@@ -870,16 +887,19 @@ function vCalendar(){
         <div class="mini">${["пн","вт","ср","чт","пт","сб","вс"].map(w=>`<span class="wd">${w}</span>`).join("")}${mini}</div></div>
       <div class="card tight"><div class="card-h"><h2>${sel===T?"Сегодня":dLabel(sel)}</h2><span class="meta">${dayEv.length+dayTasks.length} ${plural(dayEv.length+dayTasks.length,"пункт","пункта","пунктов")}</span></div>
         <div class="list">${dayEv.map(e=>`<div class="li"><span class="tag-dot" style="background:${TAGS[e.tag]?.[1]}"></span><span class="t">${esc(e.title)}</span><span class="r">${esc(e.time)}</span></div>`).join("")}${dayTasks.map(taskLi).join("")}${!dayEv.length&&!dayTasks.length?`<div class="empty">Свободный день</div>`:""}</div>
-        <form class="grid" data-f="ev-add" style="gap:8px">
-          <input class="in" name="title" placeholder="Новое событие" aria-label="Название события" required autocomplete="off">
-          <div class="row"><input class="in" type="time" name="time" value="12:00" aria-label="Время" style="flex:1 1 90px"><select class="in" name="dur" aria-label="Длительность" style="flex:1 1 90px"><option value="30">30 мин</option><option value="60" selected>1 час</option><option value="90">1,5 часа</option><option value="120">2 часа</option><option value="180">3 часа</option></select></div>
-          <div class="row"><select class="in" name="tag" aria-label="Категория" style="flex:1 1 110px">${Object.entries(TAGS).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("")}</select><button class="btn pri">Добавить</button></div>
+        ${(()=>{const E=ui.evEdit&&S.events.find(x=>x.id===ui.evEdit);const dur=E?E.dur||60:60;return`<form class="grid" data-f="ev-add" style="gap:8px">
+          ${E?`<span class="meta">Изменение события</span>`:""}
+          <input class="in" name="title" placeholder="Новое событие" aria-label="Название события" required autocomplete="off" value="${E?esc(E.title):""}">
+          <div class="row"><input class="in" type="date" name="date" value="${E?E.date:sel}" aria-label="Дата" style="flex:1 1 130px"><input class="in" type="time" name="time" value="${E?E.time:"12:00"}" aria-label="Время" style="flex:1 1 90px"></div>
+          <div class="row"><select class="in" name="dur" aria-label="Длительность" style="flex:1 1 90px">${[[30,"30 мин"],[60,"1 час"],[90,"1,5 часа"],[120,"2 часа"],[180,"3 часа"]].map(([v,l])=>`<option value="${v}" ${v===dur?"selected":""}>${l}</option>`).join("")}</select><select class="in" name="tag" aria-label="Категория" style="flex:1 1 110px">${Object.entries(TAGS).map(([k,v])=>`<option value="${k}" ${E&&E.tag===k?"selected":""}>${v[0]}</option>`).join("")}</select></div>
+          <div class="row"><button class="btn pri grow">${E?"Сохранить":"Добавить"}</button>${E?`<button type="button" class="btn danger" data-a="ev-del" data-id="${E.id}">${ui.armed===E.id?"Точно удалить":"Удалить"}</button><button type="button" class="btn ghost" data-a="ev-cancel">Отмена</button>`:""}</div>
+        </form>`})()}
         </form></div>
       <div class="card tight"><div class="card-h"><h2>На что ушло время</h2><span class="meta">${hm(tot===1?0:tot)} за неделю</span></div>
         <div class="list">${Object.entries(byTag).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="li" style="flex-wrap:wrap;gap:6px 10px"><span class="tag-dot" style="background:${TAGS[k]?.[1]}"></span><span class="t">${TAGS[k]?.[0]}</span><span class="r">${hm(v)}</span><div class="meter" style="flex-basis:100%"><i style="width:${v/tot*100}%;background:${TAGS[k]?.[1]}"></i></div></div>`).join("")||`<div class="empty">Событий на этой неделе нет</div>`}</div></div>
     </div>
   </div>
-  <p class="meta">Нажмите на пустое место в сетке, чтобы выбрать день. Нажмите на событие дважды, чтобы удалить его</p>`;
+  <p class="meta">Нажмите на пустое место в сетке, чтобы добавить событие на это время. Нажмите на событие, чтобы изменить или удалить его</p>`;
 }
 
 function vHabits(){
@@ -887,18 +907,21 @@ function vHabits(){
   const done=H.filter(h=>h.log[T]).length;
   const cur=H.length?Math.max(...H.map(streak)):0,best=H.length?Math.max(...H.map(bestStreak)):0;
   const d30=[...Array(30)].map((_,i)=>iso(addDays(d,i-29)));
-  const rate=H.length?Math.round(H.reduce((a,h)=>a+d30.filter(x=>h.log[x]).length,0)/(H.length*30)*100):0;
-  const prevRate=H.length?Math.round(H.reduce((a,h)=>a+[...Array(30)].map((_,i)=>iso(addDays(d,i-59))).filter(x=>h.log[x]).length,0)/(H.length*30)*100):0;
+  const span=h=>clamp(daysBetween(h.created||S.meta.created||T,T)+1,1,30);
+  const spanSum=H.reduce((a,h)=>a+span(h),0);
+  const rate=H.length?Math.round(H.reduce((a,h)=>a+d30.filter(x=>h.log[x]).length,0)/spanSum*100):0;
+  const hasPrev=H.length&&H.every(h=>daysBetween(h.created||S.meta.created||T,T)>=59);
+  const prevRate=hasPrev?Math.round(H.reduce((a,h)=>a+[...Array(30)].map((_,i)=>iso(addDays(d,i-59))).filter(x=>h.log[x]).length,0)/(H.length*30)*100):0;
   const d7=[...Array(7)].map((_,i)=>iso(addDays(d,i-6)));
   return`${head("Привычки",`${done} из ${H.length} отмечено сегодня`)}
   <div class="grid g4">
-    <div class="card stat"><span class="lbl">Отмечено сегодня</span><span class="val">${done}<small>/${H.length}</small></span><span class="chg">${H.length-done?`осталось ${H.length-done}`:"всё сделано"}</span></div>
+    <div class="card stat"><span class="lbl">Отмечено сегодня</span><span class="val">${done}<small>/${H.length}</small></span><span class="chg">${!H.length?"пока нет привычек":H.length-done?`осталось ${H.length-done}`:"всё сделано"}</span></div>
     <div class="card stat"><span class="lbl">Текущая серия</span><span class="val">${cur}<small> ${plural(cur,"день","дня","дней")}</small></span><span class="chg">самая длинная из идущих</span></div>
-    <div class="card stat"><span class="lbl">Выполнено за 30 дней</span><span class="val">${cnt("hr",rate)}<small>%</small></span><span class="chg ${rate>=prevRate?"up":"down"}">${rate>=prevRate?"+":"−"}${Math.abs(rate-prevRate)} п. п. к прошлым 30 дням</span></div>
+    <div class="card stat"><span class="lbl">Выполнено за 30 дней</span><span class="val">${cnt("hr",rate)}<small>%</small></span><span class="chg ${hasPrev?(rate>=prevRate?"up":"down"):""}">${hasPrev?`${rate>=prevRate?"+":"−"}${Math.abs(rate-prevRate)} п. п. к прошлым 30 дням`:"сравнение появится через 60 дней"}</span></div>
     <div class="card stat"><span class="lbl">Лучшая серия</span><span class="val">${best}<small> ${plural(best,"день","дня","дней")}</small></span><span class="chg">за всё время</span></div>
   </div>
   <div class="hab-grid">${H.map(h=>{const c=HCOL[h.color%HCOL.length];const on=!!h.log[T];const r=d30.filter(x=>h.log[x]).length;
-    return`<div class="card tight"><div class="card-h"><div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(h.name)}</h2><span class="meta">серия ${streak(h)} · ${Math.round(r/30*100)}% за 30 дней</span></div><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить сегодня">${ic("check")}</button></div>
+    return`<div class="card tight"><div class="card-h"><div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(h.name)}</h2><span class="meta">серия ${streak(h)} · ${Math.round(r/span(h)*100)}% за ${span(h)} ${plural(span(h),"день","дня","дней")}</span></div><button class="bigcheck ${on?"on":""}" style="${on?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${T}" aria-pressed="${on}" aria-label="Отметить сегодня">${ic("check")}</button></div>
       <div class="days7">${d7.map(x=>`<span class="wd">${WD[parse(x).getDay()]}</span>`).join("")}${d7.map(x=>`<button class="${h.log[x]?"on":""}" style="${h.log[x]?`background:${c}`:""}" data-a="hab" data-id="${h.id}" data-d="${x}" aria-label="${dLabel(x)}" aria-pressed="${!!h.log[x]}"></button>`).join("")}</div>
       <div class="row" style="justify-content:flex-end"><button class="btn sm ghost x ${ui.armed===h.id?"armed":""}" data-a="del" data-k="habits" data-id="${h.id}">${ui.armed===h.id?"Удалить привычку?":"Удалить"}</button></div></div>`}).join("")}
     <form class="card tight" data-f="hab-add"><div class="card-h"><h2>Новая привычка</h2></div><input class="in" name="name" placeholder="Например, 10 000 шагов" aria-label="Название привычки" required autocomplete="off"><button class="btn pri">Добавить</button></form>
@@ -914,11 +937,11 @@ function vHealth(){
   const rows=[["bed","Сон в среднем",avg(d7,"sleep"),avg(p7,"sleep"),v=>hm(v),1],["mood","Настроение",avg(d7,"mood"),avg(p7,"mood"),v=>fmt1(v)+" / 5",1],["steps","Шаги в день",avg(d7,"steps"),avg(p7,"steps"),v=>fmt(v),1],["drop","Вода в день",avg(d7,"water"),avg(p7,"water"),v=>fmt1(v/1000)+" л",1]];
   const d21=[...Array(21)].map((_,i)=>iso(addDays(d,i-20)));
   const wv=d21.map(x=>hlog(x).weight??null);
-  return`${head("Здоровье",`Счёт дня ${sc.score} из 100`)}
+  return`${head("Здоровье",sc.score!=null?`Счёт дня ${sc.score} из 100`:"Запишите воду, сон или шаги за сегодня")}
   <div class="grid g-main">
     <div class="card"><div class="card-h"><h2>Сегодня</h2><span class="meta">${dLabel(T)}</span></div>
       <div class="rings">
-        <div class="ring">${ring(sc.score/100,sc.score,"счёт")}<span class="meta">из 100</span></div>
+        <div class="ring">${ring((sc.score||0)/100,sc.score??"—","счёт")}<span class="meta">из 100</span></div>
         <div class="ring">${ring((l.sleep||0)/g.sleep,l.sleep?`${Math.floor(l.sleep/60)}:${pad(l.sleep%60)}`:"—","сон","var(--c4)")}<span class="meta">цель ${hm(g.sleep)}</span></div>
         <div class="ring">${ring((l.water||0)/g.water,fmt1((l.water||0)/1000),"литра","var(--c6)")}<span class="meta">цель ${fmt1(g.water/1000)} л</span></div>
       </div></div>
@@ -926,16 +949,16 @@ function vHealth(){
       <div class="quick">
         <button data-a="water" data-v="250"><span class="ql">${ic("drop","s")}Вода</span><b class="tab">+250 мл</b></button>
         <button data-a="water" data-v="500"><span class="ql">${ic("drop","s")}Вода</span><b class="tab">+500 мл</b></button>
-        <form data-f="hlog" data-k="sleep"><label class="ql" for="q-sleep">${ic("bed","s")}Сон, часы</label><input class="in" id="q-sleep" name="v" type="number" step="0.25" min="0" max="16" placeholder="${l.sleep?fmt1(l.sleep/60):"7,5"}"></form>
-        <form data-f="hlog" data-k="steps"><label class="ql" for="q-steps">${ic("steps","s")}Шаги</label><input class="in" id="q-steps" name="v" type="number" min="0" placeholder="${l.steps||"8000"}"></form>
-        <form data-f="hlog" data-k="weight"><label class="ql" for="q-w">${ic("scale","s")}Вес, кг</label><input class="in" id="q-w" name="v" type="number" step="0.1" min="30" max="300" placeholder="${l.weight||lastWeight()||""}"></form>
+        <form data-f="hlog" data-k="sleep"><label class="ql" for="q-sleep">${ic("bed","s")}Сон, часы</label><input class="in" id="q-sleep" name="v" type="number" step="0.25" min="0" max="16" placeholder="—"><span class="meta">${l.sleep?`записано: ${hm(l.sleep)}`:"не записано"}</span></form>
+        <form data-f="hlog" data-k="steps"><label class="ql" for="q-steps">${ic("steps","s")}Шаги</label><input class="in" id="q-steps" name="v" type="number" min="0" placeholder="—"><span class="meta">${l.steps?`записано: ${fmt(l.steps)}`:"не записано"}</span></form>
+        <form data-f="hlog" data-k="weight"><label class="ql" for="q-w">${ic("scale","s")}Вес, кг</label><input class="in" id="q-w" name="v" type="number" step="0.1" min="30" max="300" placeholder="—"><span class="meta">${l.weight?`записано: ${fmt1(l.weight)} кг`:"не записано"}</span></form>
         <div style="background:var(--raised);border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);padding:10px;display:flex;flex-direction:column;gap:8px"><span class="ql">${ic("mood","s")}Настроение</span><div class="row" style="gap:4px">${[1,2,3,4,5].map(n=>`<button class="btn sm ${l.mood===n?"pri":""}" style="flex:1;padding:0" data-a="mood" data-v="${n}">${n}</button>`).join("")}</div></div>
-      </div><span class="meta">Значение сохраняется по Enter</span></div>
+      </div><span class="meta">Введите число, оно сохранится, когда вы выйдете из поля</span></div>
   </div>
   <div class="grid g-main-r">
     <div class="card"><div class="card-h"><h2>Показатели за неделю</h2><span class="meta">к прошлой неделе</span></div>
       <div class="list">${rows.map(([i,n,a,b,f])=>{const ch=a!=null&&b?Math.round((a-b)/b*100):null;return`<div class="li">${ic(i,"s")}<span class="t">${n}</span><span class="r">${a!=null?f(a):"—"}</span><span class="chg ${ch>0?"up":ch<0?"down":""}" style="width:48px;text-align:right">${ch!=null?(ch>0?"+":"")+ch+"%":""}</span></div>`}).join("")}</div></div>
-    <div class="card"><div class="card-h"><h2>Вес за 3 недели</h2><span class="meta">цель ${fmt1(S.food.profile.target)} кг</span></div>
+    <div class="card"><div class="card-h"><h2>Вес за 3 недели</h2><span class="meta">${+S.food.profile.target>0?`цель ${fmt1(S.food.profile.target)} кг`:""}</span></div>
       ${lineChart(wv,d21.map(x=>parse(x).getDate()),{h:200,fy:v=>fmt1(v),aria:"Вес за 21 день"})}</div>
   </div>`;
 }
@@ -962,7 +985,7 @@ function planHtml(){
     <div class="li"><span class="t">Темп</span><span class="r">${P.pace>0?"+":""}${fmt1(P.pace)} кг в неделю</span></div>
   </div>`}
   ${P.capped&&!P.manual?`<div class="warnbox">${ic("alert","s")}<span>За этот срок цель достижима только с небезопасным темпом. При безопасном темпе вы придёте к ${fmt1(p.target)} кг примерно ${dLabel(P.realDate)}.</span></div>`:""}
-  ${P.delta!==0?lineChart(pts,labels,{h:160,fy:v=>fmt1(v),target:+p.target,targetLabel:"цель",aria:"Прогноз веса"}):""}
+  ${P.delta!==0?lineChart(pts,labels,{h:160,fy:v=>fmt1(v),extra:[+p.target],target:+p.target,targetLabel:"цель",aria:"Прогноз веса"}):""}
   <span class="meta">Расчёт по формуле Миффлина — Сан Жеора, ориентир, а не медицинская рекомендация</span>`;
 }
 function foodView(){
@@ -978,7 +1001,7 @@ function foodView(){
         <div class="field"><label for="p-act">Активность</label><select class="in" id="p-act" name="activity">${[[1.2,"Сидячий образ жизни"],[1.375,"1–3 тренировки в неделю"],[1.55,"3–5 тренировок в неделю"],[1.725,"6–7 тренировок в неделю"],[1.9,"Тяжёлый труд или 2 тренировки в день"]].map(([v,l])=>`<option value="${v}" ${+p.activity===v?"selected":""}>${l}</option>`).join("")}</select></div>
         <div class="field"><label for="p-w">Сейчас, кг</label><input class="in" id="p-w" name="weight" type="number" step="0.1" min="30" max="300" value="${esc(p.weight)}"></div>
         <div class="field"><label for="p-t">Хочу, кг</label><input class="in" id="p-t" name="target" type="number" step="0.1" min="30" max="300" value="${esc(p.target)}"></div>
-        <div class="field" style="grid-column:1/-1"><label for="p-d">Достичь к дате</label><input class="in" id="p-d" name="deadline" type="date" min="${iso(addDays(new Date(),7))}" value="${esc(p.deadline)}"></div>
+        <div class="field" style="grid-column:1/-1"><label for="p-d">Достичь к дате</label><input class="in" id="p-d" name="deadline" type="date" min="${iso(addDays(new Date(),7))}" max="${iso(addDays(new Date(),3650))}" value="${esc(p.deadline)}"></div>
       </form>
       ${lastWeight()&&Math.abs(lastWeight()-p.weight)>=0.1?`<button class="btn sm" data-a="use-weight">Взять вес из дневника здоровья: ${fmt1(lastWeight())} кг</button>`:""}
     </div>
@@ -1000,7 +1023,7 @@ function foodView(){
     <div class="card"><div class="card-h"><h2>Калории за неделю</h2><span class="meta">норма ${P?fmt(P.kcal):"—"}</span></div>
       ${barChart(d7.map(x=>eaten(x).kcal),d7.map(x=>WD[parse(x).getDay()]),{hl:6,h:200,fv:v=>v?fmt1(v/1000)+"к":"",aria:"Калории за 7 дней"})}</div>
   </div>
-  <style>@media(max-width:700px){form[data-f="meal-add"]{grid-template-columns:repeat(4,minmax(0,1fr))!important}form[data-f="meal-add"] input[name=name]{grid-column:1/-1}}</style>`;
+  <style>@media(max-width:700px){form[data-f="meal-add"]{grid-template-columns:repeat(4,minmax(0,1fr)) auto!important}form[data-f="meal-add"] input[name=name]{grid-column:1/-1}}</style>`;
 }
 function gymView(){
   const d=new Date(),ws=weekStart(d),W=S.workouts.slice().sort((a,b)=>b.date.localeCompare(a.date));
@@ -1042,9 +1065,9 @@ function vMoney(){
   return`${head("Финансы",`${MN[d.getMonth()]} · потрачено ${rub(sp)}`)}
   <div class="acc-row">${S.money.accounts.length?"":`<form class="card tight" data-f="acc-add" style="grid-column:1/-1"><div class="card-h"><h2>Добавьте свои счета</h2><span class="meta">карта, наличные, накопления</span></div><div class="row"><input class="in grow" name="name" placeholder="Название, например «Основная карта»" aria-label="Название счёта" required autocomplete="off"><input class="in" name="balance" type="number" placeholder="Сколько там, ₽" aria-label="Баланс" style="width:160px"><button class="btn pri">Добавить</button></div></form>`}${S.money.accounts.map(a=>`<div class="card tight stat"><span class="lbl">${esc(a.name)}</span><span class="val" style="font-size:22px;line-height:28px">${rub(a.balance)}</span></div>`).join("")}</div>
   <div class="grid g3">
-    <div class="bank"><div class="row" style="justify-content:space-between"><span class="chip-ic"></span><span class="lbl">все счета</span></div><div><div class="lbl">Всего на счетах</div><div class="sum">${cnt("bal",bal,"rub")}</div></div><div class="row" style="justify-content:space-between"><span class="pan">${S.money.accounts.length} ${plural(S.money.accounts.length,"счёт","счёта","счетов")}</span><span class="pan">kwantoww</span></div></div>
-    <div class="card solid ember stat" style="justify-content:space-between"><span class="lbl">Потрачено в ${MP[d.getMonth()]}</span><span class="val" style="font-size:36px;line-height:40px">${cnt("msp",sp,"rub")}</span><span class="meta">${prevSp?`в прошлом месяце ${rub(prevSp)}`:"первый месяц учёта"} · в среднем ${rub(sp/Math.max(1,d.getDate()))} в день</span></div>
-    <div class="card stat" style="justify-content:space-between"><span class="lbl">Доход в ${MP[d.getMonth()]}</span><span class="val" style="font-size:36px;line-height:40px">${cnt("minc",inc,"rub")}</span><span class="chg ${inc||sp?(inc-sp>=0?"up":"down"):""}">${inc||sp?`${inc-sp>=0?"остаётся":"не хватает"} ${rub(Math.abs(inc-sp))}`:"доходов пока нет"}</span></div>
+    <div class="bank"><span class="lbl">Всего на счетах</span><div class="sum">${cnt("bal",bal,"rub")}</div><span class="lbl">${S.money.accounts.length?`${S.money.accounts.length} ${plural(S.money.accounts.length,"счёт","счёта","счетов")}`:"счетов пока нет"}</span></div>
+    <div class="card stat" style="justify-content:space-between"><span class="lbl">Потрачено в ${MP[d.getMonth()]}</span><span class="val" style="font-size:36px;line-height:40px">${cnt("msp",sp,"rub")}</span><span class="meta">${prevSp?`в прошлом месяце ${rub(prevSp)}`:"первый месяц учёта"} · в среднем ${rub(sp/Math.max(1,d.getDate()))} в день</span></div>
+    <div class="card stat" style="justify-content:space-between"><span class="lbl">Доход в ${MP[d.getMonth()]}</span><span class="val" style="font-size:36px;line-height:40px">${cnt("minc",inc,"rub")}</span><span class="chg ${inc>0?(inc-sp>=0?"up":"down"):""}">${inc>0?`${inc-sp>=0?"остаётся":"расходы больше на"} ${rub(Math.abs(inc-sp))}`:"доходов пока нет"}</span></div>
   </div>
   <div class="grid g-main">
     <div class="card"><div class="card-h"><h2>Расходы по категориям</h2><span class="meta">${rub(sp)}</span></div>
@@ -1062,7 +1085,7 @@ function vMoney(){
         <div class="seg" role="radiogroup" aria-label="Тип"><button type="button" data-a="tx-type" data-v="exp" aria-pressed="${(ui.txType||"exp")==="exp"}">Расход</button><button type="button" data-a="tx-type" data-v="inc" aria-pressed="${ui.txType==="inc"}">Доход</button></div>
         <div class="form-grid"><div class="field"><label for="t-a">Сумма, ₽</label><input class="in" id="t-a" name="amount" type="number" min="1" required></div>
         <div class="field"><label for="t-c">Категория</label><select class="in" id="t-c" name="cat">${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("")}</select></div>
-        <div class="field"><label for="t-acc">Счёт</label><select class="in" id="t-acc" name="acc"><option value="">Без счёта</option>${S.money.accounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></div>
+        <div class="field"><label for="t-acc">Счёт</label><select class="in" id="t-acc" name="acc">${S.money.accounts.map((a,i)=>`<option value="${a.id}" ${(ui.lastAcc?a.id===ui.lastAcc:i===0)?"selected":""}>${esc(a.name)}</option>`).join("")}<option value="">Без счёта</option></select></div>
         <div class="field"><label for="t-d">Дата</label><input class="in" id="t-d" name="date" type="date" value="${today()}"></div></div>
         <input class="in" name="note" placeholder="Комментарий" aria-label="Комментарий" autocomplete="off">
         <button class="btn pri">Записать</button>
@@ -1088,7 +1111,7 @@ function vNotes(){
       <textarea class="note-body" id="noteBody" placeholder="Текст заметки" aria-label="Текст заметки">${esc(n.body)}</textarea>`:`<div class="empty">Создайте первую заметку</div>`}</div>
   </div>`;
 }
-function noteItems(list){return list.map(n=>`<button class="note-item" data-a="note-open" data-id="${n.id}" aria-current="${n.id===ui.noteId}"><span class="nt">${n.pinned?ic("pin","s")+" ":""}${esc(n.title||"Без названия")}</span><span class="np">${esc((n.body||"").split("\n")[0]||"Пусто")}</span></button>`).join("")||`<div class="empty">Ничего не найдено</div>`}
+function noteItems(list){return list.map(n=>`<button class="note-item" data-a="note-open" data-id="${n.id}" aria-current="${n.id===ui.noteId}"><span class="nt">${n.pinned?ic("pin","s")+" ":""}${esc(n.title||"Без названия")}</span><span class="np">${esc((n.body||"").split("\n")[0]||"Пусто")}</span></button>`).join("")||`<div class="empty">${ui.noteQ?"Ничего не найдено":"Заметок пока нет. Нажмите «Новая»"}</div>`}
 
 /* ---------- assistant ---------- */
 const AISEE=[["tasks","Задачи и планы","tasks"],["calendar","Календарь","cal"],["habits","Привычки","habit"],["money","Финансы","money"],["health","Здоровье и питание","health"]];
@@ -1233,17 +1256,19 @@ document.addEventListener("click",e=>{
     case"tx-del":{if(arm(id)){const x=S.money.tx.find(t=>t.id===id);const acc=S.money.accounts.find(q=>q.id===x?.acc);if(acc&&x)acc.balance+=x.type==="inc"?-x.amount:+x.amount;S.money.tx=S.money.tx.filter(t=>t.id!==id);commit("money")}break}
     case"tx-type":ui.txType=v;el.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===el));break;
     case"hab":{const h=find("habits",id),d=el.dataset.d;if(h.log[d])delete h.log[d];else h.log[d]=true;ui.flash=`[data-a="hab"][data-id="${id}"][data-d="${d}"]`;commit("habits");break}
-    case"water":{const l=S.health.log[today()]=S.health.log[today()]||{};l.water=(l.water||0)+(+v);ui.flash=`[data-a="water"][data-v="${v}"]`;commit("health");break}
-    case"mood":{const l=S.health.log[today()]=S.health.log[today()]||{};l.mood=+v;ui.flash=`[data-a="mood"][data-v="${v}"]`;commit("health");break}
+    case"water":{const l=S.health.log[today()]=S.health.log[today()]||{};l.water=(l.water||0)+(+v);commit("health");break}
+    case"mood":{const l=S.health.log[today()]=S.health.log[today()]||{};l.mood=+v;commit("health");break}
     case"body-tab":ui.bodyTab=v;render();break;
     case"use-weight":S.food.profile.weight=lastWeight();commit("food");break;
     case"cal-shift":{const narrow=matchMedia("(max-width:760px)").matches;ui.calSel=iso(addDays(parse(ui.calSel),(+v)*(narrow?1:7)));render();break}
     case"cal-month":{const d=parse(ui.calSel);ui.calSel=iso(new Date(d.getFullYear(),d.getMonth()+(+v),1));render();break}
     case"cal-pick":ui.calSel=el.dataset.d;render();break;
-    case"cal-slot":if(e.target===el){ui.calSel=el.dataset.d;const r=el.getBoundingClientRect();const min=Math.floor(((e.clientY-r.top)/48*60)/30)*30+7*60;render();const f=$('form[data-f="ev-add"]');if(f){f.time.value=`${pad(Math.floor(min/60))}:${pad(min%60)}`;f.title.focus()}}break;
-    case"ev-del":{if(arm(id)){S.events=S.events.filter(x=>x.id!==id);commit("events")}break}
-    case"note-new":{const n={id:rid(),title:"",body:"",updated:Date.now(),pinned:false};S.notes.push(n);ui.noteId=n.id;ui.noteEditing=true;ui.noteQ="";commit("notes");setTimeout(()=>$("#noteTitle")?.focus(),0);break}
-    case"note-open":ui.noteId=id;ui.noteEditing=true;render();break;
+    case"cal-slot":if(e.target===el){ui.evEdit=null;ui.calSel=el.dataset.d;const r=el.getBoundingClientRect();const min=Math.floor(((e.clientY-r.top)/48*60)/30)*30+7*60;render();const f=$('form[data-f="ev-add"]');if(f){f.time.value=`${pad(Math.floor(min/60))}:${pad(min%60)}`;f.title.focus()}}break;
+    case"ev-del":{if(arm(id)){S.events=S.events.filter(x=>x.id!==id);ui.evEdit=null;commit("events")}break}
+    case"ev-open":{const x=find("events",id);if(x){ui.evEdit=id;ui.calSel=x.date;render();$('form[data-f="ev-add"] input[name=title]')?.focus()}break}
+    case"ev-cancel":ui.evEdit=null;render();break;
+    case"note-new":{pruneNotes(null);const n={id:rid(),title:"",body:"",updated:Date.now(),pinned:false};S.notes.push(n);ui.noteId=n.id;ui.noteEditing=true;ui.noteQ="";commit("notes");setTimeout(()=>$("#noteTitle")?.focus(),0);break}
+    case"note-open":pruneNotes(id);ui.noteId=id;ui.noteEditing=true;render();break;
     case"note-back":ui.noteEditing=false;render();break;
     case"note-pin":{const n=find("notes",ui.noteId);n.pinned=!n.pinned;commit("notes");break}
     case"ask":ask(v);break;
@@ -1261,14 +1286,14 @@ document.addEventListener("submit",e=>{
   switch(k){
     case"task-add":if(!v("title"))return;S.tasks.push({id:rid(),title:v("title"),tag:"personal",bucket:f.dataset.bucket,due:f.dataset.bucket==="today"?today():f.dataset.bucket==="week"?iso(addDays(new Date(),3)):null,done:false});commit("tasks");refocus(`form[data-f="task-add"][data-bucket="${f.dataset.bucket}"] input`);break;
     case"task-add-full":{const due=v("due")||null;const T=today();const b=!due||due<=T?"today":daysBetween(T,due)<=7?"week":"later";S.tasks.push({id:rid(),title:v("title"),tag:v("tag"),bucket:b,due,done:false});commit("tasks");refocus('form[data-f="task-add-full"] input[name=title]');break}
-    case"ev-add":S.events.push({id:rid(),title:v("title"),date:ui.calSel,time:v("time")||"12:00",dur:+v("dur")||60,tag:v("tag")});commit("events");break;
-    case"hab-add":S.habits.push({id:rid(),name:v("name"),color:S.habits.length%HCOL.length,log:{}});commit("habits");break;
+    case"ev-add":{const data={title:v("title"),date:v("date")||ui.calSel,time:v("time")||"12:00",dur:+v("dur")||60,tag:v("tag")};const ex=ui.evEdit&&find("events",ui.evEdit);if(ex)Object.assign(ex,data);else S.events.push({id:rid(),...data});ui.evEdit=null;ui.calSel=data.date;commit("events");break}
+    case"hab-add":S.habits.push({id:rid(),name:v("name"),color:S.habits.length%HCOL.length,log:{},created:today()});commit("habits");break;
     case"hlog":{const key=f.dataset.k;let x=parseFloat(v("v").replace(",","."));if(isNaN(x))return;const l=S.health.log[today()]=S.health.log[today()]||{};
       if(key==="sleep")l.sleep=Math.round(x*60);else if(key==="steps")l.steps=Math.round(x);else if(key==="weight"){l.weight=Math.round(x*10)/10;S.food.profile.weight=l.weight;persist("food")}
       commit("health");break}
     case"meal-add":{const T=today();(S.food.meals[T]=S.food.meals[T]||[]).push({id:rid(),name:v("name"),kcal:+v("kcal")||0,p:+v("p")||0,f:+v("f")||0,c:+v("c")||0});commit("food");refocus('form[data-f="meal-add"] input[name=name]');break}
     case"gym-add":S.workouts.push({id:rid(),type:v("type"),min:+v("min")||30,date:v("date")||today(),note:v("note")});commit("workouts");break;
-    case"tx-add":{const amt=Math.round(+v("amount")||0);if(amt<=0)return;const type=ui.txType||"exp";const x={id:rid(),date:v("date")||today(),type,amount:amt,cat:v("cat"),note:v("note"),acc:v("acc")};S.money.tx.push(x);const acc=S.money.accounts.find(a=>a.id===x.acc);if(acc)acc.balance+=type==="inc"?amt:-amt;commit("money");break}
+    case"tx-add":{const amt=Math.round(+v("amount")||0);if(amt<=0)return;const type=ui.txType||"exp";const x={id:rid(),date:v("date")||today(),type,amount:amt,cat:v("cat"),note:v("note"),acc:v("acc")};ui.lastAcc=x.acc;S.money.tx.push(x);const acc=S.money.accounts.find(a=>a.id===x.acc);if(acc)acc.balance+=type==="inc"?amt:-amt;commit("money");break}
     case"sub-add":S.money.subs.push({id:rid(),name:v("name"),amount:+v("amount")||0,day:clamp(+v("day")||1,1,28)});commit("money");break;
     case"acc-add":S.money.accounts.push({id:rid(),name:v("name"),balance:+v("balance")||0});commit("money");break;
     case"ask":{const q=v("q");f.elements.q.value="";ask(q);break}
@@ -1282,15 +1307,19 @@ document.addEventListener("keydown",e=>{
 let profT;
 document.addEventListener("input",e=>{
   const t=e.target;
-  if(t.closest("#profileForm")){const p=S.food.profile;p[t.name]=t.type==="number"?parseFloat(t.value)||0:t.value;const box=$("#planBox");if(box)box.innerHTML=planHtml();clearTimeout(profT);profT=setTimeout(()=>persist("food"),400);return}
+  if(t.closest("#profileForm")){const p=S.food.profile;p[t.name]=t.type==="number"?parseFloat(t.value)||0:t.value;const box=$("#planBox");if(box){box.innerHTML=planHtml();drawCharts()}clearTimeout(profT);profT=setTimeout(()=>persist("food"),400);return}
   if(t.id==="noteTitle"||t.id==="noteBody"){const n=find("notes",ui.noteId);if(!n)return;n[t.id==="noteTitle"?"title":"body"]=t.value;n.updated=Date.now();persist("notes");
     const q=ui.noteQ.toLowerCase();const list=S.notes.filter(x=>!q||(x.title+" "+x.body).toLowerCase().includes(q)).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated));$("#noteItems").innerHTML=noteItems(list);const sv=$("#noteSaved");if(sv)sv.textContent="сохранено";return}
   if(t.id==="noteQ"){ui.noteQ=t.value;const q=t.value.toLowerCase();$("#noteItems").innerHTML=noteItems(S.notes.filter(x=>!q||(x.title+" "+x.body).toLowerCase().includes(q)).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated)));return}
   if(t.id==="ask"){t.style.height="40px";t.style.height=Math.min(140,t.scrollHeight)+"px"}
 });
+document.addEventListener("focusout",e=>{
+  const f=e.target.closest?.("#profileForm");
+  if(f&&!f.contains(e.relatedTarget))setTimeout(()=>{if(!document.activeElement?.closest("#profileForm"))render()},0);
+});
 document.addEventListener("change",e=>{
+  if(e.target.closest('form[data-f="hlog"]')&&e.target.value!==""){e.target.form.requestSubmit();return}
   const t=e.target;
-  if(t.closest("#profileForm")){render();return}
   if(t.dataset.acc){const a=S.money.accounts.find(x=>x.id===t.dataset.acc);if(a){a.balance=+t.value||0;commit("money")}return}
   if(t.dataset.set){const path=t.dataset.set,val=t.value;const s=S.settings;
     if(path==="accent"){s.accent=val;applyTheme()}
