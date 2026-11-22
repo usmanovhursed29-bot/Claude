@@ -76,6 +76,8 @@
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.tdel{color:var(--fg3);flex:none;width:32px;padding:0}.tdel:hover{color:var(--bad)}
+.task .acts{opacity:1!important}
 button,a,[data-a],label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .task.new,.li.new{animation:taskin .5s var(--ease) both}
 @keyframes taskin{0%{opacity:0;transform:translateY(-6px);background:var(--accent-soft)}60%{opacity:1;background:var(--accent-soft)}100%{transform:none}}
@@ -541,6 +543,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
     <symbol id="i-auto" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
@@ -594,7 +597,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="23db639f";
+const BUILD="ce3dc9e1";
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
 window.addEventListener("unhandledrejection",e=>{const m=String(e.reason&&e.reason.message||e.reason||"ошибка");try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}});
@@ -962,7 +965,7 @@ function vOverview(){
 }
 function taskLi(t){
   const late=!t.done&&t.due&&t.due<today();
-  return`<div class="li ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><span class="t">${esc(t.title)}</span>${late?`<span class="meta late">просрочено</span>`:""}</div>`;
+  return`<div class="li ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><span class="t">${esc(t.title)}</span>${late?`<span class="meta late">просрочено</span>`:""}<button class="btn sm ghost tdel" data-a="task-del" data-id="${t.id}" aria-label="Удалить задачу" title="Удалить">${ic("trash","s")}</button></div>`;
 }
 function quickTaskForm(bucket){return`<form class="row" data-f="task-add" data-bucket="${bucket}"><input class="in grow" name="title" placeholder="Новая задача" aria-label="Новая задача" autocomplete="off"><button class="btn icon" aria-label="Добавить">${ic("plus")}</button></form>`}
 
@@ -973,7 +976,7 @@ function vTasks(){
   const load=days.map(x=>S.tasks.filter(t=>!t.done&&(t.due===x||(x===T&&t.bucket==="today"&&(!t.due||t.due<T)))).length+S.events.filter(e=>e.date===x).length);
   const tToday=S.tasks.filter(t=>t.bucket==="today"||t.due===T),tDone=tToday.filter(t=>t.done).length;
   const f=ui.taskTagFilter;
-  const card=t=>{const late=!t.done&&t.due&&t.due<T;return`<div class="task ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><div class="body"><span class="t">${esc(t.title)}</span><span class="row" style="gap:12px"><span class="chip"><span class="tag-dot" style="background:${TAGS[t.tag]?.[1]}"></span>${TAGS[t.tag]?.[0]||""}</span>${t.due?`<span class="meta ${late?"late":""}">${late?"просрочено, ":""}${t.due===T?"сегодня":dLabel(t.due)}</span>`:""}</span></div><div class="acts"><button class="btn sm ghost" data-a="task-move" data-id="${t.id}" title="Перенести в следующую колонку" aria-label="Перенести">${ic("right","s")}</button><button class="btn sm ghost x ${ui.armed===t.id?"armed":""}" data-a="del" data-k="tasks" data-id="${t.id}" aria-label="Удалить">${ui.armed===t.id?"Удалить?":ic("x","s")}</button></div></div>`};
+  const card=t=>{const late=!t.done&&t.due&&t.due<T;return`<div class="task ${t.done?"done":""} ${ui.newTask===t.id?"new":""}"><button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Отметить" data-a="task-done" data-id="${t.id}">${ic("check")}</button><div class="body"><span class="t">${esc(t.title)}</span><span class="row" style="gap:12px"><span class="chip"><span class="tag-dot" style="background:${TAGS[t.tag]?.[1]}"></span>${TAGS[t.tag]?.[0]||""}</span>${t.due?`<span class="meta ${late?"late":""}">${late?"просрочено, ":""}${t.due===T?"сегодня":dLabel(t.due)}</span>`:""}</span></div><div class="acts"><button class="btn sm ghost" data-a="task-move" data-id="${t.id}" title="Перенести в следующую колонку" aria-label="Перенести">${ic("right","s")}</button><button class="btn sm ghost tdel" data-a="task-del" data-id="${t.id}" aria-label="Удалить задачу" title="Удалить">${ic("trash","s")}</button></div></div>`};
   return`${head("Задачи",`${open.length} ${plural(open.length,"открыта","открыто","открыто")}${od.length?` · ${od.length} ${plural(od.length,"просрочена","просрочены","просрочено")}`:""}`,`<button class="btn pri" data-a="qs" data-v="task">${ic("plus","s")}Задача</button>`)}
   <div class="grid g-main-r">
     <button class="gcard grad-blue" data-a="qs" data-v="task" aria-label="Добавить задачу">
@@ -1468,6 +1471,7 @@ document.addEventListener("click",e=>{
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"nav":go(v);break;
+    case"task-del":{const i=S.tasks.findIndex(x=>x.id===id);if(i<0)break;const [t]=S.tasks.splice(i,1);commit("tasks");toast("Задача удалена",()=>{S.tasks.splice(Math.min(i,S.tasks.length),0,t);persist("tasks")});break}
     case"hard-reload":(async()=>{try{const rs=await navigator.serviceWorker?.getRegistrations();await Promise.all((rs||[]).map(r=>r.unregister()));const ks=await caches?.keys();await Promise.all((ks||[]).map(k=>caches.delete(k)))}catch{}location.replace(location.pathname+"?v="+Date.now()+location.hash)})();break;
     case"qs":openQS(v,id);break;
     case"undo":if(ui.undo){ui.undo();ui.undo=null;$("#toast").classList.remove("show");render()}break;
