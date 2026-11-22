@@ -549,6 +549,7 @@ const plural=(n,a,b,c)=>{n=Math.abs(n)%100;const k=n%10;if(n>10&&n<20)return c;i
 const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 
 /* ---------- state ---------- */
+const STANDALONE=false; /* true in the installable build */
 const KEYS=["settings","tasks","events","habits","health","food","workouts","money","notes","chats","focus","meta"];
 const S={};
 const TAGS={work:["Работа","var(--c3)"],personal:["Личное","var(--c1)"],study:["Учёба","var(--c4)"],home:["Дом","var(--c2)"],meet:["Встречи","var(--c5)"],sport:["Спорт","var(--c6)"]};
@@ -741,7 +742,7 @@ function ring(frac,val,sub,color="var(--accent)"){
 const VIEWS=[
   ["overview","Обзор","home"],["tasks","Задачи","tasks"],["calendar","Календарь","cal"],["habits","Привычки","habit"],
   ["health","Здоровье","health"],["money","Финансы","money"],["notes","Заметки","note"],
-  ["assistant","Ассистент","ai"],["prefs","Настройки","set"]];
+  ["assistant","Ассистент","ai"],["prefs","Настройки","set"]].filter(v=>!(STANDALONE&&v[0]==="assistant"));
 const ui={seen:{},evEdit:null,view:"overview",bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
 function pruneNotes(keep){const n0=S.notes.length;S.notes=S.notes.filter(n=>n.id===keep||(n.title||"").trim()||(n.body||"").trim());if(S.notes.length!==n0)persist("notes")}
 function route(){
@@ -1381,6 +1382,9 @@ function vPrefs(){
     </div>
     <div class="card tight"><div class="card-h"><h2>Данные</h2></div>
       <div class="set-row"><span>${ic("auto","s")}Хранилище</span><span class="meta" style="flex:none">${store.mode==="db"?"аккаунт":"это устройство"}</span></div>
+      ${STANDALONE?`<div class="set-row"><span>Резервная копия</span><button class="btn sm" data-a="export">Сохранить файл</button></div>
+      <div class="set-row"><span>Восстановить из файла</span><label class="btn sm" for="importFile">Выбрать файл</label><input type="file" id="importFile" accept="application/json,.json" hidden></div>
+      <span class="meta">Данные хранятся только на этом телефоне. Сохраняйте копию, чтобы перенести их на другое устройство</span>`:""}
       <div class="set-row"><span>Удалить всё</span><button class="btn sm danger" data-a="clear-demo">${ui.armed==="demo"?"Стереть задачи, деньги, заметки и всё остальное? Нажмите ещё раз":"Удалить"}</button></div>
     </div>
   </div>`;
@@ -1407,6 +1411,7 @@ document.addEventListener("click",e=>{
     case"qs-acc":ui.qs.acc=v;el.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===el));break;
     case"qs-del":{if(ui.armed==="qsdel"){ui.armed=null;const m=QS[ui.qs.type].remove(ui.qs);closeQS();render();toast(m)}else{ui.armed="qsdel";e.target.closest("button").textContent="Точно удалить"}break}
     case"health-tab":ui.healthTab=v;render();break;
+    case"export":{const o={app:"kwantoww",v:1,at:new Date().toISOString()};KEYS.forEach(k=>o[k]=S[k]);const url=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download=`kwantoww-${today()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast("Копия сохранена");break}
     case"ov-p":ui.ovP=v;render();break;
     case"qs-workout":openQS("workout");ui.qs.chip=v;document.querySelectorAll('#qsPanel [data-a="qs-chip"]').forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
     case"sheet-close":if(e.target===el||el.tagName==="BUTTON")$("#sheet").classList.remove("open");break;
@@ -1484,6 +1489,7 @@ document.addEventListener("focusout",e=>{
   if(f&&!f.contains(e.relatedTarget))setTimeout(()=>{if(!document.activeElement?.closest("#profileForm"))render()},0);
 });
 document.addEventListener("change",e=>{
+  if(e.target.id==="importFile"&&e.target.files[0]){const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(o.app!=="kwantoww")throw 0;applyLoaded(o);KEYS.forEach(persist);applyTheme();render();toast("Данные восстановлены")}catch{toast("Это не файл копии Kwantoww")}};r.readAsText(e.target.files[0]);return}
   if(e.target.closest('form[data-f="hlog"]')&&e.target.value!==""){e.target.form.requestSubmit();return}
   const t=e.target;
   if(t.dataset.acc){const a=S.money.accounts.find(x=>x.id===t.dataset.acc);if(a){a.balance=+t.value||0;commit("money")}return}
