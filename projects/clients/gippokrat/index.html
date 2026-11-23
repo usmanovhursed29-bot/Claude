@@ -224,7 +224,7 @@ footer.site{padding:32px 0 48px;color:var(--faint);font-size:14px;border-top:1px
 </section>
 </main>
 
-<footer class="site">Гиппократ · Химки, Германа Титова, 10 · Концепт сайта, сделан <a href="https://kwantoww.pages.dev/">Kwantoww</a></footer>
+<footer class="site">Гиппократ · Химки, Германа Титова, 10</footer>
 </div>
 
 <script>
@@ -271,5 +271,6 @@ if(!still)document.querySelectorAll("[data-count]").forEach(el=>{
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.1});
 document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
 </script>
+<div class="kw-credit" style="text-align:center;padding:24px 16px 32px;font:400 14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;opacity:.7">Сайт сделан в <a href="https://kwantoww.pages.dev/" style="color:inherit">Kwantoww</a>: сайты, Telegram-боты и продвижение для бизнеса · <a href="https://t.me/kwantoww" style="color:inherit">Telegram @kwantoww</a></div>
 </body>
 </html>
