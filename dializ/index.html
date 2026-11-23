@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Диализный центр в Одинцово — концепт сайта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Direction: free OMS dialysis in Odintsovo. Calm, clear, caring.
+   World: the rhythm of treatment — three sessions a week, shifts, documents.
+   Moments: the weekly shift schedule and the 4-step path. Signature: three marks (three sessions a week). */
+:root{
+  --bg:#f5f6f7; --card:#ffffff; --raised:#eef0f2; --line:rgba(17,24,32,.09);
+  --fg:#111820; --fg2:#4a5562; --fg3:#6b7682;
+  --acc:#1f5fa8; --acc-ink:#1a518f; --on-acc:#ffffff; --acc-soft:rgba(31,95,168,.1);
+  --ok:#1d7f4f;
+  --font:"Onest",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111417; --card:#181c20; --raised:#20252a; --line:rgba(236,240,244,.09);
+  --fg:#eceff3; --fg2:#a8b1bb; --fg3:#8b95a0;
+  --acc:#7fb0ea; --acc-ink:#94bdf0; --on-acc:#0b1726; --acc-soft:rgba(127,176,234,.14); --ok:#4cc38a; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 16px/1.6 var(--font);-webkit-font-smoothing:antialiased;overflow-x:clip}
+h1,h2,h3{margin:0;font-weight:500;line-height:1.15;letter-spacing:-.015em;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* signature: three marks = three sessions a week */
+.marks{display:inline-flex;gap:4px;vertical-align:middle}
+.marks i{width:6px;height:6px;border-radius:2px;background:var(--acc)}
+
+.concept{background:var(--fg);color:var(--bg);font-size:13px;text-align:center;padding:8px 16px}
+header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:16px;height:64px}
+.brand{display:flex;flex-direction:column;line-height:1.2;text-decoration:none}
+.brand b{font-weight:600;font-size:16px}
+.brand span{font-size:13px;color:var(--fg3)}
+nav{display:flex;gap:24px;margin-left:auto}
+nav a{color:var(--fg2);text-decoration:none;font-size:15px;transition:color .15s}
+nav a:hover{color:var(--fg)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border-radius:10px;font:500 15px var(--font);text-decoration:none;border:0;cursor:pointer;transition:background-color .15s,transform .12s}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--fg);color:var(--bg)}
+.btn.pri:hover{background:var(--fg2)}
+.btn.sec{background:var(--card);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.sec:hover{background:var(--raised)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:56px;align-items:center;padding:72px 0 64px}
+.kicker{font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:10px}
+.hero h1{font-size:clamp(38px,5vw,56px);margin:16px 0 18px}
+.hero p.lead{font-size:18px;color:var(--fg2);max-width:30em}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.free{display:flex;gap:24px;margin-top:36px;flex-wrap:wrap}
+.free div{display:flex;flex-direction:column;gap:2px}
+.free b{font-size:20px;font-weight:500}
+.free span{font-size:13px;color:var(--fg3)}
+
+/* schedule — the one rich moment */
+.sched{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line),0 12px 32px -24px rgba(0,0,0,.35);padding:24px}
+.sched-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:18px}
+.sched-h h2{font-size:18px}
+.sched-h .now{font-size:13px;color:var(--fg3)}
+.days{display:grid;gap:8px}
+.day{display:grid;grid-template-columns:36px minmax(0,1fr) 108px;align-items:center;gap:12px;font-size:14px}
+.day .d{color:var(--fg3);font-weight:500}
+.day.today .d{color:var(--fg)}
+.track{position:relative;height:30px;border-radius:8px;background:var(--raised)}
+.fill{position:absolute;top:0;bottom:0;border-radius:8px;background:var(--acc);transform-origin:left;animation:grow .9s var(--ease) both}
+.fill.short{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc)}
+.day .t{color:var(--fg2);font-size:13px;text-align:right}
+.day.off .t{color:var(--fg3)}
+.nowline{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--fg);border-radius:1px}
+.nowline::after{content:"";position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--fg)}
+.axis{display:grid;grid-template-columns:36px minmax(0,1fr) 108px;gap:12px;margin-top:8px}
+.axis div{position:relative;height:16px}
+#axis span{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--fg3)}
+.legend{display:flex;gap:18px;margin-top:16px;font-size:13px;color:var(--fg2);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--acc)}
+.legend i.s{background:var(--acc-soft);box-shadow:inset 0 0 0 1px var(--acc)}
+.note{font-size:12px;color:var(--fg3);margin-top:10px}
+
+section{padding:72px 0;border-top:1px solid var(--line)}
+.sh{display:flex;justify-content:space-between;align-items:end;gap:24px;flex-wrap:wrap;margin-bottom:32px}
+.sh h2{font-size:clamp(28px,3.4vw,38px)}
+.sh p{color:var(--fg2);max-width:34em}
+
+.path{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:start}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.steps li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:16px;padding:20px 0;border-top:1px solid var(--line)}
+.steps li:first-child{border-top:0;padding-top:0}
+.steps .n{width:36px;height:36px;border-radius:10px;background:var(--raised);display:grid;place-items:center;font:500 14px var(--mono);color:var(--fg2)}
+.steps h3{font-size:18px;margin-bottom:6px}
+.steps p{color:var(--fg2);font-size:15px}
+.check{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:24px;position:sticky;top:88px}
+.check h3{font-size:18px;margin-bottom:4px}
+.check .sub{font-size:13px;color:var(--fg3);margin-bottom:14px}
+.ci{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer;user-select:none}
+.ci:first-of-type{border-top:0}
+.ci input{position:absolute;opacity:0;pointer-events:none}
+.box{width:22px;height:22px;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--fg3);display:grid;place-items:center;flex:none;transition:background-color .15s,box-shadow .15s}
+.box svg{width:14px;height:14px;stroke:var(--on-acc);stroke-width:2.2;fill:none;stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .25s var(--ease)}
+.ci input:checked+.box{background:var(--acc);box-shadow:none}
+.ci input:checked+.box svg{stroke-dashoffset:0}
+.ci input:checked~span{color:var(--fg3)}
+.ci input:focus-visible+.box{outline:2px solid var(--acc);outline-offset:2px}
+.progress{height:4px;border-radius:2px;background:var(--raised);margin-top:14px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--ok);transition:width .4s var(--ease)}
+.check .done{font-size:13px;color:var(--ok);margin-top:8px;min-height:20px}
+
+.types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.type{background:var(--card);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);padding:22px;display:flex;flex-direction:column;gap:8px;transition:box-shadow .2s}
+.type:hover{box-shadow:inset 0 0 0 1px var(--acc)}
+.type .code{font:400 12px var(--mono);color:var(--fg3)}
+.type h3{font-size:19px}
+.type p{color:var(--fg2);font-size:15px}
+.type .where{font-size:13px;color:var(--fg2);display:flex;align-items:center;gap:8px;margin-top:4px}
+
+.money{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.money div{padding:22px;border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.money b{display:block;font-size:30px;font-weight:500;margin-bottom:6px}
+.money span{color:var(--fg2);font-size:15px}
+
+.team{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.person{display:flex;gap:16px;align-items:center;padding:20px;border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.ava{width:56px;height:56px;border-radius:14px;background:var(--raised);display:grid;place-items:center;font-weight:500;color:var(--fg2);flex:none}
+.person b{display:block;font-weight:500}
+.person span{color:var(--fg2);font-size:14px}
+
+.contact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.rows{display:grid}
+.row{display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;padding:14px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row dt{color:var(--fg3);font-size:14px}
+.row dd{margin:0}
+.row a{text-decoration:none;border-bottom:1px solid var(--line);transition:border-color .15s}
+.row a:hover{border-color:var(--fg)}
+details{background:var(--card);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);padding:4px 20px}
+summary{cursor:pointer;padding:14px 0;font-weight:500;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary svg{transition:transform .2s var(--ease)}
+details[open] summary svg{transform:rotate(180deg)}
+.org{padding:12px 0;border-top:1px solid var(--line);font-size:14px;color:var(--fg2)}
+.org b{display:block;color:var(--fg);font-weight:500}
+
+footer{border-top:1px solid var(--line);padding:32px 0 104px;color:var(--fg3);font-size:13px}
+footer .warn{font-size:15px;font-weight:500;color:var(--fg);margin-bottom:10px}
+.dock{display:none}
+
+/* motion: one entrance, reveals on scroll, schedule bars grow, checklist ticks */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@keyframes grow{from{transform:scaleX(0)}}
+.enter{animation:rise .5s var(--ease) both}
+.enter.d1{animation-delay:.06s}.enter.d2{animation-delay:.12s}.enter.d3{animation-delay:.18s}
+.rv{transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.rv-on .rv:not(.in){opacity:0;transform:translateY(16px)}
+
+@media (max-width:900px){
+  .hero,.path,.contact{grid-template-columns:minmax(0,1fr)}
+  .hero{gap:36px;padding-top:48px}
+  nav{display:none}
+  .bar .btn{margin-left:auto}
+  .check{position:static}
+  .money{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:600px){
+  .types,.team{grid-template-columns:minmax(0,1fr)}
+  .day,.axis{grid-template-columns:30px minmax(0,1fr) 84px;gap:8px}
+  .row{grid-template-columns:minmax(0,1fr);gap:2px}
+  .bar .btn{display:none}
+  .dock{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));background:var(--bg);border-top:1px solid var(--line)}
+  .dock .btn{flex:1;justify-content:center;height:48px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="concept">Концепт сайта, подготовленный как предложение. Это не официальный сайт диализного центра</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9H3z"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+</defs></svg>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#"><b>Диализный центр в Одинцово</b><span>ул. Триумфальная, 3А</span></a>
+    <nav aria-label="Разделы"><a href="#path">Как попасть</a><a href="#types">Виды диализа</a><a href="#team">Команда</a><a href="#contacts">Контакты</a></nav>
+    <a class="btn pri" href="tel:+74951981273"><svg class="i"><use href="#i-phone"/></svg>+7 (495) 198-12-73</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <div class="kicker enter"><span class="marks" aria-hidden="true"><i></i><i></i><i></i></span>Гемодиализ три раза в неделю, рядом с домом</div>
+      <h1 class="enter d1">Диализ в Одинцово бесплатно по ОМС</h1>
+      <p class="lead enter d2">Высокопоточный гемодиализ, гемодиафильтрация и перитонеальный диализ. Лекарства для процедуры тоже бесплатно.</p>
+      <div class="cta enter d3">
+        <a class="btn pri" href="tel:+74951981273"><svg class="i"><use href="#i-phone"/></svg>Записаться по телефону</a>
+        <a class="btn sec" href="#path">Как попасть на диализ</a>
+      </div>
+      <div class="free enter d3">
+        <div><b>0 ₽</b><span>процедуры и лекарства</span></div>
+        <div><b>4 вида</b><span>заместительной терапии</span></div>
+        <div><b>с 7:00</b><span>первая смена</span></div>
+      </div>
+    </div>
+
+    <div class="sched enter d2" aria-labelledby="schedTitle">
+      <div class="sched-h"><h2 id="schedTitle">Расписание смен</h2><span class="now mono" id="nowText"></span></div>
+      <div class="days" id="days"></div>
+      <div class="axis" aria-hidden="true"><span></span><div id="axis"></div><span></span></div>
+      <div class="legend"><span><i></i>смены весь день</span><span><i class="s"></i>утро, идёт набор пациентов</span></div>
+      <p class="note">Точное время вашей смены согласует центр при записи</p>
+    </div>
+  </div>
+
+  <section id="path">
+    <div class="sh rv"><h2>Как попасть на диализ</h2><p>Пациентов направляет комиссия по отбору на заместительную почечную терапию. Дальше всё просто</p></div>
+    <div class="path">
+      <ol class="steps rv">
+        <li><span class="n">1</span><div><h3>Получите решение комиссии</h3><p>Комиссия по отбору и направлению пациентов с хронической почечной недостаточностью решает, какой вид диализа вам нужен.</p></div></li>
+        <li><span class="n">2</span><div><h3>Сдайте анализы в поликлинике</h3><p>Общий анализ крови и мочи, мочевина, креатинин, УЗИ почек. Анализы сдаются в поликлинике по месту жительства.</p></div></li>
+        <li><span class="n">3</span><div><h3>Запишитесь</h3><p>По телефону <a href="tel:+74951981273">+7 (495) 198-12-73</a> или лично в центре. Запись идёт на ближайший свободный день в порядке очереди.</p></div></li>
+        <li><span class="n">4</span><div><h3>Придите на первую процедуру</h3><p>Возьмите оригиналы документов. Медсестра покажет зал, расскажет о распорядке и подберёт удобную смену.</p></div></li>
+      </ol>
+      <aside class="check rv" aria-labelledby="checkTitle">
+        <h3 id="checkTitle">Что взять с собой</h3>
+        <p class="sub">Отмечайте, чтобы ничего не забыть</p>
+        <div id="checklist"></div>
+        <div class="progress"><i id="prog"></i></div>
+        <p class="done" id="done" aria-live="polite"></p>
+      </aside>
+    </div>
+  </section>
+
+  <section id="types">
+    <div class="sh rv"><h2>Виды диализа</h2><p>Вид терапии подбирает врач вместе с вами</p></div>
+    <div class="types rv">
+      <article class="type"><span class="code">A18.05.002.001</span><h3>Гемодиализ высокопоточный</h3><p>Кровь очищается в аппарате через мембрану с высокой проницаемостью. Процедура проходит в центре, обычно три раза в неделю.</p><span class="where"><svg class="i"><use href="#i-pin"/></svg>В центре</span></article>
+      <article class="type"><span class="code">A18.05.011</span><h3>Гемодиафильтрация</h3><p>Сочетает диализ и фильтрацию, поэтому лучше удаляет из крови крупные молекулы. Тоже проходит в центре.</p><span class="where"><svg class="i"><use href="#i-pin"/></svg>В центре</span></article>
+      <article class="type"><span class="code">A18.30.001</span><h3>Перитонеальный диализ</h3><p>Кровь очищается через брюшину с помощью специального раствора. Процедуры можно проводить дома, центр обучает и наблюдает.</p><span class="where"><svg class="i"><use href="#i-home"/></svg>Дома, под наблюдением центра</span></article>
+      <article class="type"><span class="code">A18.30.001.002</span><h3>Автоматизированный перитонеальный диализ</h3><p>Обмены раствора проводит аппарат, обычно ночью во время сна. Днём вы свободны.</p><span class="where"><svg class="i"><use href="#i-home"/></svg>Дома, под наблюдением центра</span></article>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh rv"><h2>Бесплатно по ОМС</h2><p>Работа центра финансируется по Московской областной программе госгарантий бесплатной медицинской помощи</p></div>
+    <div class="money rv">
+      <div><b class="mono">0 ₽</b><span>за процедуру диализа</span></div>
+      <div><b class="mono">0 ₽</b><span>за лекарства, которые нужны для процедуры</span></div>
+      <div><b>3 документа</b><span>паспорт, полис ОМС и СНИЛС — оригиналы</span></div>
+    </div>
+  </section>
+
+  <section id="team">
+    <div class="sh rv"><h2>Команда центра</h2><p>Вы в надёжных руках</p></div>
+    <div class="team rv">
+      <div class="person"><span class="ava">АМ</span><div><b>Минченков Андрей Викторович</b><span>Главный врач</span></div></div>
+      <div class="person"><span class="ava">ОП</span><div><b>Поплавская Ольга Вячеславовна</b><span>Старшая медицинская сестра</span></div></div>
+    </div>
+  </section>
+
+  <section id="contacts">
+    <div class="sh rv"><h2>Контакты</h2></div>
+    <div class="contact">
+      <dl class="rows rv">
+        <div class="row"><dt>Адрес</dt><dd><a href="https://yandex.ru/maps/?text=%D0%9E%D0%B4%D0%B8%D0%BD%D1%86%D0%BE%D0%B2%D0%BE%2C%20%D0%A2%D1%80%D0%B8%D1%83%D0%BC%D1%84%D0%B0%D0%BB%D1%8C%D0%BD%D0%B0%D1%8F%20%D1%83%D0%BB%D0%B8%D1%86%D0%B0%2C%203%D0%90" target="_blank" rel="noopener">ул. Триумфальная, 3А, Одинцово, 143009</a></dd></div>
+        <div class="row"><dt>Телефон</dt><dd><a class="mono" href="tel:+74951981273">+7 (495) 198-12-73</a></dd></div>
+        <div class="row"><dt>Почта</dt><dd><a href="mailto:odintsovo.hdc@fmc-ag.ru">odintsovo.hdc@fmc-ag.ru</a></dd></div>
+        <div class="row"><dt>Пн, Ср, Пт</dt><dd class="mono">7:00 – 23:00</dd></div>
+        <div class="row"><dt>Вт, Чт, Сб</dt><dd><span class="mono">7:00 – 12:00</span> <span style="color:var(--fg3)">· набор пациентов</span></dd></div>
+        <div class="row"><dt>Воскресенье</dt><dd>выходной</dd></div>
+      </dl>
+      <details class="rv">
+        <summary>Контролирующие организации <svg class="i"><use href="#i-down"/></svg></summary>
+        <div class="org"><b>ТФОМС Московской области</b>Москва, Дербеневская наб., д. 7, стр. 1 · +7 (495) 223-71-20 доб. 10-01</div>
+        <div class="org"><b>Министерство здравоохранения Московской области</b>Красногорск, бульвар Строителей, д. 1 · 8-498-602-03-01</div>
+        <div class="org"><b>Роспотребнадзор по Московской области</b>Мытищи, ул. Семашко, д. 2 · +7 (495) 586-10-78</div>
+        <div class="org"><b>Росздравнадзор по Москве и Московской области</b>Москва, ул. Вучетича, д. 12А · (495) 611-47-74</div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="warn">Имеются противопоказания, необходима консультация специалиста</p>
+    <p>ООО «Центр диализа», обособленное подразделение Одинцово. Данные взяты с официальной страницы центра.</p>
+    <p>Концепт сайта подготовлен как предложение и не является официальным сайтом центра.</p>
+  </div>
+</footer>
+
+<div class="dock"><a class="btn pri" href="tel:+74951981273"><svg class="i"><use href="#i-phone"/></svg>Позвонить в центр</a></div>
+
+<script>
+(function(){
+  const OPEN=7*60, CLOSE=23*60, SPAN=CLOSE-OPEN;
+  // days of the week, Monday first; [label, start, end, short]
+  const WEEK=[["Пн",420,1380],["Вт",420,720,1],["Ср",420,1380],["Чт",420,720,1],["Пт",420,1380],["Сб",420,720,1],["Вс"]];
+  const hm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`;
+  const pos=m=>((m-OPEN)/SPAN*100).toFixed(2)+"%";
+
+  function moscow(){
+    const p=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Moscow",weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date());
+    const g=t=>p.find(x=>x.type===t).value;
+    return {day:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].indexOf(g("weekday")),min:(+g("hour")%24)*60+ +g("minute")};
+  }
+
+  function draw(){
+    const now=moscow();
+    document.getElementById("days").innerHTML=WEEK.map(([d,s,e,short],i)=>{
+      const today=i===now.day, line=today&&now.min>=OPEN&&now.min<=CLOSE?`<span class="nowline" style="left:${pos(now.min)}"></span>`:"";
+      const bar=s?`<span class="fill${short?" short":""}" style="left:${pos(s)};width:calc(${pos(e)} - ${pos(s)});animation-delay:${i*60}ms"></span>`:"";
+      return `<div class="day${today?" today":""}${s?"":" off"}"><span class="d">${d}</span><span class="track">${bar}${line}</span><span class="t mono">${s?hm(s)+"–"+hm(e):"выходной"}</span></div>`;
+    }).join("");
+    const [, s, e]=WEEK[now.day];
+    const open=s&&now.min>=s&&now.min<e;
+    document.getElementById("nowText").textContent=open?`сейчас ${hm(now.min)}, центр работает`:`сейчас ${hm(now.min)}, центр закрыт`;
+  }
+  document.getElementById("axis").innerHTML=[7,11,15,19,23].map(h=>`<span style="left:${pos(h*60)}">${h}:00</span>`).join("");
+  draw();
+  setInterval(()=>{ // only move the now-line, no re-animation
+    const now=moscow(), line=document.querySelector(".day.today .nowline");
+    if(line)line.style.left=pos(now.min);
+  },60000);
+
+  const ITEMS=["Паспорт","Полис ОМС","СНИЛС","Общий анализ крови","Общий анализ мочи","Анализ на мочевину и креатинин","УЗИ почек"];
+  const list=document.getElementById("checklist");
+  list.innerHTML=ITEMS.map((t,i)=>`<label class="ci"><input type="checkbox" id="c${i}"><span class="box"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span><span>${t}</span></label>`).join("");
+  list.addEventListener("change",()=>{
+    const n=list.querySelectorAll("input:checked").length;
+    document.getElementById("prog").style.width=n/ITEMS.length*100+"%";
+    document.getElementById("done").textContent=n===ITEMS.length?"Всё готово, можно записываться":`Готово ${n} из ${ITEMS.length}`;
+  });
+
+  if("IntersectionObserver" in window&&!matchMedia("(prefers-reduced-motion: reduce)").matches){
+    document.documentElement.classList.add("rv-on");
+    const io=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target)}}),{rootMargin:"0px 0px -8% 0px"});
+    document.querySelectorAll(".rv").forEach(el=>io.observe(el));
+  }
+})();
+</script>
+</body>
+</html>
