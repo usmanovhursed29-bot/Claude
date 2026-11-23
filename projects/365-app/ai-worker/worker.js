@@ -1,6 +1,7 @@
 // Kwantoww advice server for Cloudflare Workers.
 // Secrets: BOT_TOKEN (from @BotFather), GEMINI_KEY (from Google AI Studio).
-// Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT. KV binding: LIMITS.
+// Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT, APP_URL. KV binding: LIMITS.
+// Routes: POST /advice and /sync (from the mini app), POST /telegram (bot webhook).
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -16,9 +17,16 @@ const PROMPTS = {
 
 const MAX_CONTEXT = 6000;
 const AUTH_MAX_AGE = 24 * 60 * 60;
+const HISTORY = 12;
+const DAY_TTL = 2 * 24 * 60 * 60;
+const CONTEXT_TTL = 14 * 24 * 60 * 60;
+
+const CHAT_PROMPT = "Ты помощник в личном приложении Kwantoww: задачи, привычки, здоровье, питание, финансы. " +
+  "Отвечай как живой собеседник, коротко и по делу. Если в сообщении есть данные пользователя, опирайся на них. " +
+  "Записывать что-то в приложение ты не можешь: если просят записать, подскажи нажать кнопку «Открыть» и записать там.";
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const cors = {
       "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -28,7 +36,16 @@ export default {
       new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json; charset=utf-8" } });
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-    if (request.method !== "POST" || new URL(request.url).pathname !== "/advice") return reply(404, { error: "Not found" });
+    const path = new URL(request.url).pathname;
+    if (request.method !== "POST") return reply(404, { error: "Not found" });
+
+    if (path === "/telegram") {
+      if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== (await webhookSecret(env.BOT_TOKEN))) return new Response("forbidden", { status: 403 });
+      const update = await request.json();
+      // answer Telegram at once; a slow model reply would make it resend the update
+      ctx.waitUntil(handleMessage(update.message, env));
+      return new Response("ok");
+    }
 
     let body;
     try {
@@ -37,40 +54,102 @@ export default {
       return reply(400, { error: "Неверный запрос" });
     }
     const { section, context, initData } = body;
-    if (!PROMPTS[section] || typeof context !== "string" || !context) return reply(400, { error: "Неверный запрос" });
-
+    if (typeof context !== "string" || !context) return reply(400, { error: "Неверный запрос" });
     const user = await telegramUser(initData, env.BOT_TOKEN);
     if (!user) return reply(401, { error: "Советы работают только внутри Telegram-бота" });
 
-    const day = new Date().toISOString().slice(0, 10);
-    const key = `${user.id}:${day}`;
-    const used = Number(await env.LIMITS.get(key)) || 0;
-    const limit = Number(env.DAILY_LIMIT) || 20;
-    if (used >= limit) return reply(429, { error: `На сегодня советы закончились (${limit} в день). Завтра будут снова` });
-    await env.LIMITS.put(key, String(used + 1), { expirationTtl: 2 * 24 * 60 * 60 });
-
-    // free-tier models get retired or overloaded; try the configured list in order
-    const prompt = JSON.stringify({
-      systemInstruction: { parts: [{ text: `${PROMPTS[section]} ${RULES}` }] },
-      contents: [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }],
-      generationConfig: { maxOutputTokens: 400, temperature: 0.6 },
-    });
-    let res;
-    for (const model of env.GEMINI_MODEL.split(",").map((m) => m.trim())) {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
-        body: prompt,
-      });
-      if (res.ok) break;
-      console.log("gemini error", model, res.status, await res.text());
+    if (path === "/sync") {
+      await env.LIMITS.put(`ctx:${user.id}`, context.slice(0, MAX_CONTEXT), { expirationTtl: CONTEXT_TTL });
+      return reply(200, { ok: true });
     }
-    if (!res.ok) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
-    const data = await res.json();
-    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("").trim();
+    if (path !== "/advice" || !PROMPTS[section]) return reply(404, { error: "Not found" });
+
+    if (!(await takeQuota(user.id, env))) return reply(429, { error: `На сегодня советы закончились (${env.DAILY_LIMIT} в день). Завтра будут снова` });
+    // only the overview carries every section; a section's advice must not overwrite the full picture
+    if (section === "overview") await env.LIMITS.put(`ctx:${user.id}`, context.slice(0, MAX_CONTEXT), { expirationTtl: CONTEXT_TTL });
+    const text = await askGemini(env, `${PROMPTS[section]} ${RULES}`, [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }]);
+    if (text === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
     return reply(200, { text: text || "Пока нечего посоветовать: запишите больше данных за день" });
   },
 };
+
+async function handleMessage(message, env) {
+  if (!message?.text || !message.from) return;
+  const chatId = message.chat.id, userId = message.from.id, text = message.text.trim();
+  const histKey = `hist:${userId}`;
+
+  if (text.startsWith("/start")) {
+    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне вопросы обычными сообщениями: про деньги, питание, привычки, планы. Чтобы я видел твои данные, хотя бы раз открой приложение кнопкой ниже.\n\n/reset — начать разговор заново`, true);
+  }
+  if (text.startsWith("/reset")) {
+    await env.LIMITS.delete(histKey);
+    return sendMessage(env, chatId, "Начали заново. О чём поговорим?");
+  }
+  if (!(await takeQuota(userId, env))) return sendMessage(env, chatId, `На сегодня сообщения закончились (${env.DAILY_LIMIT} в день). Завтра продолжим`);
+
+  await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  const history = JSON.parse((await env.LIMITS.get(histKey)) || "[]");
+  const context = await env.LIMITS.get(`ctx:${userId}`);
+  const system = `${CHAT_PROMPT} ${RULES}${context ? `\n\nДанные пользователя из приложения:\n${context}` : "\n\nДанных из приложения пока нет."}`;
+  const contents = [...history, { role: "user", parts: [{ text: text.slice(0, 2000) }] }];
+  const answer = await askGemini(env, system, contents);
+  if (answer === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Попробуй через минуту");
+  const reply = answer || "Не знаю, что ответить. Попробуй спросить иначе";
+  contents.push({ role: "model", parts: [{ text: reply }] });
+  await env.LIMITS.put(histKey, JSON.stringify(contents.slice(-HISTORY)), { expirationTtl: CONTEXT_TTL });
+  return sendMessage(env, chatId, reply);
+}
+
+async function takeQuota(userId, env) {
+  const key = `${userId}:${new Date().toISOString().slice(0, 10)}`;
+  const used = Number(await env.LIMITS.get(key)) || 0;
+  if (used >= Number(env.DAILY_LIMIT)) return false;
+  await env.LIMITS.put(key, String(used + 1), { expirationTtl: DAY_TTL });
+  return true;
+}
+
+// Returns the answer text, or null when every configured model failed.
+// Free-tier models get retired or overloaded, so GEMINI_MODEL is a list tried in order.
+async function askGemini(env, system, contents) {
+  const prompt = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents,
+    generationConfig: { maxOutputTokens: 600, temperature: 0.6 },
+  });
+  for (const model of env.GEMINI_MODEL.split(",").map((m) => m.trim())) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
+      body: prompt,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("").trim();
+    }
+    console.log("gemini error", model, res.status, await res.text());
+  }
+  return null;
+}
+
+function telegram(env, method, payload) {
+  return fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+function sendMessage(env, chatId, text, withAppButton = false) {
+  const payload = { chat_id: chatId, text };
+  if (withAppButton) payload.reply_markup = { inline_keyboard: [[{ text: "Открыть Kwantoww", web_app: { url: env.APP_URL } }]] };
+  return telegram(env, "sendMessage", payload);
+}
+
+// The webhook secret is derived from the bot token so no extra secret has to be configured.
+async function webhookSecret(botToken) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`webhook:${botToken}`));
+  return [...new Uint8Array(digest)].slice(0, 24).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 // Telegram Mini App auth: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
 async function telegramUser(initData, botToken) {
