@@ -49,22 +49,23 @@ export default {
     if (used >= limit) return reply(429, { error: `На сегодня советы закончились (${limit} в день). Завтра будут снова` });
     await env.LIMITS.put(key, String(used + 1), { expirationTtl: 2 * 24 * 60 * 60 });
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent`,
-      {
+    // free-tier models get retired or overloaded; try the configured list in order
+    const prompt = JSON.stringify({
+      systemInstruction: { parts: [{ text: `${PROMPTS[section]} ${RULES}` }] },
+      contents: [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }],
+      generationConfig: { maxOutputTokens: 400, temperature: 0.6 },
+    });
+    let res;
+    for (const model of env.GEMINI_MODEL.split(",").map((m) => m.trim())) {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_KEY },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: `${PROMPTS[section]} ${RULES}` }] },
-          contents: [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }],
-          generationConfig: { maxOutputTokens: 400, temperature: 0.6 },
-        }),
-      },
-    );
-    if (!res.ok) {
-      console.log("gemini error", res.status, await res.text());
-      return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
+        body: prompt,
+      });
+      if (res.ok) break;
+      console.log("gemini error", model, res.status, await res.text());
     }
+    if (!res.ok) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
     const data = await res.json();
     const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("").trim();
     return reply(200, { text: text || "Пока нечего посоветовать: запишите больше данных за день" });
