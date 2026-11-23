@@ -1666,17 +1666,44 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
   else if(a==="hello-skip"){clearTimeout(ui.helloT);hideHello()}},true);
 
 /* steps from outside: ?steps=1234 (site) or Telegram start param steps_1234 (t.me/<bot>/<app>?startapp=steps_1234) */
-function importSteps(){
+/* commands from links (Siri/Shortcuts):
+   Telegram: t.me/<bot>/<app>?startapp=exp_500_cafe   site: ?cmd=exp_500_cafe   (also legacy ?steps=1234)
+   exp_<₽>[_<category>] · inc_<₽> · water_<ml> · steps_<n> · sleep_<h>[-<tenths>] · weight_<kg>[-<tenths>]
+   mood_<1-5> · energy_<1-5> · meal_<kcal> · task_<base64url text> */
+function runCommand(cmd){
+  const m=cmd.startsWith("task_")?[cmd,"task",cmd.slice(5)]:/^([a-z]+)_([0-9-]+)(?:_([a-z]+))?$/.exec(cmd);if(!m)return null;
+  const [,k,raw,extra]=m;const num=parseFloat(raw.replace("-","."));const T=today();const l=()=>S.health.log[T]=S.health.log[T]||{};
+  const acc=S.money.accounts[0];
+  switch(k){
+    case"exp":{if(!(num>0))return null;const cat=CATS[extra]?extra:"other";S.money.tx.push({id:rid(),date:T,type:"exp",amount:Math.round(num),cat,note:"",acc:acc?.id||""});if(acc)acc.balance-=Math.round(num);persist("money");return`Расход ${rub(num)} · ${CATS[cat][0]}`}
+    case"inc":{if(!(num>0))return null;S.money.tx.push({id:rid(),date:T,type:"inc",amount:Math.round(num),cat:"other",note:"Доход",acc:acc?.id||""});if(acc)acc.balance+=Math.round(num);persist("money");return`Доход ${rub(num)}`}
+    case"water":{if(!(num>0))return null;l().water=(l().water||0)+Math.round(num);persist("health");return`+${fmt(num)} мл воды`}
+    case"steps":{if(!(num>=0))return null;l().steps=Math.round(num);persist("health");return`Шаги: ${fmt(num)}`}
+    case"sleep":{if(!(num>0&&num<=16))return null;l().sleep=Math.round(num*60);persist("health");return`Сон: ${hm(num*60)}`}
+    case"weight":{if(!(num>=30&&num<=300))return null;l().weight=Math.round(num*10)/10;S.food.profile.weight=l().weight;persist("health");persist("food");return`Вес: ${fmt1(num)} кг`}
+    case"mood":case"energy":{if(!(num>=1&&num<=5))return null;l()[k]=Math.round(num);persist("health");return`${k==="mood"?"Настроение":"Энергия"}: ${Math.round(num)} из 5`}
+    case"meal":{if(!(num>0))return null;(S.food.meals[T]=S.food.meals[T]||[]).push({id:rid(),name:"Приём пищи",kcal:Math.round(num),p:0,f:0,c:0});persist("food");return`Еда: ${fmt(num)} ккал`}
+    case"task":{let t="";try{t=new TextDecoder().decode(Uint8Array.from(atob(raw.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))).trim()}catch{return null}if(!t)return null;S.tasks.push({id:rid(),title:t.slice(0,200),tag:"personal",bucket:"today",due:T,done:false});persist("tasks");return`Задача: ${t}`}
+  }
+  return null;
+}
+function importCommand(){
   try{const q=new URLSearchParams(location.search),h=new URLSearchParams((location.hash||"").replace(/^#/,""));
-    let st=q.get("steps");const sp=h.get("tgWebAppStartParam")||q.get("tgWebAppStartParam")||q.get("startapp")||"";
-    if(!st&&/^steps_\d+$/.test(sp))st=sp.slice(6);
-    if(st&&/^\d{1,6}$/.test(st)){const n=+st;const l=S.health.log[today()]=S.health.log[today()]||{};if(l.steps!==n){l.steps=n;persist("health");render()}
-      setTimeout(()=>toast(`Шаги из «Здоровья»: ${fmt(n)}`),1800);
-      if(q.has("steps"))try{history.replaceState(null,"",location.pathname+location.hash)}catch{}}
+    let cmd=q.get("cmd")||h.get("tgWebAppStartParam")||q.get("tgWebAppStartParam")||q.get("startapp")||"";
+    if(!cmd&&q.get("steps"))cmd="steps_"+q.get("steps");
+    if(!cmd)return;
+    // a reopen or reload keeps the same launch data — run each launch once
+    const auth=new URLSearchParams(h.get("tgWebAppData")||"").get("auth_date")||"";const key=cmd+"|"+auth;
+    let done=[];try{done=JSON.parse(localStorage.getItem("kwantoww:cmds")||"[]")}catch{}
+    if(auth&&done.includes(key))return;
+    const msg=runCommand(cmd);
+    if(auth){done.push(key);try{localStorage.setItem("kwantoww:cmds",JSON.stringify(done.slice(-50)))}catch{}}
+    if(q.has("cmd")||q.has("steps"))try{history.replaceState(null,"",location.pathname+location.hash)}catch{}
+    if(msg){render();setTimeout(()=>toast("Записано: "+msg),1800)}
   }catch{}
 }
 boot();
-importSteps();
+importCommand();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
 window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$};
 })();
