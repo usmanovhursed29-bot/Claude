@@ -9,4 +9,4 @@ DAILY_LIMIT = "20"
 
 [[kv_namespaces]]
 binding = "LIMITS"
-id = "ВСТАВЬТЕ_ID_ПРОСТРАНСТВА_KV"
+id = "a9cf791842ee4a1fa560a875dd6476ae"

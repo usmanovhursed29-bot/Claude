@@ -11,7 +11,7 @@ body=re.sub(r"<title>.*?</title>\n?","",src,count=1)
 body=body.replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
 ver=hashlib.sha1((body+open(os.path.join(here,"tg.js"),encoding="utf-8").read()).encode()).hexdigest()[:8]
 body=body.replace('const BUILD="dev";',f'const BUILD="{ver}";',1)
-body=body.replace('const AI_URL="";',f'const AI_URL="{os.environ.get("KWANTOWW_AI_URL","")}";',1)
+body=body.replace('const AI_URL="";',f'const AI_URL="{os.environ.get("KWANTOWW_AI_URL","https://kwantoww-ai.usmanovhursed747.workers.dev")}";',1)
 head=f'''<!doctype html>
 <html lang="ru">
 <head>
