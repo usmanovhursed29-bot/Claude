@@ -606,7 +606,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="e13cee2f";
+const BUILD="390f9694";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
@@ -1739,6 +1739,14 @@ function importCommand(){
     if(msg){render();setTimeout(()=>toast("Записано: "+msg),1800)}
   }catch{}
 }
+/* keep a summary on the advice server so the Telegram chat assistant knows the user's day */
+function syncContext(){
+  const initData=window.Telegram?.WebApp?.initData;
+  if(!AI_URL||!initData)return;
+  fetch(AI_URL.replace(/\/$/,"")+"/sync",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({context:contextText(null),initData})}).catch(()=>{});
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")syncContext()});
+setTimeout(syncContext,3000);
 boot();
 importCommand();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
