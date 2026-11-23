@@ -1,0 +1,12 @@
+name = "kwantoww-ai"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://usmanovhursed29-bot.github.io"
+GEMINI_MODEL = "gemini-2.5-flash"
+DAILY_LIMIT = "20"
+
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "ВСТАВЬТЕ_ID_ПРОСТРАНСТВА_KV"
