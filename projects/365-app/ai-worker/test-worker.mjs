@@ -150,4 +150,16 @@ assert.equal(db.prepare("SELECT COUNT(*) c FROM reminders WHERE user_id = 42 AND
 await app("/reminders", { initData: initData(42), items: [{ key: "app1", title: "Созвон", at: soon + 5 * 60000, time: "15:15" }] });
 assert.equal(db.prepare("SELECT sent FROM reminders WHERE key = 'app1'").get().sent, 0);
 
+// ---- свой вопрос ИИ из приложения ----
+geminiReply = "Ходите 10 минут после каждого приёма пищи.";
+const before2 = sent.length;
+const ask = await app("/ask", { initData: initData(42), question: "Как больше двигаться?", context: "шаги 2000 из 8000", history: [{ q: "Привет", a: "Здравствуйте" }] });
+assert.equal(ask.status, 200);
+assert.equal(ask.json.text, "Ходите 10 минут после каждого приёма пищи.");
+const g = sent.slice(before2).find((m) => m.method === "gemini").body;
+assert.match(g.systemInstruction.parts[0].text, /не больше 60 слов[\s\S]*шаги 2000 из 8000/);
+assert.equal(g.contents.length, 3, "история + вопрос");
+assert.equal((await app("/ask", { initData: initData(42), question: "  " })).status, 400);
+assert.equal((await app("/ask", { initData: "bad", question: "x" })).status, 401);
+
 console.log("Сервер: все проверки пройдены ✅\n\n" + stats);

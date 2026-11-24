@@ -982,7 +982,7 @@ function vOverview(){
   };
   const list=(S.settings.widgets||WDEF).filter(k=>WG[k]);
   const ed=!!ui.wEdit;
-  return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день",adviceBtn("overview"))}
+  return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день",adviceBtn("overview")+askBtn())}
   ${quickActions()}
   <div class="scoreblock">
     <span class="sec">${per==="w"?"Средний счёт за неделю":per==="m"?"Средний счёт за месяц":"Счёт дня"}</span>
@@ -1452,6 +1452,7 @@ function saveQS(chipOverride){
 }
 /* ---------- advice from the AI server ---------- */
 const ADVICE={overview:["Итог дня",null],tasks:["Совет по задачам",["tasks","calendar"]],habits:["Совет по привычкам",["habits"]],health:["Совет по здоровью и питанию",["health"]],money:["Совет по финансам",["money"]]};
+function askBtn(){return AI_URL?`<button class="btn" data-a="ask-ai">${ic("ai","s")}Спросить ИИ</button>`:""}
 function adviceBtn(sec){return AI_URL?`<button class="btn" data-a="advice" data-v="${sec}">${ic("ai","s")}${sec==="overview"?"Итог дня":"Совет"}</button>`:""}
 async function showAdvice(sec){
   const [title,only]=ADVICE[sec];
@@ -1467,6 +1468,34 @@ async function showAdvice(sec){
     out.textContent=r.ok?j.text:(j.error||"Не получилось получить совет. Попробуйте позже");
   }catch(e){out.textContent="Нет связи с сервером советов. Проверьте интернет"}
 }
+/* свой вопрос ИИ: коротко, понятно, с конкретным шагом; ИИ видит сводку дня */
+const ASK_CHIPS=["Как мне больше двигаться, если весь день сижу?","На чём сэкономить в этом месяце?","Как не забрасывать привычки?"];
+function askLog(){return(ui.askHist||[]).map(h=>`<div class="card tight" style="gap:6px"><b style="font-weight:600">${esc(h.q)}</b><div style="line-height:22px;white-space:pre-wrap">${h.a===null?`<span class="typing" aria-label="Думаю"><i></i><i></i><i></i></span>`:esc(h.a)}</div></div>`).join("")}
+function showAsk(){
+  ui.qs={type:"_advice"};ui.askHist=ui.askHist||[];
+  const panel=$("#qsPanel");
+  panel.innerHTML=`<div class="grid" style="gap:14px"><div class="card-h"><h2 style="font-size:18px">Спросить ИИ</h2><button type="button" class="btn icon ghost" data-a="qs-close" aria-label="Закрыть">${ic("x")}</button></div>
+    <div class="meta">Задайте любой вопрос про здоровье, деньги, привычки или планы. ИИ видит сводку вашего дня и отвечает коротко.</div>
+    <div class="sugg" style="padding:0">${ASK_CHIPS.map(c=>`<button type="button" data-a="ask-chip" data-v="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div id="askLog" class="grid" style="gap:10px">${askLog()}</div>
+    <form data-f="askai" class="grid" style="gap:8px"><textarea id="askQ" class="in" rows="3" maxlength="600" placeholder="Например: как выспаться, если ложусь в 2 ночи?" aria-label="Ваш вопрос"></textarea>
+    <button class="btn pri">${ic("ai","s")}Спросить</button><span class="meta" id="askErr" style="color:var(--bad)"></span></form></div>`;
+  $("#toast").classList.remove("show");$("#qs").classList.add("open");
+  setTimeout(()=>$("#askQ")?.focus(),60);
+}
+async function sendAsk(form){
+  const ta=$("#askQ"),q=(ta?.value||"").trim();if(!q){$("#askErr").textContent="Напишите вопрос";return}
+  $("#askErr").textContent="";ta.value="";
+  const hist=ui.askHist;const item={q,a:null};hist.push(item);if(hist.length>6)hist.shift();$("#askLog").innerHTML=askLog();
+  try{
+    const r=await fetch(AI_URL.replace(/\/$/,"")+"/ask",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q,context:contextText(null),history:hist.filter(h=>h!==item&&h.a).slice(-3),initData:window.Telegram?.WebApp?.initData||""})});
+    const j=await r.json().catch(()=>({}));
+    item.a=r.ok?j.text:(j.error||"Не получилось получить ответ. Попробуйте позже");
+  }catch(e){item.a="Нет связи с сервером. Проверьте интернет"}
+  const log=$("#askLog");if(log){log.innerHTML=askLog();log.lastElementChild?.scrollIntoView({block:"nearest",behavior:"smooth"})}
+}
+document.addEventListener("submit",e=>{if(e.target.dataset.f==="askai"){e.preventDefault();e.stopPropagation();sendAsk(e.target)}},true);
 /* ---------- settings ---------- */
 function vPrefs(){
   const s=S.settings,g=s.goals,f=s.focus;
@@ -1522,6 +1551,8 @@ document.addEventListener("click",e=>{
     case"sheet-open":$("#sheet").classList.add("open");break;
     case"nav":go(v);break;
     case"advice":showAdvice(v);break;
+    case"ask-ai":showAsk();break;
+    case"ask-chip":{const t=$("#askQ");if(t){t.value=el.dataset.v||"";t.focus()}break}
     case"w-edit":ui.wEdit=!ui.wEdit;render();break;
     case"w-pick":openWidgetPicker();break;
     case"w-add":{const l=wList();l.push(v);S.settings.widgets=l;closeQS();commit("settings");toast(`Виджет «${WCAT[v][0]}» добавлен`);setTimeout(()=>{const b=document.querySelectorAll(".wbox");b[b.length-1]?.scrollIntoView({block:"center",behavior:"smooth"})},50);break}

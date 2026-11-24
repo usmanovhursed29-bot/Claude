@@ -3,7 +3,7 @@
 // Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT, APP_URL, ADMIN_IDS (Telegram user ids через запятую).
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
 // Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
-// Routes: POST /advice, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
+// Routes: POST /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd } from "./parse.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
@@ -24,8 +24,14 @@ const HISTORY = 12;
 const DAY_TTL = 2 * 24 * 60 * 60;
 const CONTEXT_TTL = 14 * 24 * 60 * 60;
 
-const CHAT_PROMPT = "Ты помощник в личном приложении Kwantoww: задачи, привычки, здоровье, питание, финансы. " +
-  "Отвечай как живой собеседник, коротко и по делу. Если в сообщении есть данные пользователя, опирайся на них. " +
+// Как отвечать на свои вопросы людей (и в приложении, и в чате): коротко, понятно, полезно.
+const ASK_STYLE = "Отвечай по-русски, простыми словами, как умный друг. Сначала прямой ответ одной фразой, " +
+  "потом 1–3 конкретных шага, которые человек может сделать сегодня. Всего не больше 60 слов. " +
+  "Если в данных пользователя есть что-то по теме вопроса (цифры за день, цели), используй это. " +
+  "Не выдумывай факты и цифры. Без markdown, без эмодзи, без приветствий. " +
+  "Про здоровье: общие советы, без диагнозов и лекарств; при тревожных симптомах — к врачу. Про деньги: без советов купить конкретные акции или криптовалюту.";
+
+const CHAT_PROMPT = "Ты помощник в личном приложении Kwantoww: задачи, привычки, здоровье, питание, финансы. " + ASK_STYLE + " " +
   "Записи вроде «выпил 200 мл воды» или «14000 шагов» бот сохраняет сам, отдельно от тебя: ты на них не отвечай.";
 
 export default {
@@ -79,6 +85,21 @@ export default {
       if (!env.DB) return reply(200, { ok: true });
       await syncReminders(env, user, body);
       return reply(200, { ok: true });
+    }
+
+    // Свой вопрос ИИ из приложения.
+    if (path === "/ask") {
+      const q = typeof body.question === "string" ? body.question.trim().slice(0, 600) : "";
+      if (!q) return reply(400, { error: "Напишите вопрос" });
+      if (!(await takeQuota(user.id, env))) return reply(429, { error: `На сегодня вопросы закончились (${env.DAILY_LIMIT} в день). Завтра будут снова` });
+      await track(env, user, "ask");
+      const ctxText = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
+      const hist = (Array.isArray(body.history) ? body.history : []).slice(-3)
+        .flatMap((h) => [{ role: "user", parts: [{ text: String(h.q || "").slice(0, 600) }] }, { role: "model", parts: [{ text: String(h.a || "").slice(0, 1200) }] }]);
+      const system = `Ты помощник в личном приложении Kwantoww. ${ASK_STYLE}${ctxText ? `\n\nДанные пользователя за сегодня:\n${ctxText}` : ""}`;
+      const text = await askGemini(env, system, [...hist, { role: "user", parts: [{ text: q }] }], { maxTokens: 400 });
+      if (text === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
+      return reply(200, { text: text || "Не знаю, что ответить. Попробуйте спросить иначе" });
     }
 
     const { section, context } = body;
@@ -191,6 +212,7 @@ export async function adminText(env) {
   const mau = await one("SELECT COUNT(DISTINCT user_id) c FROM events WHERE ts >= ?", now - 30 * D);
   const opens = await one("SELECT COUNT(*) c FROM events WHERE type = 'app_open' AND ts >= ?", now - D);
   const msgs = await one("SELECT COUNT(*) c FROM events WHERE type = 'message' AND ts >= ?", now - D);
+  const asks = await one("SELECT COUNT(*) c FROM events WHERE type = 'ask' AND ts >= ?", now - D);
   const rec = await one("SELECT COUNT(*) c FROM inbox WHERE ts >= ?", now - D);
   const pending = await one("SELECT COUNT(*) c FROM inbox WHERE done = 0");
   const remSent = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 1 AND at >= ?", now - D);
@@ -205,7 +227,7 @@ export async function adminText(env) {
     `Ушли (заблокировали) за неделю: ${leftWeek}`,
     `Активных: ${dau} за сутки · ${wau} за 7 дней · ${mau} за 30 дней`,
     `Открытий приложения за сутки: ${opens}`,
-    `Сообщений боту за сутки: ${msgs}`,
+    `Сообщений боту за сутки: ${msgs}, вопросов ИИ из приложения: ${asks}`,
     `Записей из чата за сутки: ${rec} (ждут открытия приложения: ${pending})`,
     `Напоминаний отправлено за сутки: ${remSent}, впереди: ${remWait}`,
     kinds.length ? `Что записывают (7 дней): ${kinds.map((k) => `${names[k.k] || k.k} ${k.c}`).join(", ")}` : "",
@@ -280,7 +302,7 @@ async function handleMessage(message, env) {
   const context = await env.LIMITS.get(`ctx:${userId}`);
   const system = `${CHAT_PROMPT} ${RULES}${context ? `\n\nДанные пользователя из приложения:\n${context}` : "\n\nДанных из приложения пока нет."}`;
   const contents = [...history, { role: "user", parts: [{ text: text.slice(0, 2000) }] }];
-  const answer = await askGemini(env, system, contents);
+  const answer = await askGemini(env, system, contents, { maxTokens: 400 });
   if (answer === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Попробуй через минуту");
   const reply = answer || "Не знаю, что ответить. Попробуй спросить иначе";
   contents.push({ role: "model", parts: [{ text: reply }] });
