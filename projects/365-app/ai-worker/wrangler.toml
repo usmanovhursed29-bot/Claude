@@ -6,6 +6,9 @@ compatibility_date = "2025-01-01"
 ALLOWED_ORIGIN = "https://usmanovhursed29-bot.github.io"
 GEMINI_MODEL = "gemini-flash-lite-latest,gemini-3.5-flash,gemini-flash-latest"
 DAILY_LIMIT = "20"
+# Подписка Kwantoww Plus: цена в звёздах Telegram за 30 дней, бесплатные вопросы ИИ в день
+PREMIUM_STARS = "150"
+FREE_AI_PER_DAY = "3"
 # Кто видит /admin: Telegram ID через запятую (узнать командой /myid в боте)
 ADMIN_IDS = "7041620841"
 APP_URL = "https://usmanovhursed29-bot.github.io/Claude/"

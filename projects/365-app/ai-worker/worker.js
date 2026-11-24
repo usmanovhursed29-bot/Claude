@@ -4,6 +4,7 @@
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
 // Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
 // Routes: POST /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
+import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard, boardText, myChallenge, finishChallenges } from "./features.js";
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
@@ -54,6 +55,7 @@ export default {
       // answer Telegram at once; a slow model reply would make it resend the update
       if (update.my_chat_member) ctx.waitUntil(handleMember(update.my_chat_member, env));
       else if (update.callback_query) ctx.waitUntil(handleCallback(update.callback_query, env));
+      else if (update.pre_checkout_query) ctx.waitUntil(handlePreCheckout(update.pre_checkout_query, env));
       else ctx.waitUntil(handleMessage(update.message, env));
       return new Response("ok");
     }
@@ -92,7 +94,7 @@ export default {
     if (path === "/ask") {
       const q = typeof body.question === "string" ? body.question.trim().slice(0, 600) : "";
       if (!q) return reply(400, { error: "Напишите вопрос" });
-      if (!(await takeQuota(user.id, env))) return reply(429, { error: `На сегодня вопросы закончились (${env.DAILY_LIMIT} в день). Завтра будут снова` });
+      if (!(await takeAiQuota(user.id, env)).ok) return reply(429, { error: `На сегодня бесплатные вопросы закончились (${FREE_AI(env)} в день). Безлимит — с подпиской Kwantoww Plus: напишите боту /plus` });
       await track(env, user, "ask");
       const ctxText = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
       const hist = (Array.isArray(body.history) ? body.history : []).slice(-3)
@@ -109,11 +111,12 @@ export default {
     if (path === "/sync") {
       await env.LIMITS.put(`ctx:${user.id}`, context.slice(0, MAX_CONTEXT), { expirationTtl: CONTEXT_TTL });
       await track(env, user, "app_open");
+      if (env.DB && Array.isArray(body.days)) await saveDays(env, user.id, body.days, body.goals);
       return reply(200, { ok: true });
     }
     if (path !== "/advice" || !PROMPTS[section]) return reply(404, { error: "Not found" });
 
-    if (!(await takeQuota(user.id, env))) return reply(429, { error: `На сегодня советы закончились (${env.DAILY_LIMIT} в день). Завтра будут снова` });
+    if (!(await takeAiQuota(user.id, env)).ok) return reply(429, { error: `На сегодня бесплатные советы ИИ закончились (${FREE_AI(env)} в день). Безлимит — с подпиской Kwantoww Plus в чате с ботом` });
     await track(env, user, `advice_${section}`);
     // only the overview carries every section; a section's advice must not overwrite the full picture
     if (section === "overview") await env.LIMITS.put(`ctx:${user.id}`, context.slice(0, MAX_CONTEXT), { expirationTtl: CONTEXT_TTL });
@@ -123,7 +126,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), ensureWebhookOnce(env)]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -263,6 +266,7 @@ async function handleCallback(q, env) {
   const data = String(q.data || ""), userId = q.from.id, chatId = q.message?.chat?.id ?? userId, msgId = q.message?.message_id;
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
+  if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
   if (!data.startsWith("ci:") || !env.DB) return answer();
   await track(env, q.from, "checkin");
   const [, kind, val] = data.split(":");
@@ -284,7 +288,8 @@ async function handleCallback(q, env) {
   const save = (cmd) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, cmd, ts).run();
   if (kind === "sleep" && CHECK_SLEEP.includes(v)) {
     await save(`sleep_${v}`); await answer("Записал");
-    return edit(`✅ Сон: ${v} ч. Хорошего дня!`);
+    const extra = await praise(env, userId, [`sleep_${v}`]).catch(() => "");
+    return edit(`✅ Сон: ${v} ч.${extra ? "\n" + extra : ""}\nХорошего дня!`);
   }
   if (kind === "steps" && CHECK_STEPS.includes(v)) {
     await save(`steps_${v}`); await answer("Записал");
@@ -317,10 +322,12 @@ export async function adminText(env) {
   const asks = await one("SELECT COUNT(*) c FROM events WHERE type = 'ask' AND ts >= ?", now - D);
   const rec = await one("SELECT COUNT(*) c FROM inbox WHERE ts >= ?", now - D);
   const pending = await one("SELECT COUNT(*) c FROM inbox WHERE done = 0");
+  const plusNow = await one("SELECT COUNT(*) c FROM users WHERE premium_until > ?", now);
+  const stars30 = await one("SELECT COALESCE(SUM(stars), 0) c FROM payments WHERE ts >= ?", now - 30 * D);
   const remSent = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 1 AND at >= ?", now - D);
   const remWait = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 0 AND at >= ?", now);
   const kinds = (await env.DB.prepare("SELECT substr(cmd, 1, instr(cmd, '_') - 1) k, COUNT(*) c FROM inbox WHERE ts >= ? GROUP BY k ORDER BY c DESC").bind(now - 7 * D).all()).results || [];
-  const names = { steps: "шаги", water: "вода", sleep: "сон", weight: "вес", exp: "расходы", inc: "доходы", mood: "настроение", energy: "энергия", meal: "еда", task: "задачи" };
+  const names = { steps: "шаги", water: "вода", sleep: "сон", weight: "вес", exp: "расходы", inc: "доходы", mood: "настроение", energy: "энергия", meal: "еда", task: "задачи", event: "события" };
   return [
     "📊 Kwantoww: статистика",
     "",
@@ -331,6 +338,7 @@ export async function adminText(env) {
     `Открытий приложения за сутки: ${opens}`,
     `Сообщений боту за сутки: ${msgs}, вопросов ИИ из приложения: ${asks}`,
     `Записей из чата за сутки: ${rec} (ждут открытия приложения: ${pending})`,
+    `⭐ Подписчиков Plus: ${plusNow}, оплачено за 30 дней: ${stars30} звёзд`,
     `Напоминаний отправлено за сутки: ${remSent}, впереди: ${remWait}`,
     kinds.length ? `Что записывают (7 дней): ${kinds.map((k) => `${names[k.k] || k.k} ${k.c}`).join(", ")}` : "",
   ].filter(Boolean).join("\n");
@@ -342,14 +350,14 @@ async function ensureWebhookUpdates(env) {
   const url = info.result?.url;
   const allowed = info.result?.allowed_updates || [];
   // пустой список = все типы, my_chat_member уже входит
-  const need = ["message", "my_chat_member", "callback_query"];
+  const need = ["message", "my_chat_member", "callback_query", "pre_checkout_query"];
   if (url && allowed.length && need.some((x) => !allowed.includes(x))) {
     await telegram(env, "setWebhook", { url, secret_token: await webhookSecret(env.BOT_TOKEN), allowed_updates: [...new Set([...allowed, ...need])] });
   }
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v2";
+  const flag = "webhook-updates-v3";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   await env.LIMITS.put(flag, "1");
@@ -360,6 +368,7 @@ async function saveEntries(env, userId, entries, ts) {
 }
 
 async function handleMessage(message, env) {
+  if (message?.successful_payment) return handlePayment(message, env);
   if (!message?.from || !(message.text || message.voice || message.audio)) return;
   const chatId = message.chat.id, userId = message.from.id;
   let text = (message.text || "").trim();
@@ -377,13 +386,36 @@ async function handleMessage(message, env) {
   const histKey = `hist:${userId}`;
   await track(env, message.from, text.startsWith("/start") ? "start" : "message");
 
+  if (text.startsWith("/start ch_") && env.DB) {
+    const r = await joinChallenge(env, userId, text.slice(10).trim());
+    if (r.error) return sendMessage(env, chatId, r.error, true);
+    const b = await leaderboard(env, r.ch.code);
+    const owner = b.rows.find((x) => x.id === r.ch.owner_id)?.name || "друг";
+    return sendMessage(env, chatId, `🏃 Вы в челлендже шагов с ${owner}!\n\nЗаписывайте шаги в приложении или пишите мне «9000 шагов». Таблица: /top\n\n` + boardText(b, "Участники"), true);
+  }
   if (text.startsWith("/start")) {
-    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. Каждое утро в 10:00 спрошу, как вы поспали (время или выключить: /checkin)\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
+    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. Каждое утро в 10:00 спрошу, как вы поспали (время или выключить: /checkin)\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n📈 /insights — что видно в ваших данных\n🏃 /challenge — челлендж шагов с друзьями\n⭐ /plus — подписка: безлимитные вопросы ИИ\n/reset — начать разговор заново`, "plus");
   }
   if (text.startsWith("/admin")) {
     if (!isAdmin(env, userId)) return sendMessage(env, chatId, "Эта команда только для администратора.");
     await ensureWebhookUpdates(env).catch(() => {});
     return sendMessage(env, chatId, await adminText(env));
+  }
+  if (text.startsWith("/plus") || text.startsWith("/premium") || /купить подписку/i.test(text)) return sendPlusInfo(env, chatId, userId);
+  if (text.startsWith("/paysupport")) return sendMessage(env, chatId, "Вопросы по оплате и возврату звёзд: напишите @Kwantoww. Ответим в течение дня.");
+  if (text.startsWith("/insights") || /^(мои )?закономерност/i.test(text)) return sendMessage(env, chatId, env.DB ? await insights(env, userId) : "Пока недоступно.", true);
+  if (text.startsWith("/challenge")) {
+    if (!env.DB) return sendMessage(env, chatId, "Пока недоступно.");
+    const c = await createChallenge(env, userId);
+    const link = `https://t.me/${await botUsername(env)}?start=ch_${c.code}`;
+    return telegram(env, "sendMessage", { chat_id: chatId, text: `🏃 Челлендж шагов на 7 дней создан!\n\nОтправьте друзьям эту ссылку. Кто пройдёт больше шагов до ${c.end.slice(8)}.${c.end.slice(5, 7)}, тот победил:\n${link}\n\nТаблица: /top`,
+      reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Давай соревноваться, кто больше пройдёт шагов за неделю!")}` }]] } });
+  }
+  if (text.startsWith("/top")) {
+    if (!env.DB) return sendMessage(env, chatId, "Пока недоступно.");
+    const my = await myChallenge(env, userId);
+    if (!my) return sendMessage(env, chatId, "Вы пока не участвуете в челлендже. Создайте свой: /challenge");
+    return sendMessage(env, chatId, boardText(await leaderboard(env, my.code), "🏃 Челлендж шагов") + "\n\nШаги берутся из приложения и записей в чате.");
   }
   if (text.startsWith("/checkin") || text.startsWith("/вопросы")) return sendCheckinSettings(env, chatId, userId);
   if (text.startsWith("/myid")) return sendMessage(env, chatId, `Ваш Telegram ID: ${userId}`);
@@ -416,10 +448,12 @@ async function handleMessage(message, env) {
   if (entries.length) {
     if (!env.DB) return sendMessage(env, chatId, "Записи из чата пока не подключены. Запишите в приложении.", true);
     await saveEntries(env, userId, entries, (message.date || Math.floor(Date.now() / 1000)) * 1000);
-    return sendMessage(env, chatId, `Записал ✅\n${entries.map((e) => "• " + e.label).join("\n")}\n\nВ приложении появится при следующем открытии.`, true);
+    const extra = await praise(env, userId, entries.map((e) => e.cmd)).catch(() => "");
+    return sendMessage(env, chatId, `Записал ✅\n${entries.map((e) => "• " + e.label).join("\n")}${extra ? "\n\n" + extra : ""}\n\nВ приложении появится при следующем открытии.`, true);
   }
 
-  if (!(await takeQuota(userId, env))) return sendMessage(env, chatId, `На сегодня сообщения закончились (${env.DAILY_LIMIT} в день). Завтра продолжим`);
+  const q = await takeAiQuota(userId, env);
+  if (!q.ok) return telegram(env, "sendMessage", { chat_id: chatId, text: q.plus ? "Сегодня вы задали очень много вопросов. Продолжим завтра." : limitText(env), reply_markup: q.plus ? undefined : plusButton });
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const history = JSON.parse((await env.LIMITS.get(histKey)) || "[]");
   const context = await env.LIMITS.get(`ctx:${userId}`);
@@ -430,7 +464,69 @@ async function handleMessage(message, env) {
   const reply = answer || "Не знаю, что ответить. Попробуй спросить иначе";
   contents.push({ role: "model", parts: [{ text: reply }] });
   await env.LIMITS.put(histKey, JSON.stringify(contents.slice(-HISTORY)), { expirationTtl: CONTEXT_TTL });
+  if (q.left === 0) return telegram(env, "sendMessage", { chat_id: chatId, text: reply + `\n\n— Это был последний бесплатный вопрос ИИ на сегодня. Безлимит — с подпиской ⭐`, reply_markup: plusButton });
   return sendMessage(env, chatId, reply);
+}
+
+// ---- подписка Kwantoww Plus (Telegram Stars) ----
+const FREE_AI = (env) => Number(env.FREE_AI_PER_DAY) || 3;
+const PLUS_AI = (env) => Number(env.PLUS_AI_PER_DAY) || 100; // защита от злоупотреблений, для человека это «безлимит»
+const PLUS_STARS = (env) => Number(env.PREMIUM_STARS) || 150;
+async function isPlus(env, userId) {
+  if (!env.DB) return false;
+  const u = await env.DB.prepare("SELECT premium_until FROM users WHERE id = ?").bind(userId).first();
+  return (u?.premium_until || 0) > Date.now();
+}
+// Вопросы ИИ (чат, «Спросить ИИ», советы): бесплатно 3 в день, с подпиской без ограничений.
+async function takeAiQuota(userId, env) {
+  const plus = await isPlus(env, userId);
+  const key = `ai:${userId}:${new Date().toISOString().slice(0, 10)}`;
+  const used = Number(await env.LIMITS.get(key)) || 0;
+  if (used >= (plus ? PLUS_AI(env) : FREE_AI(env))) return { ok: false, plus };
+  await env.LIMITS.put(key, String(used + 1), { expirationTtl: DAY_TTL });
+  return { ok: true, plus, left: plus ? null : FREE_AI(env) - used - 1 };
+}
+const limitText = (env) => `На сегодня бесплатные вопросы ИИ закончились (${FREE_AI(env)} в день). Завтра будут снова.\n\n⭐ С подпиской Kwantoww Plus — без ограничений.`;
+const plusButton = { inline_keyboard: [[{ text: "⭐ Купить подписку", callback_data: "pay:info" }]] };
+
+async function sendPlusInfo(env, chatId, userId) {
+  const plus = await isPlus(env, userId);
+  if (plus) {
+    const u = await env.DB.prepare("SELECT premium_until FROM users WHERE id = ?").bind(userId).first();
+    const till = new Date(u.premium_until).toISOString().slice(0, 10).split("-").reverse().join(".");
+    return sendMessage(env, chatId, `⭐ У вас подписка Kwantoww Plus до ${till}. Продлевается сама, отменить можно в Telegram: Настройки → Telegram Stars → Подписки.\n\nВопросы по оплате: /paysupport`);
+  }
+  const link = await (await telegram(env, "createInvoiceLink", {
+    title: "Kwantoww Plus",
+    description: "Безлимитные вопросы ИИ в чате и в приложении. Подписка на 30 дней, продлевается сама, отменить можно в любой момент.",
+    payload: `plus:${userId}`,
+    currency: "XTR",
+    prices: [{ label: "Kwantoww Plus, 30 дней", amount: PLUS_STARS(env) }],
+    subscription_period: 2592000,
+  })).json();
+  if (!link.ok) return sendMessage(env, chatId, "Оплата временно недоступна. Попробуйте позже.");
+  return telegram(env, "sendMessage", {
+    chat_id: chatId,
+    text: `⭐ Kwantoww Plus — ${PLUS_STARS(env)} звёзд в месяц (около 200 ₽)\n\nЧто входит:\n• Безлимитные вопросы ИИ в чате и в приложении (бесплатно — ${FREE_AI(env)} в день)\n• «Итог дня» и советы ИИ без ограничений\n\nВсё остальное бесплатно для всех: записи из чата и голосом, напоминания, утренний вопрос про сон, /insights, челленджи.\n\nОплата звёздами Telegram, подписка продлевается сама через 30 дней. Отменить можно в любой момент: Настройки Telegram → Telegram Stars → Подписки.`,
+    reply_markup: { inline_keyboard: [[{ text: `Оформить за ${PLUS_STARS(env)} ⭐`, url: link.result }]] },
+  });
+}
+
+async function handlePreCheckout(q, env) {
+  const ok = q.currency === "XTR" && q.total_amount === PLUS_STARS(env) && String(q.invoice_payload) === `plus:${q.from.id}`;
+  return telegram(env, "answerPreCheckoutQuery", ok ? { pre_checkout_query_id: q.id, ok: true } : { pre_checkout_query_id: q.id, ok: false, error_message: "Счёт устарел. Нажмите «Купить подписку» ещё раз." });
+}
+
+async function handlePayment(message, env) {
+  const p = message.successful_payment, userId = message.from.id;
+  if (!env.DB || p.currency !== "XTR") return;
+  const until = p.subscription_expiration_date ? p.subscription_expiration_date * 1000 : Date.now() + 30 * 86400000;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE users SET premium_until = ? WHERE id = ?").bind(until, userId),
+    env.DB.prepare("INSERT OR IGNORE INTO payments (charge_id, user_id, stars, ts, recurring) VALUES (?, ?, ?, ?, ?)").bind(p.telegram_payment_charge_id, userId, p.total_amount, Date.now(), p.is_recurring ? 1 : 0),
+  ]);
+  await track(env, message.from, p.is_recurring && !p.is_first_recurring ? "renewed" : "paid");
+  return sendMessage(env, message.chat.id, `🎉 Спасибо! Подписка Kwantoww Plus активна до ${new Date(until).toISOString().slice(0, 10).split("-").reverse().join(".")}.\nВопросы ИИ теперь без ограничений.`, true);
 }
 
 async function takeQuota(userId, env) {
@@ -464,6 +560,16 @@ async function askGemini(env, system, contents, { json = false, maxTokens = 600,
   return null;
 }
 
+// Имя бота для ссылок-приглашений (кэшируется).
+async function botUsername(env) {
+  const cached = await env.LIMITS.get("bot-username");
+  if (cached) return cached;
+  const me = await (await telegram(env, "getMe", {})).json();
+  const name = me.result?.username || "";
+  if (name) await env.LIMITS.put("bot-username", name, { expirationTtl: 7 * 86400 });
+  return name;
+}
+
 function telegram(env, method, payload) {
   return fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
     method: "POST",
@@ -474,7 +580,7 @@ function telegram(env, method, payload) {
 
 function sendMessage(env, chatId, text, withAppButton = false) {
   const payload = { chat_id: chatId, text };
-  if (withAppButton) payload.reply_markup = { inline_keyboard: [[{ text: "Открыть Kwantoww", web_app: { url: env.APP_URL } }]] };
+  if (withAppButton) payload.reply_markup = { inline_keyboard: [[{ text: "Открыть Kwantoww", web_app: { url: env.APP_URL } }], ...(withAppButton === "plus" ? [[{ text: "⭐ Купить подписку", callback_data: "pay:info" }]] : [])] };
   return telegram(env, "sendMessage", payload);
 }
 

@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS users (
   morning_h INTEGER NOT NULL DEFAULT 10,
   evening_h INTEGER NOT NULL DEFAULT 21,
   last_m TEXT,                     -- дата последнего утреннего вопроса
-  last_e TEXT
+  last_e TEXT,
+  goals TEXT,                      -- цели из приложения JSON {water, steps, sleep}
+  synced_at INTEGER,               -- когда приложение последний раз присылало данные
+  premium_until INTEGER            -- подписка Plus активна до (мс)
 );
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,3 +46,36 @@ CREATE TABLE IF NOT EXISTS reminders (
   UNIQUE (user_id, key)
 );
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(sent, at);
+-- Сводка дней из приложения (для похвалы, закономерностей и челленджей).
+CREATE TABLE IF NOT EXISTS days (
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,              -- YYYY-MM-DD по времени человека
+  sleep INTEGER, water INTEGER, steps INTEGER, mood INTEGER, energy INTEGER,
+  spend INTEGER, cafe INTEGER, kcal INTEGER,
+  PRIMARY KEY (user_id, date)
+);
+-- Челленджи шагов с друзьями.
+CREATE TABLE IF NOT EXISTS challenges (
+  code TEXT PRIMARY KEY,
+  owner_id INTEGER NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  started_at INTEGER,
+  ends_at INTEGER NOT NULL,
+  announced INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS challenge_members (
+  code TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  joined_at INTEGER NOT NULL,
+  PRIMARY KEY (code, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_members_user ON challenge_members(user_id);
+-- Оплаты подписки Kwantoww Plus звёздами Telegram (charge_id нужен для возврата).
+CREATE TABLE IF NOT EXISTS payments (
+  charge_id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  stars INTEGER NOT NULL,
+  ts INTEGER NOT NULL,
+  recurring INTEGER NOT NULL DEFAULT 0
+);

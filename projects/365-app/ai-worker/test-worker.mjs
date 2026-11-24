@@ -32,6 +32,8 @@ globalThis.fetch = async (url, opts) => {
   if (String(url).includes("/file/bot")) return new Response(new Uint8Array([1, 2, 3, 4]));
   const method = String(url).split("/").pop();
   sent.push({ method, body });
+  if (method === "createInvoiceLink") return new Response(JSON.stringify({ ok: true, result: "https://t.me/$plus-invoice" }));
+  if (method === "getMe") return new Response(JSON.stringify({ ok: true, result: { username: "kwantoww_bot" } }));
   if (method === "getFile") return new Response(JSON.stringify({ ok: true, result: { file_path: "voice/1.oga" } }));
   if (method === "getWebhookInfo") return new Response(JSON.stringify({ ok: true, result: { url: "https://w/telegram", allowed_updates: ["message"] } }));
   return new Response(JSON.stringify({ ok: true }));
@@ -219,4 +221,79 @@ await new Promise((r) => setTimeout(r, 50));
 const sw = sent.slice(b3).find((m) => m.method === "setWebhook");
 assert.ok(sw && sw.body.allowed_updates.includes("callback_query"));
 
-console.log("Сервер: все проверки пройдены ✅\n\n" + stats);
+// ---- синхронизация дней, похвала, закономерности ----
+const isoD = (t) => new Date(t).toISOString().slice(0, 10);
+const days = [];
+for (let i = 14; i >= 1; i--) {
+  const short = i % 2 === 0;
+  days.push({ d: isoD(Date.now() - i * 86400000 + 5 * 3600000), sleep: short ? 330 : 450, steps: short ? 3000 : 9000, water: 2000, mood: short ? 2 : 4, spend: short ? 2400 : 900, cafe: short ? 1200 : 200 });
+}
+days.push({ d: isoD(Date.now() + 5 * 3600000), water: 1000, steps: 2000, sleep: 0 });
+await app("/sync", { initData: initData(42), context: "день", days, goals: { water: 2500, steps: 8000, sleep: 480 } });
+assert.equal(db.prepare("SELECT COUNT(*) c FROM days WHERE user_id = 42").get().c, 15);
+out = await say(42, "выпил 500 мл воды");
+assert.match(lastText(out), /Записал ✅[\s\S]*💧 Сегодня около 2 из 2,5 л\. Осталось 2 стак/); // 1 л из приложения + 0,5 л голосом (ещё не забрано) + 0,5 л сейчас
+out = await say(42, "сегодня 8500 шагов");
+assert.match(lastText(out), /🏆 8 500 шагов — цель 8 000 выполнена/);
+out = await say(42, "/insights");
+const ins = lastText(out);
+assert.match(ins, /Сон: в среднем 6,5 ч/);
+assert.match(ins, /меньше 6 часов, расходы в среднем 2 400 ₽[\s\S]*7\+ часов — 900 ₽/);
+assert.match(ins, /не обязательно причина/);
+out = await say(66, "/insights");
+assert.match(lastText(out), /Пока мало данных/);
+
+// ---- челлендж ----
+out = await say(42, "/challenge");
+const chMsg = out.filter((m) => m.method === "sendMessage").at(-1).body;
+const code = chMsg.text.match(/start=ch_([a-z0-9]+)/)[1];
+assert.match(chMsg.text, /t\.me\/kwantoww_bot\?start=ch_/);
+assert.ok(chMsg.reply_markup.inline_keyboard[0][0].url.startsWith("https://t.me/share/url"));
+out = await say(66, "/start ch_" + code);
+assert.match(lastText(out), /Вы в челлендже шагов с U42/);
+await say(66, "12000 шагов");
+out = await say(66, "/top");
+assert.match(lastText(out), /🥇 U66 — 12 000 шагов\n🥈 U42 — 8 500 шагов/);
+out = await say(66, "/start ch_nope");
+assert.match(lastText(out), /не найден/);
+const { default: W } = await import("./worker.js");
+const realNow = Date.now;
+Date.now = () => realNow() + 8 * 86400000;
+const b4 = sent.length;
+await W.scheduled({}, env, { waitUntil: async (p) => p });
+await new Promise((r) => setTimeout(r, 50));
+Date.now = realNow;
+const fin = sent.slice(b4).filter((m) => m.method === "sendMessage" && /Челлендж закончился/.test(m.body.text));
+assert.equal(fin.length, 2, "итоги получили оба участника");
+assert.match(fin[0].body.text, /Победитель — U66/);
+
+// ---- лимит вопросов ИИ и подписка ----
+geminiReply = "Короткий ответ.";
+for (let i = 1; i <= 3; i++) out = await say(55, "вопрос номер " + "абв"[i - 1]);
+assert.match(lastText(out), /последний бесплатный вопрос/);
+out = await say(55, "ещё вопрос");
+const lim = out.filter((m) => m.method === "sendMessage").at(-1).body;
+assert.match(lim.text, /бесплатные вопросы ИИ закончились \(3 в день\)/);
+assert.equal(lim.reply_markup.inline_keyboard[0][0].callback_data, "pay:info");
+out = await tap(55, "pay:info");
+const inv = out.find((m) => m.method === "createInvoiceLink").body;
+assert.deepEqual([inv.currency, inv.prices[0].amount, inv.subscription_period, inv.payload], ["XTR", 150, 2592000, "plus:55"]);
+const offer = out.filter((m) => m.method === "sendMessage").at(-1).body;
+assert.match(offer.text, /150 звёзд в месяц[\s\S]*Безлимитные вопросы ИИ/);
+assert.equal(offer.reply_markup.inline_keyboard[0][0].url, "https://t.me/$plus-invoice");
+out = await tg({ pre_checkout_query: { id: "pc1", from: { id: 55 }, currency: "XTR", total_amount: 150, invoice_payload: "plus:55" } });
+assert.equal(out.find((m) => m.method === "answerPreCheckoutQuery").body.ok, true);
+out = await tg({ pre_checkout_query: { id: "pc2", from: { id: 55 }, currency: "XTR", total_amount: 1, invoice_payload: "plus:55" } });
+assert.equal(out.find((m) => m.method === "answerPreCheckoutQuery").body.ok, false);
+const exp = Math.floor(Date.now() / 1000) + 30 * 86400;
+out = await tg({ message: { message_id: ++mid, date: 1, chat: { id: 55, type: "private" }, from: { id: 55, first_name: "U55" }, successful_payment: { currency: "XTR", total_amount: 150, invoice_payload: "plus:55", telegram_payment_charge_id: "ch_1", subscription_expiration_date: exp, is_recurring: true, is_first_recurring: true } } });
+assert.match(lastText(out), /Подписка Kwantoww Plus активна/);
+assert.equal(db.prepare("SELECT premium_until FROM users WHERE id = 55").get().premium_until, exp * 1000);
+out = await say(55, "вопрос после оплаты");
+assert.equal(lastText(out), "Короткий ответ.");
+out = await say(55, "/plus");
+assert.match(lastText(out), /У вас подписка Kwantoww Plus до/);
+out = await say(1, "/admin");
+assert.match(lastText(out), /Подписчиков Plus: 1, оплачено за 30 дней: 150 звёзд/);
+
+console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));
