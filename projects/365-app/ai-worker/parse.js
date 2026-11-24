@@ -106,3 +106,77 @@ export const AI_EXTRACT_PROMPT =
   "type: steps (число шагов), water_ml (вода в миллилитрах), sleep_hours (часы сна), weight_kg, mood (1-5), energy (1-5), meal_kcal, " +
   "income (рубли), expense (рубли; category одно из food, cafe, home, transport, subs, health, other), task (text — формулировка задачи). " +
   "Не выдумывай: если в сообщении нет таких данных, верни []. Вопросы и разговор — это [].";
+
+// ---- события календаря из чата: «завтра в 12:00 поликлиника» ----
+const WEEKDAYS = ["воскресенье", "понедельник", "вторник", "сред", "четверг", "пятниц", "суббот"];
+const MONTHS = ["январ", "феврал", "март", "апрел", "ма[йя]", "июн", "июл", "август", "сентябр", "октябр", "ноябр", "декабр"];
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// Текущие дата и время в часовом поясе человека.
+export function localNow(tz, now = Date.now()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", weekday: "short" })
+    .formatToParts(new Date(now)).map((x) => [x.type, x.value]));
+  return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour, mm: +p.minute, wd: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday) };
+}
+// Местные дата и время → момент в мс (UTC).
+export function zonedToUtc(date, time, tz) {
+  const [y, m, d] = date.split("-").map(Number), [hh, mm] = time.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm);
+  const off = (t) => { const l = localNow(tz, t); return Date.UTC(l.y, l.m - 1, l.d, l.hh, l.mm) - t; };
+  let at = guess - off(guess);
+  at = guess - off(at);
+  return at;
+}
+const addDays = (y, m, d, n) => { const t = new Date(Date.UTC(y, m - 1, d + n)); return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`; };
+
+export function parseEvent(text, tz = "Europe/Moscow", now = Date.now()) {
+  const src = String(text || "").trim();
+  const low = src.toLowerCase().replace(/ё/g, "е");
+  const tm = low.match(/(?:^|\s)в\s*(\d{1,2})(?:[:.](\d{2}))?(?:\s*(?:час\S*|ч\b))?(?:\s*(утра|дня|вечера|ночи))?(?=\s|$|[,.!])/) || low.match(/(?:^|\s)(\d{1,2}):(\d{2})(?=\s|$|[,.!])/);
+  if (!tm) return null;
+  let hh = +tm[1];
+  const mm = tm[2] ? +tm[2] : 0;
+  if (tm[3] && /дня|вечера/.test(tm[3]) && hh < 12) hh += 12;
+  if (hh > 23 || mm > 59) return null;
+  const time = `${pad2(hh)}:${pad2(mm)}`;
+  const n = localNow(tz, now);
+  let date = null, dayWords = [];
+  let m;
+  if (/послезавтра/.test(low)) { date = addDays(n.y, n.m, n.d, 2); dayWords.push(/послезавтра/); }
+  else if (/завтра/.test(low)) { date = addDays(n.y, n.m, n.d, 1); dayWords.push(/завтра/); }
+  else if (/сегодня/.test(low)) { date = addDays(n.y, n.m, n.d, 0); dayWords.push(/сегодня/); }
+  else if ((m = low.match(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/)) && !/\d{1,2}:\d{2}/.test(m[0])) {
+    const dd = +m[1], mo = +m[2];
+    let y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : n.y;
+    if (!m[3] && (mo < n.m || (mo === n.m && dd < n.d))) y++;
+    if (dd >= 1 && dd <= 31 && mo >= 1 && mo <= 12) { date = `${y}-${pad2(mo)}-${pad2(dd)}`; dayWords.push(new RegExp(m[0].replace(/[./]/g, "\\$&"))); }
+  } else if ((m = low.match(new RegExp(`(\\d{1,2})\\s+(${MONTHS.join("|")})[а-я]*`)))) {
+    const dd = +m[1], mo = MONTHS.findIndex((x) => new RegExp("^" + x).test(m[2])) + 1;
+    let y = n.y;
+    if (mo < n.m || (mo === n.m && dd < n.d)) y++;
+    date = `${y}-${pad2(mo)}-${pad2(dd)}`; dayWords.push(new RegExp(m[0]));
+  } else {
+    const wd = WEEKDAYS.findIndex((w) => low.includes(w));
+    if (wd >= 0) {
+      let diff = (wd - n.wd + 7) % 7;
+      if (diff === 0) diff = 7;
+      date = addDays(n.y, n.m, n.d, diff); dayWords.push(new RegExp(`(во?\\s+)?${WEEKDAYS[wd]}[а-я]*`));
+    }
+  }
+  if (!date) {
+    // только время: сегодня, а если уже прошло — завтра
+    date = hh * 60 + mm > n.hh * 60 + n.mm ? addDays(n.y, n.m, n.d, 0) : addDays(n.y, n.m, n.d, 1);
+  }
+  let title = low.replace(tm[0], " ");
+  for (const re of dayWords) title = title.replace(re, " ");
+  title = title
+    .replace(/(напомни(те)?( мне)?|мне (нужно|надо)|я (должен|должна)|нужно|надо|запиши|поставь|в календарь|событие|встреча в|у меня)/g, " ")
+    .replace(/^\s*(пойти|сходить|поехать)\s+/, "")
+    .replace(/\s+[,.:-]+\s*|[,.:]+$/g, " ")
+    .replace(/\s+/g, " ").trim();
+  if (!title) title = "Событие";
+  title = title.charAt(0).toUpperCase() + title.slice(1);
+  return { title: title.slice(0, 120), date, time, at: zonedToUtc(date, time, tz) };
+}
+
+export const eventCmd = (e) => "event_" + b64url(JSON.stringify({ t: e.title, d: e.date, h: e.time }));

@@ -2,8 +2,9 @@
 // Secrets: BOT_TOKEN (from @BotFather), GEMINI_KEY (from Google AI Studio).
 // Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT, APP_URL, ADMIN_IDS (Telegram user ids через запятую).
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
-// Routes: POST /advice, /sync, /inbox, /inbox/ack (from the mini app), POST /telegram (bot webhook).
-import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT } from "./parse.js";
+// Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
+// Routes: POST /advice, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
+import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd } from "./parse.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -73,6 +74,13 @@ export default {
       return reply(200, { ok: true });
     }
 
+    // Ближайшие события из календаря приложения: сервер напомнит о них в чате.
+    if (path === "/reminders") {
+      if (!env.DB) return reply(200, { ok: true });
+      await syncReminders(env, user, body);
+      return reply(200, { ok: true });
+    }
+
     const { section, context } = body;
     if (typeof context !== "string" || !context) return reply(400, { error: "Неверный запрос" });
 
@@ -90,6 +98,10 @@ export default {
     const text = await askGemini(env, `${PROMPTS[section]} ${RULES}`, [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }]);
     if (text === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
     return reply(200, { text: text || "Пока нечего посоветовать: запишите больше данных за день" });
+  },
+  // Раз в минуту: кому пора напомнить о событии.
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(sendDueReminders(env));
   },
 };
 
@@ -120,6 +132,49 @@ async function handleMember(m, env) {
   }
 }
 
+// ---- напоминания о событиях ----
+const remindLead = (env) => (Number(env.REMIND_MINUTES) || 15) * 60000;
+const validTz = (tz) => { try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; } };
+
+async function syncReminders(env, user, body) {
+  const tz = typeof body.tz === "string" && validTz(body.tz) ? body.tz : null;
+  if (tz) await env.DB.prepare("UPDATE users SET tz = ? WHERE id = ?").bind(tz, user.id).run();
+  const now = Date.now();
+  const items = (Array.isArray(body.items) ? body.items : [])
+    .filter((x) => x && typeof x.key === "string" && Number.isFinite(+x.at) && +x.at > now - 3600000 && +x.at < now + 31 * 86400000)
+    .slice(0, 200)
+    .map((x) => ({ key: x.key.slice(0, 40), title: String(x.title || "Событие").slice(0, 120), at: Math.round(+x.at), time: String(x.time || "").slice(0, 5) }));
+  const keys = items.map((x) => x.key);
+  // Удаляем то, чего в календаре больше нет. Событие из чата, ещё не забранное приложением, не трогаем.
+  await env.DB.prepare(
+    `DELETE FROM reminders WHERE user_id = ? AND sent = 0 ${keys.length ? `AND key NOT IN (${keys.map(() => "?").join(",")})` : ""}
+     AND (key NOT LIKE 'c%' OR CAST(substr(key, 2) AS INTEGER) IN (SELECT id FROM inbox WHERE user_id = ? AND done = 1))`
+  ).bind(user.id, ...keys, user.id).run();
+  if (items.length) {
+    await env.DB.batch(items.map((x) => env.DB.prepare(
+      `INSERT INTO reminders (user_id, key, title, at, time, sent) VALUES (?, ?, ?, ?, ?, 0)
+       ON CONFLICT(user_id, key) DO UPDATE SET title = excluded.title, time = excluded.time,
+         sent = CASE WHEN reminders.at = excluded.at THEN reminders.sent ELSE 0 END, at = excluded.at`
+    ).bind(user.id, x.key, x.title, x.at, x.time)));
+  }
+}
+
+export async function sendDueReminders(env, now = Date.now()) {
+  if (!env.DB) return 0;
+  const lead = remindLead(env);
+  const due = (await env.DB.prepare("SELECT r.id, r.user_id, r.title, r.at, r.time FROM reminders r JOIN users u ON u.id = r.user_id WHERE r.sent = 0 AND r.at - ? <= ? AND r.at > ? AND u.blocked = 0 LIMIT 100")
+    .bind(lead, now, now - 10 * 60000).all()).results || [];
+  for (const r of due) {
+    const mins = Math.max(0, Math.round((r.at - now) / 60000));
+    const when = mins <= 1 ? "сейчас" : `через ${mins} мин`;
+    await env.DB.prepare("UPDATE reminders SET sent = 1 WHERE id = ?").bind(r.id).run();
+    await sendMessage(env, r.user_id, `⏰ ${when}: ${r.title}${r.time ? ` (в ${r.time})` : ""}\nНе опаздывайте!`, true).catch(() => {});
+  }
+  // старые записи чистим, чтобы база не росла
+  await env.DB.prepare("DELETE FROM reminders WHERE at < ?").bind(now - 7 * 86400000).run();
+  return due.length;
+}
+
 const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((s) => s.trim()).filter(Boolean).includes(String(id));
 
 export async function adminText(env) {
@@ -138,6 +193,8 @@ export async function adminText(env) {
   const msgs = await one("SELECT COUNT(*) c FROM events WHERE type = 'message' AND ts >= ?", now - D);
   const rec = await one("SELECT COUNT(*) c FROM inbox WHERE ts >= ?", now - D);
   const pending = await one("SELECT COUNT(*) c FROM inbox WHERE done = 0");
+  const remSent = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 1 AND at >= ?", now - D);
+  const remWait = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 0 AND at >= ?", now);
   const kinds = (await env.DB.prepare("SELECT substr(cmd, 1, instr(cmd, '_') - 1) k, COUNT(*) c FROM inbox WHERE ts >= ? GROUP BY k ORDER BY c DESC").bind(now - 7 * D).all()).results || [];
   const names = { steps: "шаги", water: "вода", sleep: "сон", weight: "вес", exp: "расходы", inc: "доходы", mood: "настроение", energy: "энергия", meal: "еда", task: "задачи" };
   return [
@@ -150,6 +207,7 @@ export async function adminText(env) {
     `Открытий приложения за сутки: ${opens}`,
     `Сообщений боту за сутки: ${msgs}`,
     `Записей из чата за сутки: ${rec} (ждут открытия приложения: ${pending})`,
+    `Напоминаний отправлено за сутки: ${remSent}, впереди: ${remWait}`,
     kinds.length ? `Что записывают (7 дней): ${kinds.map((k) => `${names[k.k] || k.k} ${k.c}`).join(", ")}` : "",
   ].filter(Boolean).join("\n");
 }
@@ -176,7 +234,7 @@ async function handleMessage(message, env) {
   await track(env, message.from, text.startsWith("/start") ? "start" : "message");
 
   if (text.startsWith("/start")) {
-    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
+    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
   }
   if (text.startsWith("/admin")) {
     if (!isAdmin(env, userId)) return sendMessage(env, chatId, "Эта команда только для администратора.");
@@ -194,6 +252,21 @@ async function handleMessage(message, env) {
   if (!entries.length && /\d/.test(text) && text.length <= 500 && env.GEMINI_KEY) {
     const json = await askGemini(env, AI_EXTRACT_PROMPT, [{ role: "user", parts: [{ text }] }], { json: true, maxTokens: 400 });
     try { entries = entriesFromAI(JSON.parse(json || "[]")); } catch { entries = []; }
+  }
+  if (!entries.length && env.DB) {
+    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first();
+    const tz = u?.tz || "Europe/Moscow";
+    const ev = parseEvent(text, tz);
+    if (ev) {
+      const ts = (message.date || Math.floor(Date.now() / 1000)) * 1000;
+      const res = await env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, eventCmd(ev), ts).run();
+      const inboxId = res.meta?.last_row_id ?? res.lastInsertRowid;
+      await env.DB.prepare("INSERT INTO reminders (user_id, key, title, at, time, sent) VALUES (?, ?, ?, ?, ?, 0) ON CONFLICT(user_id, key) DO NOTHING")
+        .bind(userId, "c" + inboxId, ev.title, ev.at, ev.time).run();
+      const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "long", timeZone: "UTC" }).format(new Date(ev.date + "T12:00:00Z"));
+      const lead = Math.round(remindLead(env) / 60000);
+      return sendMessage(env, chatId, `📅 Записал в календарь: ${ev.title}\n${day}, ${ev.time}${u?.tz ? "" : " (по московскому времени: откройте приложение один раз, и я узнаю ваш часовой пояс)"}\n\n⏰ Напомню за ${lead} минут.`, true);
+    }
   }
   if (entries.length) {
     if (!env.DB) return sendMessage(env, chatId, "Записи из чата пока не подключены. Запишите в приложении.", true);

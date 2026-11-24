@@ -20,3 +20,7 @@ id = "a9cf791842ee4a1fa560a875dd6476ae"
 binding = "DB"
 database_name = "kwantoww"
 database_id = "73812776-bba2-4c92-8f90-c3a23ad66d6c"
+
+# Напоминания о событиях: проверка раз в минуту
+[triggers]
+crons = ["* * * * *"]
