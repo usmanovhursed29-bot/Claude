@@ -4,10 +4,13 @@
 //   node run.mjs batch [сура-сура]   — весь Коран (или диапазон сур) пакетом со скидкой 50%
 //   node run.mjs collect <batch_id>  — забрать готовые результаты пакета
 //   node run.mjs count النحل [ar|ru|en] — точный подсчёт слова по тексту (без ИИ)
+//   node run.mjs pick [сура]         — выбрать суру для разбора (случайную из ещё не разобранных) и выгрузить её целиком
+//   node run.mjs done <сура> "<тема>" — отметить суру разобранной
 // Ключ API: переменная ANTHROPIC_API_KEY (или профиль `ant auth login`). В код ключ не пишется.
 import Anthropic from "@anthropic-ai/sdk";
 import { writeFileSync, appendFileSync, existsSync, readFileSync } from "node:fs";
-import { passages, countWord, ATTRIBUTION } from "./lib/quran.mjs";
+import { passages, countWord, ATTRIBUTION, verses, surahs } from "./lib/quran.mjs";
+import { randomInt } from "node:crypto";
 import { SYSTEM, MODEL, requestParams } from "./lib/prompt.mjs";
 import { report } from "./lib/report.mjs";
 
@@ -38,6 +41,24 @@ if (cmd === "estimate") {
   console.log(`Отрывков: ${all.length}. Модель: ${MODEL}.`);
   console.log(`Вход ≈ ${(inTok / 1e6).toFixed(2)} млн токенов, выход ≈ ${(outTok / 1e6).toFixed(2)} млн (оценка).`);
   console.log(`Цена обычными запросами ≈ $${full.toFixed(0)}, пакетом ≈ $${(full / 2).toFixed(0)}. Точная цена видна после пробного запуска (sample).`);
+} else if (cmd === "pick") {
+  const USED = new URL("used-surahs.json", OUT);
+  const used = existsSync(USED) ? JSON.parse(readFileSync(USED, "utf8")) : [];
+  const free = surahs.filter((x) => !used.some((u) => u.s === x.id));
+  if (!free.length) throw new Error("Все 114 сур уже разобраны. Очистите out/used-surahs.json, чтобы начать второй круг.");
+  const sura = args[0] ? surahs.find((x) => x.id === Number(args[0])) : free[randomInt(free.length)];
+  const vs = verses.filter((v) => v.s === sura.id);
+  const md = [`# Сура ${sura.id} «${sura.ru}» (${sura.ar}), ${vs.length} аятов`, "", ...vs.map((v) => `[${v.s}:${v.a}] ${v.ar}\n${v.ru}\n`), "", ATTRIBUTION].join("\n");
+  const file = new URL(`surah-${sura.id}.md`, OUT);
+  writeFileSync(file, md);
+  console.log(`Сура ${sura.id} «${sura.ru}», ${vs.length} аятов, ${md.length} символов → out/surah-${sura.id}.md`);
+  console.log(`Разобрано раньше: ${used.length} из 114.`);
+} else if (cmd === "done") {
+  const USED = new URL("used-surahs.json", OUT);
+  const used = existsSync(USED) ? JSON.parse(readFileSync(USED, "utf8")) : [];
+  used.push({ s: Number(args[0]), topic: args[1] || "", date: new Date().toISOString().slice(0, 10) });
+  writeFileSync(USED, JSON.stringify(used, null, 2));
+  console.log(`Отмечено: сура ${args[0]}. Разобрано: ${used.length} из 114.`);
 } else if (cmd === "count") {
   const [word, lang = "ar"] = args;
   const r = countWord(word, { lang });
