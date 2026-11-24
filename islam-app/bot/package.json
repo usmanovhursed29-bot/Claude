@@ -1,0 +1,14 @@
+{
+  "name": "islam-app-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:app": "node build-app.mjs",
+    "test": "node build-app.mjs && node --experimental-sqlite test/run.mjs",
+    "deploy": "node build-app.mjs && wrangler deploy"
+  },
+  "dependencies": {
+    "@photostructure/tz-lookup": "11.8.0",
+    "adhan": "4.4.6"
+  }
+}
