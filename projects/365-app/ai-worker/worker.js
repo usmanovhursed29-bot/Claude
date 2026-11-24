@@ -133,7 +133,7 @@ async function track(env, from, type) {
   const now = Date.now();
   await env.DB.batch([
     env.DB.prepare(
-      `INSERT INTO users (id, first_name, username, lang, first_seen, last_seen, blocked) VALUES (?, ?, ?, ?, ?, ?, 0)
+      `INSERT INTO users (id, first_name, username, lang, first_seen, last_seen, blocked, checkin_on, morning_h) VALUES (?, ?, ?, ?, ?, ?, 0, 1, 10)
        ON CONFLICT(id) DO UPDATE SET first_name = excluded.first_name, username = excluded.username, last_seen = excluded.last_seen, blocked = 0`
     ).bind(from.id, from.first_name || null, from.username || null, from.language_code || null, now, now),
     env.DB.prepare("INSERT INTO events (user_id, type, ts) VALUES (?, ?, ?)").bind(from.id, type, now),
@@ -219,7 +219,7 @@ async function transcribe(env, media) {
   }
 }
 
-// ---- вопросы-кнопки: утром про сон, вечером про шаги и воду ----
+// ---- утренний вопрос-кнопки про сон: всем пользователям в 10:00 по их времени, можно выключить в /checkin ----
 const CHECK_SLEEP = [5, 6, 7, 8, 9, 10];
 const CHECK_STEPS = [2000, 4000, 6000, 8000, 10000, 12000];
 const CHECK_WATER = [500, 1000, 1500, 2000, 2500, 3000];
@@ -229,12 +229,12 @@ const chunk = (arr, n) => arr.reduce((r, x, i) => (i % n ? r[r.length - 1].push(
 async function sendCheckinSettings(env, chatId, userId) {
   if (!env.DB) return sendMessage(env, chatId, "Вопросы пока недоступны.");
   const u = await env.DB.prepare("SELECT checkin_on, morning_h, evening_h, tz FROM users WHERE id = ?").bind(userId).first();
-  const on = u?.checkin_on === 1, m = u?.morning_h ?? 8, e = u?.evening_h ?? 21;
-  const text = `🗓 Ежедневные вопросы: ${on ? "включены" : "выключены"}\n\nУтром в ${m}:00 спрошу, сколько вы спали. Вечером в ${e}:00 — сколько шагов и воды. Ответ — одно нажатие на кнопку.${u?.tz ? "" : "\n\nВремя пока московское. Откройте приложение один раз, и я узнаю ваш часовой пояс."}`;
+  const on = u?.checkin_on !== 0, m = u?.morning_h ?? 10;
+  const text = `☀️ Утренний вопрос про сон: ${on ? "включён" : "выключен"}\n\nКаждый день в ${m}:00 спрошу, как вы поспали. Ответ — одно нажатие на кнопку.${u?.tz ? "" : "\n\nВремя пока московское. Откройте приложение один раз, и я узнаю ваш часовой пояс."}`;
   return telegram(env, "sendMessage", { chat_id: chatId, text, reply_markup: kb([
     [{ text: on ? "🔕 Выключить" : "🔔 Включить", callback_data: on ? "ci:off" : "ci:on" }],
-    [6, 7, 8, 9, 10].map((h) => ({ text: `${h === m ? "✅ " : ""}утро ${h}:00`, callback_data: `ci:m:${h}` })).slice(0, 5),
-    [20, 21, 22, 23].map((h) => ({ text: `${h === e ? "✅ " : ""}вечер ${h}:00`, callback_data: `ci:e:${h}` })),
+    [7, 8, 9].map((h) => ({ text: `${h === m ? "✅ " : ""}${h}:00`, callback_data: `ci:m:${h}` })),
+    [10, 11, 12].map((h) => ({ text: `${h === m ? "✅ " : ""}${h}:00`, callback_data: `ci:m:${h}` })),
   ]) });
 }
 
@@ -244,20 +244,15 @@ const waterKb = () => kb([...chunk(CHECK_WATER.map((ml) => ({ text: `${ml / 1000
 
 export async function sendCheckins(env, now = Date.now()) {
   if (!env.DB) return 0;
-  const users = (await env.DB.prepare("SELECT id, tz, morning_h, evening_h, last_m, last_e FROM users WHERE checkin_on = 1 AND blocked = 0 LIMIT 5000").all()).results || [];
+  const users = (await env.DB.prepare("SELECT id, tz, morning_h, last_m FROM users WHERE checkin_on = 1 AND blocked = 0 LIMIT 5000").all()).results || [];
   let n = 0;
   for (const u of users) {
     const tz = u.tz || "Europe/Moscow";
     const l = localNow(tz, now);
     const day = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
-    if (l.hh === (u.morning_h ?? 8) && u.last_m !== day) {
+    if (l.hh === (u.morning_h ?? 10) && u.last_m !== day) {
       await env.DB.prepare("UPDATE users SET last_m = ? WHERE id = ?").bind(day, u.id).run();
-      await telegram(env, "sendMessage", { chat_id: u.id, text: "☀️ Доброе утро! Сколько вы спали сегодня?", reply_markup: sleepKb() }).catch(() => {});
-      n++;
-    }
-    if (l.hh === (u.evening_h ?? 21) && u.last_e !== day) {
-      await env.DB.prepare("UPDATE users SET last_e = ? WHERE id = ?").bind(day, u.id).run();
-      await telegram(env, "sendMessage", { chat_id: u.id, text: "🌙 Итоги дня. Сколько примерно шагов вы прошли?", reply_markup: stepsKb() }).catch(() => {});
+      await telegram(env, "sendMessage", { chat_id: u.id, text: "☀️ Доброе утро! Как вы поспали? Сколько часов спали?", reply_markup: sleepKb() }).catch(() => {});
       n++;
     }
   }
@@ -383,7 +378,7 @@ async function handleMessage(message, env) {
   await track(env, message.from, text.startsWith("/start") ? "start" : "message");
 
   if (text.startsWith("/start")) {
-    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. А если хотите, буду сам спрашивать утром про сон и вечером про шаги и воду: /checkin\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
+    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. Каждое утро в 10:00 спрошу, как вы поспали (время или выключить: /checkin)\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
   }
   if (text.startsWith("/admin")) {
     if (!isAdmin(env, userId)) return sendMessage(env, chatId, "Эта команда только для администратора.");

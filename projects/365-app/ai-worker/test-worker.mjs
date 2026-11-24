@@ -180,12 +180,14 @@ out = await tg({ message: { message_id: ++mid, date: 1, chat: { id: 42, type: "p
 assert.match(lastText(out), /длиннее 2 минут/);
 
 // ---- вопросы-кнопки ----
+// у всех включено по умолчанию, в 10:00
+const fresh = db.prepare("SELECT checkin_on, morning_h FROM users WHERE id = 7").get();
+assert.deepEqual([fresh.checkin_on, fresh.morning_h], [1, 10]);
 out = await say(42, "/checkin");
-assert.match(lastText(out), /выключены/);
-await tap(42, "ci:on");
+assert.match(lastText(out), /включён[\s\S]*в 10:00/);
 await tap(42, "ci:m:7");
-const u42 = db.prepare("SELECT checkin_on, morning_h, evening_h, tz FROM users WHERE id = 42").get();
-assert.deepEqual([u42.checkin_on, u42.morning_h, u42.evening_h, u42.tz], [1, 7, 21, "Asia/Dushanbe"]);
+const u42 = db.prepare("SELECT checkin_on, morning_h, tz FROM users WHERE id = 42").get();
+assert.deepEqual([u42.checkin_on, u42.morning_h, u42.tz], [1, 7, "Asia/Dushanbe"]);
 const { sendCheckins } = await import("./worker.js");
 // 07:05 в Душанбе = 02:05 UTC
 const morning = Date.UTC(2026, 10, 25, 2, 5);
@@ -193,22 +195,18 @@ let b3 = sent.length;
 assert.equal(await sendCheckins(env, morning), 1);
 const q1 = sent.slice(b3).find((m) => m.method === "sendMessage");
 assert.equal(q1.body.chat_id, 42);
-assert.match(q1.body.text, /Сколько вы спали/);
+assert.match(q1.body.text, /Как вы поспали/);
 assert.equal(q1.body.reply_markup.inline_keyboard[0][2].callback_data, "ci:sleep:7");
 assert.equal(await sendCheckins(env, morning + 10 * 60000), 0, "утром спрашивает один раз");
 assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 25, 10, 0)), 0, "в 15:00 не спрашивает");
 out = await tap(42, "ci:sleep:7");
 assert.match(out.find((m) => m.method === "editMessageText").body.text, /Сон: 7 ч/);
-// вечер: 21:00 в Душанбе = 16:00 UTC → шаги → вода
-b3 = sent.length;
-assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 25, 16, 1)), 1);
-out = await tap(42, "ci:steps:8000");
-const ed = out.find((m) => m.method === "editMessageText").body;
-assert.match(ed.text, /Шаги: около 8 000[\s\S]*сколько воды/);
-out = await tap(42, "ci:water:1500");
-assert.match(out.find((m) => m.method === "editMessageText").body.text, /Вода: 1,5 л/);
-const ci = db.prepare("SELECT cmd FROM inbox WHERE user_id = 42 AND done = 0 AND cmd IN ('sleep_7','steps_8000','water_1500')").all().map((r) => r.cmd).sort().join(",");
-assert.equal(ci, "sleep_7,steps_8000,water_1500");
+// вечером больше не спрашиваем
+assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 25, 16, 1)), 0, "вечерних вопросов нет");
+const ci = db.prepare("SELECT cmd FROM inbox WHERE user_id = 42 AND done = 0 AND cmd = 'sleep_7'").all().length;
+assert.equal(ci, 1);
+// другой пользователь без часового пояса получает вопрос в 10:00 по Москве (07:00 UTC)
+assert.ok(await sendCheckins(env, Date.UTC(2026, 10, 25, 7, 2)) >= 1);
 await tap(42, "ci:off");
 assert.equal(db.prepare("SELECT checkin_on FROM users WHERE id = 42").get().checkin_on, 0);
 assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 26, 2, 5)), 0, "выключено — не спрашивает");

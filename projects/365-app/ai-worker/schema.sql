@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen INTEGER NOT NULL,
   blocked INTEGER NOT NULL DEFAULT 0,
   tz TEXT,                         -- часовой пояс из приложения, например Asia/Dushanbe
-  checkin_on INTEGER NOT NULL DEFAULT 0, -- ежедневные вопросы-кнопки
-  morning_h INTEGER NOT NULL DEFAULT 8,
+  checkin_on INTEGER NOT NULL DEFAULT 1, -- утренний вопрос про сон (у всех по умолчанию)
+  morning_h INTEGER NOT NULL DEFAULT 10,
   evening_h INTEGER NOT NULL DEFAULT 21,
   last_m TEXT,                     -- дата последнего утреннего вопроса
   last_e TEXT
