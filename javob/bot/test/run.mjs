@@ -25,7 +25,9 @@ globalThis.fetch = async (url, opts) => {
   return new Response(JSON.stringify({ ok: true }));
 };
 
-const env = { DB: D1, BOT_TOKEN: "test", WEBHOOK_SECRET: "s3cret", OWNER_CHAT_ID: "999" };
+import madina from "../src/tenants/madina.js";
+madina.ownerChatId = "999";
+const env = { DB: D1, BOT_TOKEN: "test", WEBHOOK_SECRET: "s3cret" };
 let uid = 0;
 async function say(text, extra = {}) {
   const req = new Request("https://x/telegram", {
@@ -40,12 +42,29 @@ async function say(text, extra = {}) {
 }
 const last = (out) => out.at(-1).body.text;
 
+// /setup без ключа отклоняется
+assert.equal((await worker.fetch(new Request("https://x/setup"), env)).status, 403);
+const setup = await worker.fetch(new Request("https://x/setup?key=s3cret"), env);
+assert.equal(setup.status, 200);
+assert.equal(sent.at(-1).method, "setWebhook");
+assert.equal(sent.at(-1).body.url, "https://x/telegram");
+
 // чужой запрос без секрета отклоняется
 const bad = await worker.fetch(new Request("https://x/telegram", { method: "POST", body: "{}" }), env);
 assert.equal(bad.status, 403);
 
+// без бизнеса бот рассказывает про Javob
 let out = await say("/start");
+assert.match(last(out), /Javob/);
+assert.match(last(out), /\/start madina/);
+out = await say("меню");
+assert.match(last(out), /Javob/, "без привязки меню не показываем");
+
+out = await say("/start madina");
 assert.match(last(out), /Я — бот, а не человек/);
+
+out = await say("/myid");
+assert.match(last(out), /42/);
 
 out = await say("📋 Меню");
 assert.match(last(out), /Плов чайханский — 450 ₽/);
@@ -76,6 +95,7 @@ assert.match(owner.body.text, /Союзная, 1Б[\s\S]*Гостей: 4[\s\S]*\
 const row = db.prepare("SELECT * FROM bookings").get();
 assert.equal(row.guests, 4);
 assert.equal(row.branch, "soyuznaya");
+assert.equal(row.tenant, "madina");
 
 // живой человек
 out = await say("позови человека");

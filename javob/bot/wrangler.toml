@@ -1,14 +1,14 @@
-name = "javob-madina-bot"
+name = "javob-bot"
 main = "src/worker.js"
 compatibility_date = "2026-11-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "javob-madina"
+database_name = "javob"
 database_id = "TODO-после-создания-базы"
 
 [ai]
 binding = "AI"
 
 # Секреты задаются командой `wrangler secret put`, не здесь:
-# BOT_TOKEN, WEBHOOK_SECRET, OWNER_CHAT_ID
+# BOT_TOKEN, WEBHOOK_SECRET
