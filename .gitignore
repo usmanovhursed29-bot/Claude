@@ -3,3 +3,7 @@ projects/*/render/
 *.mp4
 *.mov
 *.wav
+nekurs/env.master
+*.env
+.dev.vars
+node_modules/
