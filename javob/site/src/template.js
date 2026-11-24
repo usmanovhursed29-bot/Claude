@@ -9,21 +9,24 @@ export const FONTS =
   "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap";
 
 export const STYLE = `
-/* Макет: страница как файл в редакторе кода. Номера строк слева, комментарии вместо подзаголовков,
-   переписка с агентом как лог. Цвета взяты из подсветки синтаксиса. */
+/* Макет: страница как файл в редакторе кода; шапка — сплошная индиговая полоса с шафрановым маркером. */
+/* Палитра: ночной индиго, гранат и шафран — цвета базара и сюзане, а не стандартный «тех»-набор. */
 :root {
-  --bg: #fbfaf7; --surface: #f3f1ec; --fg: #1f2328; --muted: #6a6f76; --line: #e2dfd8;
-  --kw: #8250df; --str: #0a7a52; --fn: #0550ae; --num: #b35900; --accent-ink: #ffffff;
+  --bg: #ffffff; --surface: #f4f3fb; --fg: #16143f; --muted: #5d5b7a; --line: #e3e1f0;
+  --kw: #d7263d; --str: #0b8a57; --fn: #3346d3; --num: #d7263d; --accent-ink: #ffffff;
+  --band: #1d1a63; --band-fg: #f3f1ff; --band-muted: #b9b5ea; --mark: #ffb703; --mark-ink: #16143f;
   --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --gutter-l: max(16px, env(safe-area-inset-left, 0px));
   --gutter-r: max(16px, env(safe-area-inset-right, 0px));
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #15171b; --surface: #1c1f24; --fg: #d7dae0; --muted: #7d848e; --line: #2a2e35;
-  --kw: #c4a1ff; --str: #7ccf9e; --fn: #79b8ff; --num: #f0a868; --accent-ink: #15171b; color-scheme: dark; } }
+  --bg: #0f0d2b; --surface: #1a1842; --fg: #edebff; --muted: #a6a3cc; --line: #2c2963;
+  --kw: #ff5a6e; --str: #4fd39a; --fn: #8c9bff; --num: #ff5a6e; --accent-ink: #0f0d2b;
+  --band: #26227a; --band-fg: #f3f1ff; --band-muted: #c3bff0; --mark: #ffb703; --mark-ink: #16143f; color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #15171b; --surface: #1c1f24; --fg: #d7dae0; --muted: #7d848e; --line: #2a2e35;
-  --kw: #c4a1ff; --str: #7ccf9e; --fn: #79b8ff; --num: #f0a868; --accent-ink: #15171b; color-scheme: dark; }
+  --bg: #0f0d2b; --surface: #1a1842; --fg: #edebff; --muted: #a6a3cc; --line: #2c2963;
+  --kw: #ff5a6e; --str: #4fd39a; --fn: #8c9bff; --num: #ff5a6e; --accent-ink: #0f0d2b;
+  --band: #26227a; --band-fg: #f3f1ff; --band-muted: #c3bff0; --mark: #ffb703; --mark-ink: #16143f; color-scheme: dark; }
 
 body { background: var(--bg); color: var(--fg); font: 400 15px/1.7 var(--mono); }
 .wrap { max-width: 980px; margin: 0 auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
@@ -37,16 +40,22 @@ h3 { font-size: 15px; color: var(--fn); }
 p { margin: 0; }
 .muted { color: var(--muted); }
 
-.top { border-bottom: 1px solid var(--line); }
+.top { background: var(--band); margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: env(safe-area-inset-top, 0px); }
+.top .logo { color: var(--band-fg); } .top nav a { color: var(--band-muted) !important; } .top nav a:hover { color: var(--band-fg) !important; }
 .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
 .logo { font-weight: 700; font-size: 16px; color: var(--fg); text-decoration: none; }
 .logo::before { content: "~/"; color: var(--muted); font-weight: 400; }
-.logo span { color: var(--str); }
 .top nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; }
 .top nav a { color: var(--muted); text-decoration: none; }
 .top nav a::before { content: "./"; }
 .top nav a:hover { color: var(--fg); }
 
+.hero { background: var(--band); color: var(--band-fg); }
+.hero .eyebrow, .hero .lead { color: var(--band-muted); }
+.hero mark { background: var(--mark); color: var(--mark-ink); padding: 0 0.15em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.hero .btn { background: transparent; color: var(--band-fg); border-color: var(--band-muted); }
+.hero .btn.primary { background: var(--mark); border-color: var(--mark); color: var(--mark-ink); }
+.hero .btn.primary::before { color: var(--kw); }
 .hero .wrap { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 40px; align-items: start; padding-block: 48px 56px; }
 .hero .text { display: grid; gap: 18px; min-width: 0; }
 .eyebrow { color: var(--muted); font-size: 14px; }
@@ -55,9 +64,10 @@ p { margin: 0; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn { display: inline-block; padding: 9px 16px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); border-radius: 4px; color: var(--fg); background: var(--surface); }
 .btn.primary { background: var(--fg); border-color: var(--fg); color: var(--bg); }
+.logo span { color: var(--mark) !important; }
 .btn.primary::before { content: "$ "; color: var(--str); }
 
-.phone { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: grid; min-width: 0; font-size: 13px; }
+.phone { background: var(--bg); color: var(--fg); border: 1px solid var(--line); box-shadow: 8px 8px 0 var(--mark); border-radius: 6px; display: grid; min-width: 0; font-size: 13px; }
 .phone header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
 .phone header b { font-weight: 500; }
 .phone header b::before { content: "● "; color: var(--str); }
@@ -88,7 +98,7 @@ section.block + section.block .wrap { border-top: 1px dashed var(--line); }
 
 .plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .plan { display: grid; gap: 10px; align-content: start; padding: 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
-.plan.featured { border-color: var(--fn); }
+.plan.featured { border-color: var(--fg); box-shadow: 6px 6px 0 var(--mark); }
 .plan h3 { color: var(--kw); }
 .plan h3::before { content: "plan "; color: var(--muted); font-weight: 400; }
 .plan .price { font-size: 22px; font-weight: 700; color: var(--num); font-variant-numeric: tabular-nums; }
@@ -152,7 +162,7 @@ function landing(p) {
 <section class="hero"><div class="wrap">
   <div class="text">
     <span class="eyebrow">${esc(h.eyebrow)}</span>
-    <h1>${esc(h.title)}</h1>
+    <h1>${h.mark ? esc(h.title).replace(esc(h.mark), `<mark>${esc(h.mark)}</mark>`) : esc(h.title)}</h1>
     <p class="lead">${esc(h.lead)}</p>
     <div class="actions"><a class="btn primary" href="${h.primary.href}">${esc(h.primary.label)}</a><a class="btn" href="${h.secondary.href}">${esc(h.secondary.label)}</a></div>
   </div>
