@@ -1,0 +1,16 @@
+{
+  "name": "quran-insights",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "estimate": "node run.mjs estimate",
+    "sample": "node run.mjs sample",
+    "batch": "node run.mjs batch",
+    "collect": "node run.mjs collect",
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.13.0",
+    "quran-json": "^3.1.2"
+  }
+}
