@@ -9,8 +9,9 @@ export const brand = {
   siteUrl: "https://javob.example.workers.dev",
   lang: "ru",
   accent: "#0f766e",
-  // Контакт для заявок. TODO: вписать настоящий @username в Telegram.
-  telegram: "",
+  // Контакты для заявок: показываются в блоке «Связаться».
+  telegram: "Kwantoww",
+  phone: "+7 991 259-61-22",
   email: "",
   // Токен Cloudflare Web Analytics. Пусто = счётчик не вставляется.
   analyticsToken: "",
