@@ -43,6 +43,7 @@ h2 { margin: 0; font-size: 18px; font-weight: 700; }
 .row.sun { color: var(--muted); font-size: 15px; }
 
 .locate { display: grid; gap: 10px; justify-items: start; }
+.locate select, .set select[data-city] { margin-top: 2px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .btn.soft { background: var(--accent-soft); color: var(--accent); }
 .btn.wide { width: 100%; }
@@ -108,7 +109,7 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     ru: { tabs: ["Намаз", "Кибла", "Зикр", "Настройки"], next: "Следующий намаз", in: "через", h: "ч", m: "мин", today: "Сегодня",
       names: { fajr: "Фаджр", sunrise: "Восход", dhuhr: "Зухр", asr: "Аср", maghrib: "Магриб", isha: "Иша" },
       locTitle: "Где вы находитесь?", locText: "Разрешите доступ к местоположению, и время намаза и кибла посчитаются автоматически. Работает в любой стране.",
-      locBtn: "Определить местоположение", locDenied: "Доступ к местоположению не дали. Пока показываем пример для Душанбе.", demo: "Пример: Душанбе",
+      locBtn: "Определить местоположение", orCity: "или выберите город", pickCity: "Выбрать город…", locDenied: "Доступ к местоположению не дали. Пока показываем пример для Душанбе.", demo: "Пример: Душанбе",
       qibla: "Направление на Каабу", qiblaHint: "Держите телефон ровно. Повернитесь, пока Кааба не окажется сверху.", qiblaStatic: "Компас недоступен на этом устройстве: север сверху, кибла по стрелке.",
       aligned: "Вы смотрите на киблу", startCompass: "Включить компас", reset: "Сбросить", goal: "Цель", total: "Всего", done: "Цель достигнута, машаАллах!",
       lang: "Язык", method: "Метод расчёта", asr: "Время аср", hanafi: "Ханафитский", shafi: "Шафиитский", relocate: "Обновить местоположение",
@@ -119,7 +120,7 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     en: { tabs: ["Prayer", "Qibla", "Dhikr", "Settings"], next: "Next prayer", in: "in", h: "h", m: "min", today: "Today",
       names: { fajr: "Fajr", sunrise: "Sunrise", dhuhr: "Dhuhr", asr: "Asr", maghrib: "Maghrib", isha: "Isha" },
       locTitle: "Where are you?", locText: "Allow location access and prayer times and qibla are calculated automatically. Works in any country.",
-      locBtn: "Detect my location", locDenied: "Location access was not granted. Showing an example for Dushanbe.", demo: "Example: Dushanbe",
+      locBtn: "Detect my location", orCity: "or choose a city", pickCity: "Choose a city…", locDenied: "Location access was not granted. Showing an example for Dushanbe.", demo: "Example: Dushanbe",
       qibla: "Direction to the Kaaba", qiblaHint: "Hold the phone flat. Turn until the Kaaba is at the top.", qiblaStatic: "No compass on this device: north is up, qibla follows the arrow.",
       aligned: "You are facing the qibla", startCompass: "Turn on compass", reset: "Reset", goal: "Goal", total: "Total", done: "Goal reached, masha Allah!",
       lang: "Language", method: "Calculation method", asr: "Asr time", hanafi: "Hanafi", shafi: "Shafi'i", relocate: "Update location",
@@ -129,6 +130,24 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
       locale: "en-GB" }
   };
   var KEYS = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"];
+  // Города для ручного выбора, если человек не дал доступ к GPS: [ru, en, широта, долгота, часовой пояс]
+  var CITIES = [
+    ["Москва", "Moscow", 55.7558, 37.6173, "Europe/Moscow"], ["Санкт-Петербург", "Saint Petersburg", 59.9343, 30.3351, "Europe/Moscow"],
+    ["Одинцово", "Odintsovo", 55.6789, 37.2639, "Europe/Moscow"], ["Казань", "Kazan", 55.7963, 49.1088, "Europe/Moscow"],
+    ["Уфа", "Ufa", 54.7388, 55.9721, "Asia/Yekaterinburg"], ["Грозный", "Grozny", 43.3178, 45.6949, "Europe/Moscow"],
+    ["Махачкала", "Makhachkala", 42.9849, 47.5047, "Europe/Moscow"], ["Екатеринбург", "Yekaterinburg", 56.8389, 60.6057, "Asia/Yekaterinburg"],
+    ["Новосибирск", "Novosibirsk", 55.0084, 82.9357, "Asia/Novosibirsk"], ["Душанбе", "Dushanbe", 38.5598, 68.787, "Asia/Dushanbe"],
+    ["Худжанд", "Khujand", 40.2833, 69.6222, "Asia/Dushanbe"], ["Ташкент", "Tashkent", 41.2995, 69.2401, "Asia/Tashkent"],
+    ["Самарканд", "Samarkand", 39.6542, 66.9597, "Asia/Samarkand"], ["Бишкек", "Bishkek", 42.8746, 74.5698, "Asia/Bishkek"],
+    ["Алматы", "Almaty", 43.2389, 76.8897, "Asia/Almaty"], ["Астана", "Astana", 51.1694, 71.4491, "Asia/Almaty"],
+    ["Баку", "Baku", 40.4093, 49.8671, "Asia/Baku"], ["Стамбул", "Istanbul", 41.0082, 28.9784, "Europe/Istanbul"],
+    ["Дубай", "Dubai", 25.2048, 55.2708, "Asia/Dubai"], ["Мекка", "Makkah", 21.4225, 39.8262, "Asia/Riyadh"],
+    ["Медина", "Madinah", 24.4672, 39.6112, "Asia/Riyadh"], ["Каир", "Cairo", 30.0444, 31.2357, "Africa/Cairo"],
+    ["Лондон", "London", 51.5074, -0.1278, "Europe/London"], ["Париж", "Paris", 48.8566, 2.3522, "Europe/Paris"],
+    ["Берлин", "Berlin", 52.52, 13.405, "Europe/Berlin"], ["Нью-Йорк", "New York", 40.7128, -74.006, "America/New_York"],
+    ["Торонто", "Toronto", 43.6532, -79.3832, "America/Toronto"], ["Сеул", "Seoul", 37.5665, 126.978, "Asia/Seoul"]
+  ];
+  function cityName(c) { return S.lang === "ru" ? c[0] : c[1]; }
   var DEMO = { lat: 38.5598, lon: 68.787, tz: "Asia/Dushanbe", demo: true };
   var defLang = ((TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.language_code) || navigator.language || "ru").indexOf("ru") === 0 ? "ru" : "en";
   var S = { tab: "prayer", lang: store.get("lang", defLang), method: store.get("method", "MuslimWorldLeague"), madhab: store.get("madhab", "Hanafi"),
@@ -171,9 +190,16 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     navigator.geolocation.getCurrentPosition(function (p) { done(p.coords.latitude, p.coords.longitude); }, fail, { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
   }
 
+  function citySelect(id) {
+    var opts = CITIES.map(function (c, i) { return [i, cityName(c)]; }).sort(function (a, b) { return a[1].localeCompare(b[1]); })
+      .map(function (o) { return '<option value="' + o[0] + '"' + (S.loc && S.loc.city === o[0] ? " selected" : "") + ">" + o[1] + "</option>"; }).join("");
+    return '<label class="muted" for="' + id + '">' + L().orCity + '</label><select id="' + id + '" data-city><option value="">' + L().pickCity + "</option>" + opts + "</select>";
+  }
   function placeLine() {
     var w = where();
-    return w.demo ? L().demo : (w.lat.toFixed(2) + "°, " + w.lon.toFixed(2) + "° · " + tz);
+    if (w.demo) return L().demo;
+    if (w.city != null && CITIES[w.city]) return cityName(CITIES[w.city]) + " · " + w.tz;
+    return w.lat.toFixed(2) + "°, " + w.lon.toFixed(2) + "° · " + zone();
   }
 
   function prayerView() {
@@ -182,7 +208,7 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     var mins = Math.max(0, Math.round((nextTime - now) / 6e4));
     var html = '<section class="hero"><div class="place">📍 ' + placeLine() + '</div><div class="label">' + L().next + '</div><div class="name">' + L().names[next] + " · " + hm(nextTime) +
       '</div><div class="count">' + L().in + " <b>" + Math.floor(mins / 60) + "</b> " + L().h + " <b>" + (mins % 60) + "</b> " + L().m + "</div></section>";
-    if (!S.loc) html += '<section class="card locate"><h2>' + L().locTitle + '</h2><p class="muted">' + (S.denied ? L().locDenied : L().locText) + '</p><button class="btn" data-act="locate">📍 ' + L().locBtn + "</button></section>";
+    if (!S.loc) html += '<section class="card locate"><h2>' + L().locTitle + '</h2><p class="muted">' + (S.denied ? L().locDenied : L().locText) + '</p><button class="btn" data-act="locate">📍 ' + L().locBtn + "</button>" + citySelect("city1") + "</section>";
     html += '<section class="card"><h2>' + L().today + " · " + new Intl.DateTimeFormat(L().locale, { day: "numeric", month: "long", timeZone: zone() }).format(now) + '</h2><div class="list">';
     KEYS.forEach(function (k) {
       var cls = k === "sunrise" ? "sun" : k === next && !tomorrow ? "next" : t[k] < now ? "passed" : "";
@@ -236,7 +262,7 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     return '<section class="card set"><label>' + L().lang + "</label>" + seg("lang", [["ru", "Русский"], ["en", "English"]]) + "</section>" +
       '<section class="card set"><label for="method">' + L().method + '</label><select id="method">' + methods + '</select><label>' + L().asr + "</label>" + seg("madhab", [["Hanafi", L().hanafi], ["Shafi", L().shafi]]) +
       '<p class="muted">' + L().hint + "</p></section>" +
-      '<section class="card set"><p class="muted">📍 ' + placeLine() + "<br>" + L().tz + ": " + zone() + '</p><button class="btn wide" data-act="locate">📍 ' + L().relocate + "</button></section>";
+      '<section class="card set"><p class="muted">📍 ' + placeLine() + "<br>" + L().tz + ": " + zone() + '</p><button class="btn wide" data-act="locate">📍 ' + L().relocate + "</button>" + citySelect("city2") + "</section>";
   }
 
   var ICONS = {
@@ -252,6 +278,13 @@ nav.tabs button[aria-current="page"] { color: var(--accent); }
     tabs.innerHTML = TABS.map(function (k, i) { return '<button data-tab="' + k + '"' + (S.tab === k ? ' aria-current="page"' : "") + ">" + ICONS[k] + "<span>" + L().tabs[i] + "</span></button>"; }).join("");
     var v = S.tab === "qibla" ? qiblaView() : S.tab === "zikr" ? zikrView() : S.tab === "settings" ? settingsView() : prayerView();
     main.innerHTML = '<div class="view">' + v + "</div>";
+    [].forEach.call(main.querySelectorAll("select[data-city]"), function (el) {
+      el.onchange = function () {
+        if (el.value === "") return;
+        var c = CITIES[+el.value];
+        S.loc = { lat: c[2], lon: c[3], tz: c[4], city: +el.value }; S.denied = false; store.set("loc", S.loc); track("app_city"); render();
+      };
+    });
     var sel = document.getElementById("method");
     if (sel) sel.onchange = function () { S.method = sel.value; store.set("method", S.method); track("app_settings"); };
   }
