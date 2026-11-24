@@ -7,7 +7,12 @@ CREATE TABLE IF NOT EXISTS users (
   first_seen INTEGER NOT NULL,     -- мс с 1970
   last_seen INTEGER NOT NULL,
   blocked INTEGER NOT NULL DEFAULT 0,
-  tz TEXT                          -- часовой пояс из приложения, например Asia/Dushanbe
+  tz TEXT,                         -- часовой пояс из приложения, например Asia/Dushanbe
+  checkin_on INTEGER NOT NULL DEFAULT 0, -- ежедневные вопросы-кнопки
+  morning_h INTEGER NOT NULL DEFAULT 8,
+  evening_h INTEGER NOT NULL DEFAULT 21,
+  last_m TEXT,                     -- дата последнего утреннего вопроса
+  last_e TEXT
 );
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

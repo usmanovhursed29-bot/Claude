@@ -21,14 +21,18 @@ const env = { DB, LIMITS, BOT_TOKEN: TOKEN, GEMINI_KEY: "g", GEMINI_MODEL: "m1",
 
 const sent = [];
 let geminiReply = "[]";
+let voiceText = "";
 globalThis.fetch = async (url, opts) => {
   const body = opts?.body ? JSON.parse(opts.body) : {};
   if (String(url).includes("generativelanguage")) {
     sent.push({ method: "gemini", body });
-    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: geminiReply }] } }] }));
+    const isAudio = JSON.stringify(body).includes("inlineData");
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: isAudio ? voiceText : geminiReply }] } }] }));
   }
+  if (String(url).includes("/file/bot")) return new Response(new Uint8Array([1, 2, 3, 4]));
   const method = String(url).split("/").pop();
   sent.push({ method, body });
+  if (method === "getFile") return new Response(JSON.stringify({ ok: true, result: { file_path: "voice/1.oga" } }));
   if (method === "getWebhookInfo") return new Response(JSON.stringify({ ok: true, result: { url: "https://w/telegram", allowed_updates: ["message"] } }));
   return new Response(JSON.stringify({ ok: true }));
 };
@@ -161,5 +165,60 @@ assert.match(g.systemInstruction.parts[0].text, /не больше 60 слов[\
 assert.equal(g.contents.length, 3, "история + вопрос");
 assert.equal((await app("/ask", { initData: initData(42), question: "  " })).status, 400);
 assert.equal((await app("/ask", { initData: "bad", question: "x" })).status, 401);
+
+// ---- голосовые ----
+voiceText = "Выпил два стакана воды и прошёл 9000 шагов";
+const tap = (from, data) => tg({ callback_query: { id: "q" + ++mid, from: { id: from, first_name: "U" + from }, data, message: { message_id: 77, chat: { id: from } } } });
+out = await tg({ message: { message_id: ++mid, date: Math.floor(Date.now() / 1000), chat: { id: 42, type: "private" }, from: { id: 42, first_name: "U42" }, voice: { file_id: "F1", duration: 4, mime_type: "audio/ogg" } } });
+const texts = out.filter((m) => m.method === "sendMessage").map((m) => m.body.text);
+assert.match(texts[0], /🎤 «Выпил два стакана воды и прошёл 9000 шагов»/);
+assert.match(texts[1], /Записал ✅[\s\S]*Вода: \+500 мл[\s\S]*Шаги: 9000/);
+const audioReq = out.find((m) => m.method === "gemini").body.contents[0].parts[0].inlineData;
+assert.equal(audioReq.mimeType, "audio/ogg");
+assert.equal(audioReq.data, Buffer.from([1, 2, 3, 4]).toString("base64"));
+out = await tg({ message: { message_id: ++mid, date: 1, chat: { id: 42, type: "private" }, from: { id: 42 }, voice: { file_id: "F2", duration: 300 } } });
+assert.match(lastText(out), /длиннее 2 минут/);
+
+// ---- вопросы-кнопки ----
+out = await say(42, "/checkin");
+assert.match(lastText(out), /выключены/);
+await tap(42, "ci:on");
+await tap(42, "ci:m:7");
+const u42 = db.prepare("SELECT checkin_on, morning_h, evening_h, tz FROM users WHERE id = 42").get();
+assert.deepEqual([u42.checkin_on, u42.morning_h, u42.evening_h, u42.tz], [1, 7, 21, "Asia/Dushanbe"]);
+const { sendCheckins } = await import("./worker.js");
+// 07:05 в Душанбе = 02:05 UTC
+const morning = Date.UTC(2026, 10, 25, 2, 5);
+let b3 = sent.length;
+assert.equal(await sendCheckins(env, morning), 1);
+const q1 = sent.slice(b3).find((m) => m.method === "sendMessage");
+assert.equal(q1.body.chat_id, 42);
+assert.match(q1.body.text, /Сколько вы спали/);
+assert.equal(q1.body.reply_markup.inline_keyboard[0][2].callback_data, "ci:sleep:7");
+assert.equal(await sendCheckins(env, morning + 10 * 60000), 0, "утром спрашивает один раз");
+assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 25, 10, 0)), 0, "в 15:00 не спрашивает");
+out = await tap(42, "ci:sleep:7");
+assert.match(out.find((m) => m.method === "editMessageText").body.text, /Сон: 7 ч/);
+// вечер: 21:00 в Душанбе = 16:00 UTC → шаги → вода
+b3 = sent.length;
+assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 25, 16, 1)), 1);
+out = await tap(42, "ci:steps:8000");
+const ed = out.find((m) => m.method === "editMessageText").body;
+assert.match(ed.text, /Шаги: около 8 000[\s\S]*сколько воды/);
+out = await tap(42, "ci:water:1500");
+assert.match(out.find((m) => m.method === "editMessageText").body.text, /Вода: 1,5 л/);
+const ci = db.prepare("SELECT cmd FROM inbox WHERE user_id = 42 AND done = 0 AND cmd IN ('sleep_7','steps_8000','water_1500')").all().map((r) => r.cmd).sort().join(",");
+assert.equal(ci, "sleep_7,steps_8000,water_1500");
+await tap(42, "ci:off");
+assert.equal(db.prepare("SELECT checkin_on FROM users WHERE id = 42").get().checkin_on, 0);
+assert.equal(await sendCheckins(env, Date.UTC(2026, 10, 26, 2, 5)), 0, "выключено — не спрашивает");
+
+// кнопки до сервера: вебхук включает callback_query один раз
+const { default: w } = await import("./worker.js");
+b3 = sent.length;
+await w.scheduled({}, env, { waitUntil: async (p) => p });
+await new Promise((r) => setTimeout(r, 50));
+const sw = sent.slice(b3).find((m) => m.method === "setWebhook");
+assert.ok(sw && sw.body.allowed_updates.includes("callback_query"));
 
 console.log("Сервер: все проверки пройдены ✅\n\n" + stats);

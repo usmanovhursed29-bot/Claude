@@ -4,7 +4,7 @@
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
 // Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
 // Routes: POST /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
-import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd } from "./parse.js";
+import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -53,6 +53,7 @@ export default {
       const update = await request.json();
       // answer Telegram at once; a slow model reply would make it resend the update
       if (update.my_chat_member) ctx.waitUntil(handleMember(update.my_chat_member, env));
+      else if (update.callback_query) ctx.waitUntil(handleCallback(update.callback_query, env));
       else ctx.waitUntil(handleMessage(update.message, env));
       return new Response("ok");
     }
@@ -122,7 +123,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(sendDueReminders(env));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), ensureWebhookOnce(env)]));
   },
 };
 
@@ -196,6 +197,112 @@ export async function sendDueReminders(env, now = Date.now()) {
   return due.length;
 }
 
+// ---- голосовые: Telegram → Gemini (распознавание речи) ----
+async function transcribe(env, media) {
+  try {
+    const f = await (await telegram(env, "getFile", { file_id: media.file_id })).json();
+    const path = f.result?.file_path;
+    if (!path) return null;
+    const res = await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${path}`);
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length > 10 * 1024 * 1024) return null;
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const mime = media.mime_type || "audio/ogg";
+    const out = await askGemini(env, "Перепиши речь из аудио дословно, на том языке, на котором говорят. Только текст, без комментариев. Если речи нет, верни пустую строку.",
+      [{ role: "user", parts: [{ inlineData: { mimeType: mime, data: btoa(bin) } }, { text: "Распознай речь." }] }], { maxTokens: 300, json: false, temperature: 0 });
+    return out ? out.replace(/^["«]|["»]$/g, "").trim() : null;
+  } catch (e) {
+    console.log("transcribe error", String(e));
+    return null;
+  }
+}
+
+// ---- вопросы-кнопки: утром про сон, вечером про шаги и воду ----
+const CHECK_SLEEP = [5, 6, 7, 8, 9, 10];
+const CHECK_STEPS = [2000, 4000, 6000, 8000, 10000, 12000];
+const CHECK_WATER = [500, 1000, 1500, 2000, 2500, 3000];
+const kb = (rows) => ({ inline_keyboard: rows });
+const chunk = (arr, n) => arr.reduce((r, x, i) => (i % n ? r[r.length - 1].push(x) : r.push([x]), r), []);
+
+async function sendCheckinSettings(env, chatId, userId) {
+  if (!env.DB) return sendMessage(env, chatId, "Вопросы пока недоступны.");
+  const u = await env.DB.prepare("SELECT checkin_on, morning_h, evening_h, tz FROM users WHERE id = ?").bind(userId).first();
+  const on = u?.checkin_on === 1, m = u?.morning_h ?? 8, e = u?.evening_h ?? 21;
+  const text = `🗓 Ежедневные вопросы: ${on ? "включены" : "выключены"}\n\nУтром в ${m}:00 спрошу, сколько вы спали. Вечером в ${e}:00 — сколько шагов и воды. Ответ — одно нажатие на кнопку.${u?.tz ? "" : "\n\nВремя пока московское. Откройте приложение один раз, и я узнаю ваш часовой пояс."}`;
+  return telegram(env, "sendMessage", { chat_id: chatId, text, reply_markup: kb([
+    [{ text: on ? "🔕 Выключить" : "🔔 Включить", callback_data: on ? "ci:off" : "ci:on" }],
+    [6, 7, 8, 9, 10].map((h) => ({ text: `${h === m ? "✅ " : ""}утро ${h}:00`, callback_data: `ci:m:${h}` })).slice(0, 5),
+    [20, 21, 22, 23].map((h) => ({ text: `${h === e ? "✅ " : ""}вечер ${h}:00`, callback_data: `ci:e:${h}` })),
+  ]) });
+}
+
+const sleepKb = () => kb([...chunk(CHECK_SLEEP.map((h) => ({ text: `${h} ч`, callback_data: `ci:sleep:${h}` })), 3), [{ text: "Пропустить", callback_data: "ci:skip" }]]);
+const stepsKb = () => kb([...chunk(CHECK_STEPS.map((n) => ({ text: n >= 12000 ? "12 000+" : `~${n / 1000} 000`, callback_data: `ci:steps:${n}` })), 3), [{ text: "Пропустить", callback_data: "ci:skip" }]]);
+const waterKb = () => kb([...chunk(CHECK_WATER.map((ml) => ({ text: `${ml / 1000} л`.replace(".", ","), callback_data: `ci:water:${ml}` })), 3), [{ text: "Пропустить", callback_data: "ci:skip" }]]);
+
+export async function sendCheckins(env, now = Date.now()) {
+  if (!env.DB) return 0;
+  const users = (await env.DB.prepare("SELECT id, tz, morning_h, evening_h, last_m, last_e FROM users WHERE checkin_on = 1 AND blocked = 0 LIMIT 5000").all()).results || [];
+  let n = 0;
+  for (const u of users) {
+    const tz = u.tz || "Europe/Moscow";
+    const l = localNow(tz, now);
+    const day = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
+    if (l.hh === (u.morning_h ?? 8) && u.last_m !== day) {
+      await env.DB.prepare("UPDATE users SET last_m = ? WHERE id = ?").bind(day, u.id).run();
+      await telegram(env, "sendMessage", { chat_id: u.id, text: "☀️ Доброе утро! Сколько вы спали сегодня?", reply_markup: sleepKb() }).catch(() => {});
+      n++;
+    }
+    if (l.hh === (u.evening_h ?? 21) && u.last_e !== day) {
+      await env.DB.prepare("UPDATE users SET last_e = ? WHERE id = ?").bind(day, u.id).run();
+      await telegram(env, "sendMessage", { chat_id: u.id, text: "🌙 Итоги дня. Сколько примерно шагов вы прошли?", reply_markup: stepsKb() }).catch(() => {});
+      n++;
+    }
+  }
+  return n;
+}
+
+async function handleCallback(q, env) {
+  const data = String(q.data || ""), userId = q.from.id, chatId = q.message?.chat?.id ?? userId, msgId = q.message?.message_id;
+  const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
+  const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
+  if (!data.startsWith("ci:") || !env.DB) return answer();
+  await track(env, q.from, "checkin");
+  const [, kind, val] = data.split(":");
+  if (kind === "on" || kind === "off") {
+    await env.DB.prepare("UPDATE users SET checkin_on = ? WHERE id = ?").bind(kind === "on" ? 1 : 0, userId).run();
+    await answer(kind === "on" ? "Включено" : "Выключено");
+    return sendCheckinSettings(env, chatId, userId);
+  }
+  if (kind === "m" || kind === "e") {
+    const h = Number(val);
+    if (!(h >= 0 && h <= 23)) return answer();
+    await env.DB.prepare(`UPDATE users SET ${kind === "m" ? "morning_h" : "evening_h"} = ?, checkin_on = 1 WHERE id = ?`).bind(h, userId).run();
+    await answer(`Буду спрашивать в ${h}:00`);
+    return sendCheckinSettings(env, chatId, userId);
+  }
+  if (kind === "skip") { await answer("Хорошо"); return edit("Пропустили. До завтра!"); }
+  const v = Number(val);
+  const ts = Date.now();
+  const save = (cmd) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, cmd, ts).run();
+  if (kind === "sleep" && CHECK_SLEEP.includes(v)) {
+    await save(`sleep_${v}`); await answer("Записал");
+    return edit(`✅ Сон: ${v} ч. Хорошего дня!`);
+  }
+  if (kind === "steps" && CHECK_STEPS.includes(v)) {
+    await save(`steps_${v}`); await answer("Записал");
+    return edit(`✅ Шаги: ${v >= 12000 ? "12 000+" : "около " + String(v).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}\n\n💧 А сколько воды выпили за день?`, waterKb());
+  }
+  if (kind === "water" && CHECK_WATER.includes(v)) {
+    await env.DB.prepare("DELETE FROM inbox WHERE user_id = ? AND cmd LIKE 'water_%' AND done = 0 AND ts > ?").bind(userId, ts - 3600000).run();
+    await save(`water_${v}`); await answer("Записал");
+    return edit(`✅ Вода: ${String(v / 1000).replace(".", ",")} л. Отличный день, спокойной ночи!\n\nВ приложении появится при следующем открытии.`);
+  }
+  return answer();
+}
+
 const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((s) => s.trim()).filter(Boolean).includes(String(id));
 
 export async function adminText(env) {
@@ -240,9 +347,17 @@ async function ensureWebhookUpdates(env) {
   const url = info.result?.url;
   const allowed = info.result?.allowed_updates || [];
   // пустой список = все типы, my_chat_member уже входит
-  if (url && allowed.length && !allowed.includes("my_chat_member")) {
-    await telegram(env, "setWebhook", { url, secret_token: await webhookSecret(env.BOT_TOKEN), allowed_updates: [...new Set([...allowed, "message", "my_chat_member"])] });
+  const need = ["message", "my_chat_member", "callback_query"];
+  if (url && allowed.length && need.some((x) => !allowed.includes(x))) {
+    await telegram(env, "setWebhook", { url, secret_token: await webhookSecret(env.BOT_TOKEN), allowed_updates: [...new Set([...allowed, ...need])] });
   }
+}
+// Один раз после выкладки: кнопки бота должны доходить до сервера.
+async function ensureWebhookOnce(env) {
+  const flag = "webhook-updates-v2";
+  if (await env.LIMITS.get(flag)) return;
+  await ensureWebhookUpdates(env);
+  await env.LIMITS.put(flag, "1");
 }
 
 async function saveEntries(env, userId, entries, ts) {
@@ -250,19 +365,32 @@ async function saveEntries(env, userId, entries, ts) {
 }
 
 async function handleMessage(message, env) {
-  if (!message?.text || !message.from) return;
-  const chatId = message.chat.id, userId = message.from.id, text = message.text.trim();
+  if (!message?.from || !(message.text || message.voice || message.audio)) return;
+  const chatId = message.chat.id, userId = message.from.id;
+  let text = (message.text || "").trim();
+  if (!text) {
+    // Голосовое: распознаём речь и дальше обрабатываем как обычный текст.
+    const media = message.voice || message.audio;
+    if ((media.duration || 0) > 120) return sendMessage(env, chatId, "Голосовое длиннее 2 минут, такие я не разбираю. Скажите короче, пожалуйста.");
+    if (!(await takeQuota(userId, env))) return sendMessage(env, chatId, `На сегодня запросы закончились (${env.DAILY_LIMIT} в день). Завтра продолжим`);
+    await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+    text = (await transcribe(env, media)) || "";
+    await track(env, message.from, "voice");
+    if (!text) return sendMessage(env, chatId, "Не разобрал голосовое. Попробуйте ещё раз или напишите текстом.");
+    await sendMessage(env, chatId, `🎤 «${text.slice(0, 300)}»`);
+  }
   const histKey = `hist:${userId}`;
   await track(env, message.from, text.startsWith("/start") ? "start" : "message");
 
   if (text.startsWith("/start")) {
-    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
+    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. А если хотите, буду сам спрашивать утром про сон и вечером про шаги и воду: /checkin\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n/reset — начать разговор заново`, true);
   }
   if (text.startsWith("/admin")) {
     if (!isAdmin(env, userId)) return sendMessage(env, chatId, "Эта команда только для администратора.");
     await ensureWebhookUpdates(env).catch(() => {});
     return sendMessage(env, chatId, await adminText(env));
   }
+  if (text.startsWith("/checkin") || text.startsWith("/вопросы")) return sendCheckinSettings(env, chatId, userId);
   if (text.startsWith("/myid")) return sendMessage(env, chatId, `Ваш Telegram ID: ${userId}`);
   if (text.startsWith("/reset")) {
     await env.LIMITS.delete(histKey);
@@ -320,11 +448,11 @@ async function takeQuota(userId, env) {
 
 // Returns the answer text, or null when every configured model failed.
 // Free-tier models get retired or overloaded, so GEMINI_MODEL is a list tried in order.
-async function askGemini(env, system, contents, { json = false, maxTokens = 600 } = {}) {
+async function askGemini(env, system, contents, { json = false, maxTokens = 600, temperature } = {}) {
   const prompt = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
     contents,
-    generationConfig: { maxOutputTokens: maxTokens, temperature: json ? 0 : 0.6, ...(json ? { responseMimeType: "application/json" } : {}) },
+    generationConfig: { maxOutputTokens: maxTokens, temperature: temperature ?? (json ? 0 : 0.6), ...(json ? { responseMimeType: "application/json" } : {}) },
   });
   for (const model of env.GEMINI_MODEL.split(",").map((m) => m.trim())) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {

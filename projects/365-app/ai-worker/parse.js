@@ -18,6 +18,10 @@ const num = (s) => parseFloat(String(s).replace(/\s+/g, "").replace(",", "."));
 const tenths = (x) => { const r = Math.round(x * 10) / 10; return Number.isInteger(r) ? String(r) : String(r).replace(".", "-"); };
 export const b64url = (t) => btoa(String.fromCharCode(...new TextEncoder().encode(t))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
+// Числа словами (так часто пишет распознавание речи): «два стакана», «полтора литра», «семь часов».
+const WORD_NUM = { "полтора": "1.5", "полторы": "1.5", "один": "1", "одна": "1", "одну": "1", "два": "2", "две": "2", "три": "3", "четыре": "4", "пять": "5", "шесть": "6", "семь": "7", "восемь": "8", "девять": "9", "десять": "10", "одиннадцать": "11", "двенадцать": "12" };
+const wordsToDigits = (t) => t.replace(/(^|[^а-я])(полтора|полторы|одиннадцать|двенадцать|один|одна|одну|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять)(?=[^а-я]|$)/g, (_, a, w) => a + WORD_NUM[w]);
+
 // Одно сообщение может содержать несколько записей: «выпил 500 мл воды, прошёл 8000 шагов».
 export function parseEntries(text) {
   const out = [];
@@ -32,7 +36,7 @@ export function parseEntries(text) {
     return out;
   }
 
-  const parts = raw.toLowerCase().replace(/ё/g, "е").split(/[\n;]|,(?!\d)|\sи\s(?=[а-я]*\s*\d)/);
+  const parts = wordsToDigits(raw.toLowerCase().replace(/ё/g, "е")).split(/[\n;]|,(?!\d)|\sи\s(?=[а-я]*\s*\d)/);
   for (const p of parts) {
     let m;
     if ((m = p.match(/(\d[\d\s]*)\s*(шаг|step)/))) {
