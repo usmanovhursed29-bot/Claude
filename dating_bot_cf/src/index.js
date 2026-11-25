@@ -13,6 +13,8 @@ const BTN_LIKERS = "💘 Кто меня лайкнул";
 const BTN_PROFILE = "👤 Моя анкета";
 const BTN_PREMIUM = "⭐ Купить подписку";
 const BTN_CHAT = "💬 Общий чат";
+const BTN_ADMIN = "🛠 Админка";
+let ADMIN = 0; // ID админа текущего запроса (из env)
 const MENU_BUTTONS = [BTN_BROWSE, BTN_LIKERS, BTN_PROFILE, BTN_PREMIUM, BTN_CHAT];
 
 const PREMIUM_TEXT =
@@ -42,6 +44,8 @@ class Bot {
     this.env = env;
     this.db = env.DB;
     this.adminId = Number(env.ADMIN_ID || 0);
+    ADMIN = this.adminId;
+    this.uid = 0; // кто сейчас пишет боту
     this.chatLink = (env.CHAT_LINK || "").trim();
   }
 
@@ -81,6 +85,7 @@ class Bot {
       [{ text: BTN_PROFILE }, { text: BTN_PREMIUM }],
     ];
     if (this.chatLink) rows.push([{ text: BTN_CHAT }]);
+    if (this.adminId && this.uid === this.adminId) rows.push([{ text: BTN_ADMIN }]);
     return { keyboard: rows, resize_keyboard: true };
   }
 }
@@ -101,7 +106,9 @@ const likerKb = (uid) => ikb([["❤️ Взаимно", `lb:${uid}`], ["👎", `
 
 // ================= база данных =================
 
-const isPremium = (u) => u.premium_until > now();
+// у админа — вечный премиум: безлимит лайков, сообщений и всех функций
+const isPremium = (u) => (ADMIN && u.user_id === ADMIN) || u.premium_until > now();
+const premiumUntil = (u) => (ADMIN && u.user_id === ADMIN ? "навсегда (админ)" : `до ${fmtDate(u.premium_until)}`);
 
 function caption(u, extra = "") {
   let t = `<b>${esc(u.name)}</b>, ${u.age}, ${esc(u.city)}${isPremium(u) ? " ⭐" : ""}`;
@@ -258,7 +265,7 @@ async function startRegistration(bot, chatId, uid, again = false) {
   const text = again
     ? "Заполним анкету заново. Как тебя зовут?"
     : "Привет! 👋 Это бот знакомств.\n\nЗаполни анкету — и смотри анкеты других, ставь лайки и знакомься.\n\n" +
-      "Правила: будь вежлив, никаких оскорблений, чужих фото и спама. За нарушения — бан.\n\nКак тебя зовут?";
+      "Правила: будь вежлив, никаких оскорблений, чужих фото и спама. За нарушения — бан. Администрация может просматривать анкеты и лайки для модерации.\n\nКак тебя зовут?";
   return bot.send(chatId, text, removeKb);
 }
 
@@ -266,7 +273,7 @@ async function sendPremium(bot, chatId, me) {
   let text = PREMIUM_TEXT;
   const rows = Object.entries(PLANS).map(([code, [days, stars]]) => [[`${days} дней — ${stars} ⭐`, `buy:${code}`]]);
   if (isPremium(me)) {
-    text += `\n\n✅ У тебя Премиум до <b>${fmtDate(me.premium_until)}</b>. Покупка продлит срок.`;
+    text += `\n\n✅ У тебя Премиум <b>${premiumUntil(me)}</b>.`;
     rows.unshift([["⚙️ Фильтры", "f:menu"]]);
   }
   return bot.send(chatId, text, ikb(...rows));
@@ -359,7 +366,7 @@ async function handleMenu(bot, m, me) {
       return showLiker(bot, chat, me.user_id);
     case BTN_PROFILE: {
       let status = me.active ? "👁 видна другим" : "🙈 скрыта";
-      if (isPremium(me)) status += `\n⭐ Премиум до ${fmtDate(me.premium_until)}`;
+      if (isPremium(me)) status += `\n⭐ Премиум ${premiumUntil(me)}`;
       return bot.photo(chat, me.photo_id, caption(me, `Статус: ${status}`), ikb(
         [["✏️ Заполнить заново", "p:redo"]],
         [["🖼 Сменить фото", "p:photo"], ["📝 Сменить текст", "p:about"]],
@@ -380,6 +387,7 @@ async function handleMenu(bot, m, me) {
 async function onMessage(bot, m) {
   const db = bot.db, uid = m.from.id, chat = m.chat.id, text = m.text || "";
   if (m.chat.type !== "private") return;
+  bot.uid = uid;
 
   if (m.successful_payment) {
     const sp = m.successful_payment;
@@ -427,6 +435,11 @@ async function onMessage(bot, m) {
       if (r.ok) await updateUser(db, Number(parts[1]), { premium_until: 0 });
       return bot.send(chat, r.ok ? "✅ Звёзды возвращены, премиум снят." : `Ошибка: ${esc(r.description)}`);
     }
+  }
+
+  if (bot.adminId && uid === bot.adminId && (text === BTN_ADMIN || text.startsWith("/admin"))) {
+    await clearState(db, uid);
+    return adminPanel(bot, chat);
   }
 
   const st = await getState(db, uid);
@@ -494,6 +507,13 @@ async function onCallback(bot, cb) {
   const db = bot.db, uid = cb.from.id, chat = cb.message?.chat.id, data = cb.data || "";
   const [action, arg] = data.split(":");
   const target = Number(arg);
+  bot.uid = uid;
+
+  if (action === "adm") {
+    if (!bot.adminId || uid !== bot.adminId) return bot.answerCb(cb);
+    await bot.answerCb(cb);
+    return adminAction(bot, cb, data.split(":").slice(1));
+  }
 
   if (action === "ban") {
     if (uid !== bot.adminId) return bot.answerCb(cb);
@@ -622,6 +642,182 @@ async function onPreCheckout(bot, q) {
   return bot.api("answerPreCheckoutQuery", {
     pre_checkout_query_id: q.id, ok: !!ok, error_message: ok ? undefined : "Тариф не найден, попробуй ещё раз.",
   });
+}
+
+// ================= АДМИНКА (только для ADMIN_ID) =================
+
+const TZ_OFFSET = 5 * 3600; // время Душанбе (UTC+5)
+const fmtDT = (ts) => {
+  const d = new Date((ts + TZ_OFFSET) * 1000);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+};
+const PAGE = 15;
+const who = (name, age, id) => `<b>${esc(name)}</b> (${age}, <code>${id}</code>)`;
+const navRow = (sub, off, total, size = PAGE) => {
+  const row = [];
+  if (off > 0) row.push(["◀️", `adm:${sub}:${Math.max(0, off - size)}:e`]);
+  if (off + size < total) row.push(["▶️", `adm:${sub}:${off + size}:e`]);
+  return row;
+};
+const count = async (db, sql, ...b) => (await db.prepare(sql).bind(...b).first()).c;
+
+async function adminPanel(bot, chat) {
+  const db = bot.db;
+  const users = await count(db, "SELECT COUNT(*) AS c FROM users");
+  const today = await count(db, "SELECT COUNT(*) AS c FROM users WHERE created > ?", now() - 86400);
+  const likes = await count(db, "SELECT COUNT(*) AS c FROM likes");
+  return bot.send(chat,
+    `🛠 <b>Админка</b>\n\n👥 Анкет: <b>${users}</b> (+${today} за сутки)\n❤️ Лайков: <b>${likes}</b>`,
+    ikb([["📊 Статистика", "adm:stats"], ["❤️ Кто кого лайкнул", "adm:likes:0"]],
+        [["💞 Взаимные пары", "adm:pairs:0"], ["👥 Все анкеты", "adm:prof:0"]],
+        [["⚠️ Жалобы", "adm:reps"]]));
+}
+
+async function profileCard(bot, chat, u, off, total) {
+  const db = bot.db, id = u.user_id;
+  const got = await count(db, "SELECT COUNT(*) AS c FROM likes WHERE to_id=?", id);
+  const gave = await count(db, "SELECT COUNT(*) AS c FROM likes WHERE from_id=?", id);
+  const mutual = await count(db,
+    "SELECT COUNT(*) AS c FROM likes a JOIN likes b ON a.from_id=b.to_id AND a.to_id=b.from_id WHERE a.from_id=?", id);
+  const reps = await count(db, "SELECT COUNT(*) AS c FROM reports WHERE to_id=?", id);
+  const status = u.banned ? "🚫 забанен" : u.active ? "👁 активна" : "🙈 скрыта";
+  const g = { m: "парень", f: "девушка" }[u.gender];
+  const l = { m: "парней", f: "девушек", any: "всех" }[u.looking];
+  let info = `🆔 <code>${id}</code> ${u.username ? "@" + esc(u.username) : ""}\n` +
+    `${g}, ищет ${l} • ${status}${isPremium(u) ? " • ⭐" : ""}\n` +
+    `❤️ получил: ${got} • поставил: ${gave} • 💞 взаимных: ${mutual}\n` +
+    `⚠️ жалоб: ${reps} • 📅 ${fmtDT(u.created)}`;
+  if (off !== null) info = `📋 Анкета ${off + 1} из ${total}\n` + info;
+  const rows = [];
+  if (off !== null) {
+    const nav = [];
+    if (off > 0) nav.push(["◀️", `adm:prof:${off - 1}`]);
+    if (off + 1 < total) nav.push(["▶️", `adm:prof:${off + 1}`]);
+    if (nav.length) rows.push(nav);
+  }
+  rows.push([["❤️ Его лайки", `adm:ul:${id}`], [u.banned ? "✅ Разбанить" : "🚫 Забанить", `adm:ban:${id}:${off ?? -1}`]]);
+  return bot.photo(chat, u.photo_id, caption(u, info), ikb(...rows));
+}
+
+async function adminAction(bot, cb, [sub, a, b]) {
+  const db = bot.db, chat = cb.message.chat.id;
+  const off = Number(a) || 0;
+  // ◀️▶️ в текстовых списках редактируют то же сообщение
+  const out = (text, kb) => b === "e"
+    ? bot.api("editMessageText", { chat_id: chat, message_id: cb.message.message_id, text, parse_mode: "HTML", reply_markup: kb })
+    : bot.send(chat, text, kb);
+
+  if (sub === "stats") {
+    const q = (sql, ...x) => count(db, sql, ...x);
+    const t = now();
+    const text =
+      "📊 <b>Статистика</b>\n\n" +
+      `👥 Всего анкет: <b>${await q("SELECT COUNT(*) AS c FROM users")}</b>\n` +
+      `👁 Активных: ${await q("SELECT COUNT(*) AS c FROM users WHERE active=1 AND banned=0")}\n` +
+      `🙈 Скрытых: ${await q("SELECT COUNT(*) AS c FROM users WHERE active=0 AND banned=0")}\n` +
+      `🚫 Забанено: ${await q("SELECT COUNT(*) AS c FROM users WHERE banned=1")}\n\n` +
+      `👨 Парней: ${await q("SELECT COUNT(*) AS c FROM users WHERE gender='m'")}\n` +
+      `👩 Девушек: ${await q("SELECT COUNT(*) AS c FROM users WHERE gender='f'")}\n` +
+      `🧒 14–17 лет: ${await q("SELECT COUNT(*) AS c FROM users WHERE age<18")}\n` +
+      `🧑 18+: ${await q("SELECT COUNT(*) AS c FROM users WHERE age>=18")}\n\n` +
+      `🆕 Новых за сутки: ${await q("SELECT COUNT(*) AS c FROM users WHERE created > ?", t - 86400)}\n` +
+      `🆕 Новых за неделю: ${await q("SELECT COUNT(*) AS c FROM users WHERE created > ?", t - 7 * 86400)}\n\n` +
+      `❤️ Лайков всего: ${await q("SELECT COUNT(*) AS c FROM likes")}\n` +
+      `❤️ Лайков за сутки: ${await q("SELECT COUNT(*) AS c FROM likes WHERE created > ?", t - 86400)}\n` +
+      `💌 С сообщением: ${await q("SELECT COUNT(*) AS c FROM likes WHERE message IS NOT NULL")}\n` +
+      `💞 Взаимных пар: ${await q("SELECT COUNT(*) AS c FROM likes a JOIN likes b ON a.from_id=b.to_id AND a.to_id=b.from_id WHERE a.from_id < a.to_id")}\n\n` +
+      `⭐ Премиум сейчас: ${await q("SELECT COUNT(*) AS c FROM users WHERE premium_until > ?", t)}\n` +
+      `💰 Покупок: ${await q("SELECT COUNT(*) AS c FROM payments")}, звёзд: ${await q("SELECT COALESCE(SUM(stars),0) AS c FROM payments")} ⭐\n` +
+      `⚠️ Жалоб: ${await q("SELECT COUNT(*) AS c FROM reports")}\n\n` +
+      `🏙 Топ городов:\n` +
+      (await db.prepare("SELECT city, COUNT(*) AS c FROM users GROUP BY lower(city) ORDER BY c DESC LIMIT 5").all())
+        .results.map((r) => `• ${esc(r.city)} — ${r.c}`).join("\n");
+    return bot.send(chat, text);
+  }
+
+  if (sub === "likes") {
+    const total = await count(db, "SELECT COUNT(*) AS c FROM likes");
+    const rows = (await db.prepare(
+      `SELECT l.*, a.name AS an, a.age AS aa, b.name AS bn, b.age AS ba,
+              EXISTS(SELECT 1 FROM likes r WHERE r.from_id=l.to_id AND r.to_id=l.from_id) AS mutual
+       FROM likes l JOIN users a ON a.user_id=l.from_id JOIN users b ON b.user_id=l.to_id
+       ORDER BY l.created DESC LIMIT ? OFFSET ?`).bind(PAGE, off).all()).results;
+    if (!rows.length) return out("Лайков пока нет.");
+    const text = `❤️ <b>Кто кого лайкнул</b> (${off + 1}–${off + rows.length} из ${total})\n\n` + rows.map((r) =>
+      `${fmtDT(r.created)} ${who(r.an, r.aa, r.from_id)} → ${who(r.bn, r.ba, r.to_id)}${r.mutual ? " 💞" : ""}` +
+      (r.message ? `\n   💌 <i>${esc(r.message.slice(0, 100))}</i>` : "")).join("\n");
+    return out(text.slice(0, 4096), ikb(navRow("likes", off, total)));
+  }
+
+  if (sub === "pairs") {
+    const base = "FROM likes a JOIN likes b ON a.from_id=b.to_id AND a.to_id=b.from_id WHERE a.from_id < a.to_id";
+    const total = await count(db, `SELECT COUNT(*) AS c ${base}`);
+    const rows = (await db.prepare(
+      `SELECT a.from_id AS x, a.to_id AS y, MAX(a.created, b.created) AS t, ux.name AS xn, ux.age AS xa, uy.name AS yn, uy.age AS ya
+       ${base.replace("WHERE", "JOIN users ux ON ux.user_id=a.from_id JOIN users uy ON uy.user_id=a.to_id WHERE")}
+       ORDER BY t DESC LIMIT ? OFFSET ?`).bind(PAGE, off).all()).results;
+    if (!rows.length) return out("Взаимных пар пока нет.");
+    const text = `💞 <b>Взаимные пары</b> (${off + 1}–${off + rows.length} из ${total})\n\n` +
+      rows.map((r) => `${fmtDT(r.t)} ${who(r.xn, r.xa, r.x)} 💞 ${who(r.yn, r.ya, r.y)}`).join("\n");
+    return out(text.slice(0, 4096), ikb(navRow("pairs", off, total)));
+  }
+
+  if (sub === "prof") {
+    const total = await count(db, "SELECT COUNT(*) AS c FROM users");
+    const u = await db.prepare("SELECT * FROM users ORDER BY created DESC LIMIT 1 OFFSET ?").bind(off).first();
+    if (!u) return bot.send(chat, "Анкет пока нет.");
+    if (cb.message.photo) await bot.dropKeyboard(cb);
+    return profileCard(bot, chat, u, off, total);
+  }
+
+  if (sub === "user") {
+    const u = await getUser(db, off);
+    return u ? profileCard(bot, chat, u, null, 0) : bot.send(chat, "Анкета не найдена.");
+  }
+
+  if (sub === "ban") {
+    const id = off, back = Number(b);
+    const u = await getUser(db, id);
+    if (!u) return;
+    if (id === bot.adminId) return bot.send(chat, "Себя забанить нельзя 🙂");
+    const banned = u.banned ? 0 : 1;
+    await updateUser(db, id, { banned, active: banned ? 0 : 1 });
+    await bot.dropKeyboard(cb);
+    await bot.send(chat, banned ? `🚫 ${esc(u.name)} забанен(а).` : `✅ ${esc(u.name)} разбанен(а).`);
+    if (banned) await bot.send(id, "🚫 Твой аккаунт заблокирован за нарушение правил.");
+    const fresh = await getUser(db, id);
+    if (back >= 0) return profileCard(bot, chat, fresh, back, await count(db, "SELECT COUNT(*) AS c FROM users"));
+    return profileCard(bot, chat, fresh, null, 0);
+  }
+
+  if (sub === "ul") {
+    const id = off;
+    const u = await getUser(db, id);
+    if (!u) return;
+    const gave = (await db.prepare(
+      `SELECT l.*, u.name, u.age FROM likes l JOIN users u ON u.user_id=l.to_id WHERE l.from_id=? ORDER BY l.created DESC LIMIT 20`
+    ).bind(id).all()).results;
+    const got = (await db.prepare(
+      `SELECT l.*, u.name, u.age FROM likes l JOIN users u ON u.user_id=l.from_id WHERE l.to_id=? ORDER BY l.created DESC LIMIT 20`
+    ).bind(id).all()).results;
+    const line = (r, uid) => `${fmtDT(r.created)} ${who(r.name, r.age, uid)}` + (r.message ? ` 💌 <i>${esc(r.message.slice(0, 60))}</i>` : "");
+    const text = `❤️ <b>Лайки: ${esc(u.name)}</b>\n\n<b>Поставил(а):</b>\n` +
+      (gave.map((r) => line(r, r.to_id)).join("\n") || "—") +
+      `\n\n<b>Получил(а):</b>\n` + (got.map((r) => line(r, r.from_id)).join("\n") || "—");
+    return bot.send(chat, text.slice(0, 4096));
+  }
+
+  if (sub === "reps") {
+    const rows = (await db.prepare(
+      `SELECT r.to_id, COUNT(*) AS c, MAX(r.created) AS t, u.name, u.age, u.banned
+       FROM reports r JOIN users u ON u.user_id=r.to_id GROUP BY r.to_id ORDER BY c DESC, t DESC LIMIT 10`
+    ).all()).results;
+    if (!rows.length) return bot.send(chat, "Жалоб пока нет 👍");
+    const text = "⚠️ <b>Больше всего жалоб</b>\n\n" + rows.map((r) =>
+      `${r.c}× ${who(r.name, r.age, r.to_id)}${r.banned ? " 🚫" : ""} — посл. ${fmtDT(r.t)}`).join("\n");
+    return bot.send(chat, text, ikb(...rows.map((r) => [[`👤 ${r.name} (${r.c})`, `adm:user:${r.to_id}`]])));
+  }
 }
 
 // ================= вход =================
