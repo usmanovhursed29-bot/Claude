@@ -54,11 +54,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 /* полоса фактов */
 .strip{border-bottom:1px solid var(--rule)}
 .strip .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
-.strip div{padding:26px 20px 26px 0;border-right:1px solid var(--rule);font-size:14px;color:var(--soft)}
-.strip div+div{padding-left:24px}
-.strip div:last-child{border-right:0}
+.strip .wrap>div{padding:26px 20px 26px 0;border-right:1px solid var(--rule);font-size:14px;color:var(--soft)}
+.strip .wrap>div+div{padding-left:24px}
+.strip .wrap>div:last-child{border-right:0}
 .strip b{display:block;font:600 22px/1.2 var(--display);text-transform:uppercase;color:var(--ink);margin-bottom:4px}
-@media(max-width:760px){.strip .wrap{grid-template-columns:1fr 1fr}.strip div{border-right:0;border-bottom:1px solid var(--rule);padding-left:0!important}}
+
 
 section{padding-block:96px}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:44px}
@@ -145,9 +145,74 @@ footer{background:var(--night);color:rgba(255,255,255,.55);font-size:13px;paddin
 footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
 
 /* кнопки на телефоне */
-.callbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;padding:10px max(12px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));background:var(--paper);border-top:1px solid var(--rule);gap:8px}
-.callbar a{flex:1;padding:15px 10px}
+.callbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--rule);gap:8px}
+.cb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:54px;font:700 11px/1 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);border-radius:12px}
+.cb svg{width:22px;height:22px;fill:currentColor}
+.cb-call{flex:1.6;flex-direction:row;gap:10px;background:var(--red);color:var(--red-ink);font-size:14px}
 @media(max-width:900px){.callbar{display:flex}}
+
+.chips{display:none}
+.swipe{display:none;font-size:13px;color:var(--soft);margin-top:12px;letter-spacing:.04em}
+/* ---------- телефон ---------- */
+@media(max-width:760px){
+  body{font-size:16px}
+  section{padding-block:64px}
+  .head{margin-bottom:28px}
+  .top{position:sticky;background:var(--night)}
+  .top .wrap{height:60px}
+  .brand{font-size:18px}.brand small{display:none}
+  .top .tel{font-size:0;width:44px;height:44px;border:1.5px solid rgba(255,255,255,.4);border-radius:50%;display:grid;place-items:center}
+  .top .tel:before{content:"";width:20px;height:20px;background:#fff;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'/%3E%3C/svg%3E") center/contain no-repeat}
+  section[id]{scroll-margin-top:60px}
+  .hero{min-height:calc(100svh - 60px - 76px);flex-direction:column;align-items:stretch;justify-content:flex-end}
+  .score{padding-inline:max(20px,env(safe-area-inset-left,0px));padding-bottom:28px;margin-top:-8px!important}
+  .hero .wrap{padding-block:0 28px}
+  .hero h1{font-size:clamp(48px,15vw,64px)}
+  .hero p{font-size:16px;margin:14px 0 22px}
+  .hero .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hero .btn{padding:16px 10px}
+  .score{display:flex;align-items:baseline;gap:10px;margin-top:0}
+  .score b{font-size:40px}.score span{font-size:11px}
+  .strip .wrap{grid-template-columns:1fr 1fr}
+  .strip .wrap>div{padding:18px 12px 18px 0!important;border-right:0;border-bottom:1px solid var(--rule)}
+  .strip .wrap>div:nth-child(even){padding-left:14px!important;border-left:1px solid var(--rule)}
+  .strip b{font-size:17px}
+  .about{display:flex;flex-direction:column-reverse;gap:28px}
+  .about .pics{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin-inline:calc(-1*max(20px,env(safe-area-inset-left,0px)));padding-inline:max(20px,env(safe-area-inset-left,0px));scrollbar-width:none}
+  .about .pics::-webkit-scrollbar{display:none}
+  .about .pics img,.about .pics img:first-child{flex:0 0 78%;min-height:0;aspect-ratio:4/5;scroll-snap-align:center}
+  .points li{flex-direction:column;gap:2px}.points li span:last-child{text-align:left}
+  .chips{display:flex;gap:8px;overflow-x:auto;position:sticky;top:calc(60px + env(safe-area-inset-top,0px));z-index:15;background:var(--tint);padding-block:12px;margin:0 calc(-1*max(20px,env(safe-area-inset-left,0px))) 18px;padding-inline:max(20px,env(safe-area-inset-left,0px));scrollbar-width:none;border-bottom:1px solid var(--rule)}
+  .chips::-webkit-scrollbar{display:none}
+  .chips button{flex:0 0 auto;min-height:42px;padding:0 18px;border-radius:999px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);font:700 13px/1 var(--body);letter-spacing:.06em;text-transform:uppercase}
+  .chips button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .cats{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;margin:0 calc(-1*max(20px,env(safe-area-inset-left,0px))) 30px;padding-inline:max(20px,env(safe-area-inset-left,0px));scrollbar-width:none}
+  .cats::-webkit-scrollbar{display:none}
+  .cat{flex:0 0 62%;aspect-ratio:3/4;scroll-snap-align:start}
+  .cat span{font-size:24px}
+  #list{scroll-margin-top:136px}
+  .group{margin-bottom:32px}
+  .group h3{font-size:24px}
+  .dish{padding:15px 0;min-height:52px}
+  .dish .p{font-size:19px}
+  .wide img{height:600px}
+  .wide:after{background:linear-gradient(180deg,rgba(20,15,13,.45) 0%,rgba(20,15,13,.92) 60%)}
+  .wide .wrap{justify-content:flex-end;padding-block:0 40px}
+  .wide .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .wide .btn{padding:16px 8px}
+  .big-score b{font-size:64px}
+  .reviews{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;border-top:0;margin-inline:calc(-1*max(20px,env(safe-area-inset-left,0px)));padding-inline:max(20px,env(safe-area-inset-left,0px));scrollbar-width:none}
+  .reviews::-webkit-scrollbar{display:none}
+  .rev{flex:0 0 82%;scroll-snap-align:center;border:1px solid var(--rule)!important;padding:24px!important;display:flex;flex-direction:column;justify-content:space-between}
+  .rev p{font-size:17px}
+  .swipe{display:block}
+  .gallery img:nth-child(n+3){display:none}
+  .contacts h2{margin-bottom:32px}
+  .contacts .grid{gap:26px}
+  .contacts .btn-line{width:100%;margin-top:32px}
+  #reviews .btn-line{width:100%}
+  footer{padding-block:24px calc(96px + env(safe-area-inset-bottom,0px))}
+}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head><body>
@@ -204,6 +269,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
     <div><span class="eyebrow">Меню</span><h2>С мангала</h2></div>
     <p>Нажмите на раздел, чтобы показать только его. Цены — за порцию.</p>
   </div>
+  <nav class="chips" id="chips" aria-label="Разделы меню"><button data-g="all" aria-pressed="true">Всё</button><button data-g="sh" aria-pressed="false">Шашлык</button><button data-g="lu" aria-pressed="false">Люля</button><button data-g="ga" aria-pressed="false">Гарниры</button><button data-g="sw" aria-pressed="false">Шаурма</button></nav>
   <div class="cats">
     <button class="cat" data-g="sh" aria-pressed="false"><img src="img/skewers.jpg" alt=""><span>Шашлык<small>свинина и курица · от 350 ₽</small></span></button>
     <button class="cat" data-g="lu" aria-pressed="false"><img src="img/lula2.jpg" alt=""><span>Люля-кебаб<small>говядина и курица · от 350 ₽</small></span></button>
@@ -241,7 +307,8 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
     <div class="rev"><p>Очень вкусно практически всё. Перепробовал почти все виды шашлыка</p><span>Александр</span></div>
     <div class="rev"><p>Очень вкусный шашлык, доставка была в Одинцово</p><span>Юлия</span></div>
   </div>
-  <div style="margin-top:36px"><a class="btn btn-line" href="https://yandex.ru/maps/org/shashlyk_dzhan/155190166283/reviews/" target="_blank" rel="noopener">Все отзывы на Яндекс Картах</a></div>
+  <div class="swipe">Листайте вбок →</div>
+  <div style="margin-top:28px"><a class="btn btn-line" href="https://yandex.ru/maps/org/shashlyk_dzhan/155190166283/reviews/" target="_blank" rel="noopener">Все отзывы на Яндекс Картах</a></div>
 </div></section>
 
 <div class="gallery">
@@ -265,7 +332,7 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
 
 <footer><div class="wrap"><span>© Шашлык Джан, Одинцово</span><span>Фото: Pexels</span></div></footer>
 
-<div class="callbar"><a class="btn btn-red" href="tel:+79036969691">Позвонить</a><a class="btn btn-line" href="https://wa.me/79175163336" target="_blank" rel="noopener">WhatsApp</a></div>
+<div class="callbar"><a class="cb cb-call" href="tel:+79036969691"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>Позвонить</a><a class="cb" href="#menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg>Меню</a><a class="cb" href="https://wa.me/79175163336" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg>WhatsApp</a></div>
 
 <script>
 const G={
@@ -279,6 +346,13 @@ document.querySelectorAll(".cat").forEach(b=>b.addEventListener("click",()=>{
   const on=b.getAttribute("aria-pressed")!=="true";
   document.querySelectorAll(".cat").forEach(x=>x.setAttribute("aria-pressed",String(on&&x===b)));
   list.querySelectorAll(".group").forEach(g=>g.hidden=on&&g.dataset.g!==b.dataset.g);
+}));
+const chips=document.querySelectorAll("#chips button");
+chips.forEach(c=>c.addEventListener("click",()=>{
+  chips.forEach(x=>x.setAttribute("aria-pressed",String(x===c)));
+  document.querySelectorAll(".cat").forEach(x=>x.setAttribute("aria-pressed","false"));
+  list.querySelectorAll(".group").forEach(g=>g.hidden=c.dataset.g!=="all"&&g.dataset.g!==c.dataset.g);
+  list.scrollIntoView({behavior:"smooth",block:"start"});
 }));
 </script>
 </body></html>
