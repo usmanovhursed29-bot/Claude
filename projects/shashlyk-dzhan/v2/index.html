@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Шашлык Джан</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Сетка как у ресторанных сайтов: фото на всю ширину, строгий узкий шрифт, белые поля, красный только для цен и кнопок */
+:root{
+  color-scheme:light;
+  --paper:#ffffff; --ink:#191513; --soft:#6d6460; --rule:#e6e0dc; --tint:#f5f2f0;
+  --red:#b3261e; --red-ink:#ffffff; --night:#140f0d;
+  --display:"Oswald","Arial Narrow",Arial,sans-serif; --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--body);margin:0}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+.wrap{max-width:1200px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.01em;line-height:1.02;margin:0;text-wrap:balance}
+.eyebrow{font:700 12px/1 var(--body);letter-spacing:.22em;text-transform:uppercase;color:var(--red)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:16px 28px;font:700 14px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;border:2px solid currentColor;transition:background .2s,color .2s}
+.btn-red{background:var(--red);border-color:var(--red);color:var(--red-ink)}
+.btn-red:hover{background:var(--ink);border-color:var(--ink)}
+.btn-line:hover{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+
+/* шапка поверх фото */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--night)}
+.top{position:absolute;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:20;color:#fff}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:84px;gap:20px}
+.brand{font:700 22px/1 var(--display);text-transform:uppercase;letter-spacing:.08em}
+.brand small{display:block;font:500 10px/1 var(--body);letter-spacing:.3em;opacity:.75;margin-top:6px}
+.top nav{display:flex;gap:30px;font:600 13px/1 var(--body);letter-spacing:.14em;text-transform:uppercase}
+.top nav a{opacity:.85}.top nav a:hover{opacity:1}
+.top .tel{font:600 16px/1 var(--body);white-space:nowrap}
+@media(max-width:900px){.top nav{display:none}}
+
+/* первый экран */
+.hero{position:relative;min-height:min(820px,92vh);color:#fff;display:flex;align-items:flex-end;background:var(--night)}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,15,13,.55) 0%,rgba(20,15,13,.1) 35%,rgba(20,15,13,.85) 100%)}
+.hero .wrap{position:relative;z-index:2;width:100%;padding-block:0 64px}
+.hero h1{font-size:clamp(52px,10vw,132px);font-weight:700;max-width:11ch}
+.hero p{font-size:19px;max-width:44ch;margin:22px 0 32px;opacity:.9}
+.hero .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.hero .btn-line{color:#fff}
+.hero .btn-line:hover{background:#fff;color:var(--ink);border-color:#fff}
+.score{position:absolute;right:max(20px,env(safe-area-inset-right,0px));bottom:64px;z-index:2;text-align:right}
+.score b{display:block;font:700 72px/1 var(--display)}
+.score span{font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.85}
+@media(max-width:760px){.score{position:static;text-align:left;margin-top:30px}.score b{font-size:52px}}
+
+/* полоса фактов */
+.strip{border-bottom:1px solid var(--rule)}
+.strip .wrap{display:grid;grid-template-columns:repeat(4,1fr)}
+.strip div{padding:26px 20px 26px 0;border-right:1px solid var(--rule);font-size:14px;color:var(--soft)}
+.strip div+div{padding-left:24px}
+.strip div:last-child{border-right:0}
+.strip b{display:block;font:600 22px/1.2 var(--display);text-transform:uppercase;color:var(--ink);margin-bottom:4px}
+@media(max-width:760px){.strip .wrap{grid-template-columns:1fr 1fr}.strip div{border-right:0;border-bottom:1px solid var(--rule);padding-left:0!important}}
+
+section{padding-block:96px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:44px}
+.head h2{font-size:clamp(38px,6vw,72px);margin-top:14px}
+.head p{max-width:42ch;color:var(--soft);margin:0}
+
+/* о кафе: фото + текст */
+.about{display:grid;grid-template-columns:1.1fr 1fr;gap:64px;align-items:center}
+.about .pics{display:grid;grid-template-columns:1.3fr 1fr;gap:12px}
+.about .pics img{width:100%;height:100%;object-fit:cover;aspect-ratio:3/4}
+.about .pics img:first-child{grid-row:span 2;aspect-ratio:auto;min-height:520px}
+.about h2{font-size:clamp(36px,5vw,60px);margin:14px 0 22px}
+.about p{color:var(--soft);margin:0 0 16px;max-width:52ch}
+.points{list-style:none;padding:0;margin:30px 0 0;border-top:1px solid var(--rule)}
+.points li{display:flex;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--rule)}
+.points li span:first-child{font-weight:700}
+.points li span:last-child{color:var(--soft);text-align:right}
+@media(max-width:900px){.about{grid-template-columns:1fr;gap:40px}.about .pics img:first-child{min-height:340px}}
+
+/* меню */
+.menu-sec{background:var(--tint)}
+.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:56px}
+.cat{position:relative;overflow:hidden;aspect-ratio:4/5;color:#fff;cursor:pointer;border:0;padding:0;background:var(--night);text-align:left;font:inherit}
+.cat img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+.cat:hover img{transform:scale(1.05)}
+.cat:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(20,15,13,.85))}
+.cat span{position:absolute;left:20px;right:20px;bottom:18px;z-index:2;font:600 26px/1.05 var(--display);text-transform:uppercase}
+.cat small{display:block;font:500 13px/1.3 var(--body);text-transform:none;opacity:.85;margin-top:6px}
+.cat[aria-pressed="true"]{outline:4px solid var(--red);outline-offset:-4px}
+@media(max-width:900px){.cats{grid-template-columns:1fr 1fr}}
+.list{display:grid;grid-template-columns:1fr 1fr;gap:0 64px}
+.group h3{font-size:28px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin:0 0 6px}
+.group{margin-bottom:44px;min-width:0}
+.dish{display:flex;align-items:baseline;gap:12px;padding:14px 0;border-bottom:1px solid var(--rule)}
+.dish .n{font-weight:500}
+.dish i{flex:1;border-bottom:1px dotted #bfb6b0;transform:translateY(-4px)}
+.dish .p{font:600 20px/1 var(--display);color:var(--red);white-space:nowrap;font-variant-numeric:tabular-nums}
+.group[hidden]{display:none}
+@media(max-width:760px){.list{grid-template-columns:1fr}}
+.fine{font-size:14px;color:var(--soft);margin-top:8px}
+
+/* доставка: широкое фото */
+.wide{position:relative;color:#fff;background:var(--night);padding-block:0}
+.wide img{width:100%;height:560px;object-fit:cover;opacity:.6}
+.wide:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(20,15,13,.92) 0%,rgba(20,15,13,.6) 50%,rgba(20,15,13,.1) 100%)}
+.wide .wrap{z-index:2}
+.wide .wrap{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;max-width:1200px;left:0;right:0}
+.wide h2{font-size:clamp(40px,7vw,88px);max-width:12ch}
+.wide p{max-width:46ch;font-size:18px;opacity:.9;margin:20px 0 28px}
+.wide .row{display:flex;flex-wrap:wrap;gap:12px}
+.wide .btn-line{color:#fff}.wide .btn-line:hover{background:#fff;color:var(--ink)}
+.services{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:30px;font:600 13px/1 var(--body);letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+@media(max-width:760px){.wide img{height:640px}}
+
+/* отзывы */
+.reviews{display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid var(--ink)}
+.rev{padding:30px 28px 30px 0;border-bottom:1px solid var(--rule)}
+.rev:not(:nth-child(3n)){border-right:1px solid var(--rule)}
+.rev:not(:nth-child(3n+1)){padding-left:28px}
+.rev p{font-size:19px;line-height:1.5;margin:0 0 18px}
+.rev span{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+@media(max-width:900px){.reviews{grid-template-columns:1fr}.rev{border-right:0!important;padding-left:0!important}}
+.big-score{display:flex;align-items:baseline;gap:16px}
+.big-score b{font:700 96px/1 var(--display);color:var(--red)}
+.big-score span{color:var(--soft);max-width:22ch}
+
+/* галерея */
+.gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gallery img{width:100%;aspect-ratio:1;object-fit:cover}
+@media(max-width:760px){.gallery{grid-template-columns:1fr 1fr}}
+
+/* контакты */
+.contacts{background:var(--night);color:#fff}
+.contacts .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;border-top:1px solid rgba(255,255,255,.2);padding-top:36px}
+.contacts .grid div{min-width:0}
+.contacts small{display:block;font:700 12px/1 var(--body);letter-spacing:.2em;text-transform:uppercase;opacity:.6;margin-bottom:12px}
+.contacts .v{font:500 22px/1.3 var(--display);text-transform:uppercase}
+.contacts .v a{border-bottom:1px solid rgba(255,255,255,.4)}
+.contacts h2{font-size:clamp(44px,8vw,110px);margin-bottom:56px}
+.contacts .btn-line{color:#fff;margin-top:44px}.contacts .btn-line:hover{background:#fff;color:var(--ink)}
+@media(max-width:900px){.contacts .grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.contacts .grid{grid-template-columns:1fr}}
+footer{background:var(--night);color:rgba(255,255,255,.55);font-size:13px;padding-block:28px 100px;border-top:1px solid rgba(255,255,255,.12)}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+/* кнопки на телефоне */
+.callbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;padding:10px max(12px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));background:var(--paper);border-top:1px solid var(--rule);gap:8px}
+.callbar a{flex:1;padding:15px 10px}
+@media(max-width:900px){.callbar{display:flex}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="#">Шашлык Джан<small>Одинцово · с мангала</small></a>
+  <nav><a href="#about">О нас</a><a href="#menu">Меню</a><a href="#delivery">Доставка</a><a href="#reviews">Отзывы</a><a href="#contacts">Контакты</a></nav>
+  <a class="tel" href="tel:+79036969691">+7 (903) 696-96-91</a>
+</div></header>
+
+<section class="hero" style="padding-block:0">
+  <img src="img/hero.jpg" alt="Шашлык на шампурах над углями">
+  <div class="wrap">
+    <span class="eyebrow" style="color:#ff8f86">Армянская и грузинская кухня</span>
+    <h1>Шашлык на углях</h1>
+    <p>Свинина, курица и люля-кебаб с мангала. Готовим при вас, на вынос и с доставкой по Одинцово.</p>
+    <div class="row">
+      <a class="btn btn-red" href="#menu">Смотреть меню</a>
+      <a class="btn btn-line" href="tel:+79036969691">Заказать</a>
+    </div>
+  </div>
+  <div class="score"><b>4,9</b><span>Яндекс Карты · 491 оценка</span></div>
+</section>
+
+<div class="strip"><div class="wrap">
+  <div><b>до 22:00</b>принимаем заказы</div>
+  <div><b>Доставка</b>свой курьер и сервисы</div>
+  <div><b>Триумфальная, 11А</b>Одинцово</div>
+  <div><b>Карта, наличные</b>и перевод</div>
+</div></div>
+
+<section id="about"><div class="wrap about">
+  <div class="pics">
+    <img src="img/coals.jpg" alt="Шашлык над раскалёнными углями">
+    <img src="img/lula.jpg" alt="Люля-кебаб с овощами">
+    <img src="img/lavash.jpg" alt="Шашлык на лаваше">
+  </div>
+  <div>
+    <span class="eyebrow">О нас</span>
+    <h2>Маленькая шашлычная с большим мангалом</h2>
+    <p>У нас всего пара столиков, зато мангал работает весь день. Шашлык, люля-кебаб, овощи, картофель и даже шаурму готовим на углях.</p>
+    <p>Можно посидеть, забрать с собой или заказать доставку домой.</p>
+    <ul class="points">
+      <li><span>Кухня</span><span>армянская, грузинская</span></li>
+      <li><span>Ещё в меню</span><span>шаурма, донер, осетинские пироги</span></li>
+      <li><span>С собой</span><span>кофе, подарочные сертификаты</span></li>
+      <li><span>Доступность</span><span>вход без ступенек</span></li>
+    </ul>
+  </div>
+</div></section>
+
+<section id="menu" class="menu-sec"><div class="wrap">
+  <div class="head">
+    <div><span class="eyebrow">Меню</span><h2>С мангала</h2></div>
+    <p>Нажмите на раздел, чтобы показать только его. Цены — за порцию.</p>
+  </div>
+  <div class="cats">
+    <button class="cat" data-g="sh" aria-pressed="false"><img src="img/skewers.jpg" alt=""><span>Шашлык<small>свинина и курица · от 350 ₽</small></span></button>
+    <button class="cat" data-g="lu" aria-pressed="false"><img src="img/lula2.jpg" alt=""><span>Люля-кебаб<small>говядина и курица · от 350 ₽</small></span></button>
+    <button class="cat" data-g="ga" aria-pressed="false"><img src="img/platter.jpg" alt=""><span>Гарниры<small>овощи, грибы, картофель · от 100 ₽</small></span></button>
+    <button class="cat" data-g="sw" aria-pressed="false"><img src="img/lavash.jpg" alt=""><span>Шаурма<small>на углях · 250 ₽</small></span></button>
+  </div>
+  <div class="list" id="list"></div>
+  <p class="fine">Меню взято из карточки кафе на Яндекс Картах. Актуальные цены уточняйте по телефону.</p>
+</div></section>
+
+<section id="delivery" class="wide">
+  <img src="img/grill.jpg" alt="Шашлык на большом мангале">
+  <div class="wrap">
+    <span class="eyebrow" style="color:#ff8f86">Доставка и на вынос</span>
+    <h2>Привезём горячим</h2>
+    <p>Позвоните или напишите в WhatsApp, и наш курьер привезёт заказ. Можно заказать заранее и забрать самому.</p>
+    <div class="row">
+      <a class="btn btn-red" href="tel:+79036969691">Позвонить</a>
+      <a class="btn btn-line" href="https://wa.me/79175163336" target="_blank" rel="noopener">WhatsApp</a>
+    </div>
+    <div class="services"><span>Свой курьер</span><span>Яндекс Еда</span><span>Delivery Club</span></div>
+  </div>
+</section>
+
+<section id="reviews"><div class="wrap">
+  <div class="head">
+    <div><span class="eyebrow">Отзывы</span><h2>Что пишут гости</h2></div>
+    <div class="big-score"><b>4,9</b><span>491 оценка и 248 отзывов на Яндекс Картах</span></div>
+  </div>
+  <div class="reviews">
+    <div class="rev"><p>Наивкуснейший армянский шашлык, тает во рту</p><span>Роберт</span></div>
+    <div class="rev"><p>Всегда заказываем рёбра, они просто великолепные</p><span>Марина</span></div>
+    <div class="rev"><p>Очень вкусное мясо (а ещё овощи и картошка), брали на доставку, приехало горячее за 40 минут.</p><span>Елена</span></div>
+    <div class="rev"><p>Хорошее место, персонал дружелюбный. Чисто, уютно</p><span>Алексей</span></div>
+    <div class="rev"><p>Очень вкусно практически всё. Перепробовал почти все виды шашлыка</p><span>Александр</span></div>
+    <div class="rev"><p>Очень вкусный шашлык, доставка была в Одинцово</p><span>Юлия</span></div>
+  </div>
+  <div style="margin-top:36px"><a class="btn btn-line" href="https://yandex.ru/maps/org/shashlyk_dzhan/155190166283/reviews/" target="_blank" rel="noopener">Все отзывы на Яндекс Картах</a></div>
+</div></section>
+
+<div class="gallery">
+  <img src="img/plate.jpg" alt="Котлеты с мангала">
+  <img src="img/yard.jpg" alt="Мангал во дворе">
+  <img src="img/lula.jpg" alt="Люля-кебаб">
+  <img src="img/coals.jpg" alt="Угли">
+</div>
+
+<section id="contacts" class="contacts"><div class="wrap">
+  <span class="eyebrow" style="color:#ff8f86">Контакты</span>
+  <h2>Ждём в гости</h2>
+  <div class="grid">
+    <div><small>Адрес</small><div class="v">Одинцово,<br>Триумфальная ул., 11А</div></div>
+    <div><small>Телефон</small><div class="v"><a href="tel:+79036969691">+7 (903) 696-96-91</a></div></div>
+    <div><small>WhatsApp и Viber</small><div class="v"><a href="https://wa.me/79175163336" target="_blank" rel="noopener">+7 (917) 516-33-36</a></div></div>
+    <div><small>Часы</small><div class="v">Ежедневно<br>до 22:00</div></div>
+  </div>
+  <a class="btn btn-line" href="https://yandex.ru/maps/org/shashlyk_dzhan/155190166283/" target="_blank" rel="noopener">Маршрут в Яндекс Картах</a>
+</div></section>
+
+<footer><div class="wrap"><span>© Шашлык Джан, Одинцово</span><span>Фото: Pexels</span></div></footer>
+
+<div class="callbar"><a class="btn btn-red" href="tel:+79036969691">Позвонить</a><a class="btn btn-line" href="https://wa.me/79175163336" target="_blank" rel="noopener">WhatsApp</a></div>
+
+<script>
+const G={
+ sh:["Шашлык",[["Свиной «Карбонад»",600],["Свиной «Шейка»",550],["Свиные рёбра",550],["Свиной «Вырезка»",500],["Куриный «Филе»",450],["Куриный «Бедро»",400],["Куриная голень",400],["Куриные крылышки",350]]],
+ lu:["Люля-кебаб",[["Из говядины",400],["Из курицы",350]]],
+ ga:["Гарниры и хлеб",[["Овощи на углях",300],["Грибы на углях",250],["Картофель на углях",100],["Грузинский хлеб",85]]],
+ sw:["Шаурма",[["Из курицы на углях",250],["Из свинины",250]]]};
+const list=document.getElementById("list");
+list.innerHTML=Object.entries(G).map(([k,[t,items]])=>`<div class="group" data-g="${k}"><h3>${t}</h3>${items.map(([n,p])=>`<div class="dish"><span class="n">${n}</span><i></i><span class="p">${p} ₽</span></div>`).join("")}</div>`).join("");
+document.querySelectorAll(".cat").forEach(b=>b.addEventListener("click",()=>{
+  const on=b.getAttribute("aria-pressed")!=="true";
+  document.querySelectorAll(".cat").forEach(x=>x.setAttribute("aria-pressed",String(on&&x===b)));
+  list.querySelectorAll(".group").forEach(g=>g.hidden=on&&g.dataset.g!==b.dataset.g);
+}));
+</script>
+</body></html>

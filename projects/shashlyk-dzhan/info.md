@@ -8,3 +8,8 @@
 - Доставка (свой курьер, Яндекс Еда, Delivery Club), на вынос, карта/наличные/перевод, кофе с собой, сертификаты, предзаказ онлайн, 2 столика
 - Меню (по данным представителя, давно не обновлялось) — см. index.html
 - Не найдено: сайт, соцсети, средний чек, Wi-Fi, парковка
+
+## Фото (v2/img) — Pexels, бесплатная лицензия Pexels
+hero=2233730, coals=13156974 (Kostiantyn Klymovets), lula=14457216, lavash=5191848 (Shameel mukkath), platter=7462776,
+skewers=8250192, lula2=36890239 (Mohamed Olwy), grill=17138059 (Valeria Boltneva), yard=12932332, plate=9056963
+Ссылка: https://www.pexels.com/photo/<id>/
