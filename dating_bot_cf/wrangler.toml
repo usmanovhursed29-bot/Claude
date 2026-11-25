@@ -4,11 +4,8 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 keep_vars = true
 
-[vars]
-# Твой Telegram ID (из @userinfobot) — сюда приходят жалобы
-ADMIN_ID = ""
-# Ссылка-приглашение в общий чат (оставь пустым, если чата нет)
-CHAT_LINK = ""
+# ADMIN_ID и CHAT_LINK задаются в панели Cloudflare (Settings → Variables and Secrets).
+# keep_vars = true — деплой их не затирает.
 
 [[d1_databases]]
 binding = "DB"
