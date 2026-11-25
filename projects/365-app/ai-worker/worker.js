@@ -3,7 +3,7 @@
 // Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT, APP_URL, ADMIN_IDS (Telegram user ids через запятую).
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
 // Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
-// Routes: POST /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
+// Routes: POST /me, /plus-link, /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
 import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard, boardText, myChallenge, finishChallenges } from "./features.js";
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 
@@ -31,6 +31,19 @@ const ASK_STYLE = "Отвечай по-русски, простыми слова
   "Если в данных пользователя есть что-то по теме вопроса (цифры за день, цели), используй это. " +
   "Не выдумывай факты и цифры. Без markdown, без эмодзи, без приветствий. " +
   "Про здоровье: общие советы, без диагнозов и лекарств; при тревожных симптомах — к врачу. Про деньги: без советов купить конкретные акции или криптовалюту.";
+
+// Характер ИИ (бонус подписки Plus). «Друг» — у всех по умолчанию.
+const STYLES = {
+  friend: { name: "🤝 Друг", prompt: "" },
+  coach: { name: "💪 Строгий тренер", prompt: "Говори как требовательный, но справедливый тренер: прямо, коротко, без сюсюканья, с призывом к действию прямо сейчас." },
+  fun: { name: "😄 С юмором", prompt: "Отвечай с лёгким добрым юмором и одной уместной шуткой, но совет должен остаться полезным и точным." },
+};
+async function stylePrompt(env, userId) {
+  if (!env.DB) return "";
+  const u = await env.DB.prepare("SELECT ai_style, premium_until FROM users WHERE id = ?").bind(userId).first();
+  if (!u || (u.premium_until || 0) <= Date.now()) return "";
+  return STYLES[u.ai_style]?.prompt ? " " + STYLES[u.ai_style].prompt : "";
+}
 
 const CHAT_PROMPT = "Ты помощник в личном приложении Kwantoww: задачи, привычки, здоровье, питание, финансы. " + ASK_STYLE + " " +
   "Записи вроде «выпил 200 мл воды» или «14000 шагов» бот сохраняет сам, отдельно от тебя: ты на них не отвечай.";
@@ -83,6 +96,16 @@ export default {
       return reply(200, { ok: true });
     }
 
+    // Статус подписки для приложения и ссылка на оплату прямо из приложения.
+    if (path === "/me") {
+      const plus = await isPlus(env, user.id);
+      return reply(200, { plus, freeAi: FREE_AI(env), stars: PLUS_STARS(env) });
+    }
+    if (path === "/plus-link") {
+      const url = await invoiceLink(env, user.id);
+      return url ? reply(200, { url }) : reply(502, { error: "Оплата временно недоступна" });
+    }
+
     // Ближайшие события из календаря приложения: сервер напомнит о них в чате.
     if (path === "/reminders") {
       if (!env.DB) return reply(200, { ok: true });
@@ -99,7 +122,7 @@ export default {
       const ctxText = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
       const hist = (Array.isArray(body.history) ? body.history : []).slice(-3)
         .flatMap((h) => [{ role: "user", parts: [{ text: String(h.q || "").slice(0, 600) }] }, { role: "model", parts: [{ text: String(h.a || "").slice(0, 1200) }] }]);
-      const system = `Ты помощник в личном приложении Kwantoww. ${ASK_STYLE}${ctxText ? `\n\nДанные пользователя за сегодня:\n${ctxText}` : ""}`;
+      const system = `Ты помощник в личном приложении Kwantoww. ${ASK_STYLE}${await stylePrompt(env, user.id)}${ctxText ? `\n\nДанные пользователя за сегодня:\n${ctxText}` : ""}`;
       const text = await askGemini(env, system, [...hist, { role: "user", parts: [{ text: q }] }], { maxTokens: 400 });
       if (text === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
       return reply(200, { text: text || "Не знаю, что ответить. Попробуйте спросить иначе" });
@@ -120,13 +143,13 @@ export default {
     await track(env, user, `advice_${section}`);
     // only the overview carries every section; a section's advice must not overwrite the full picture
     if (section === "overview") await env.LIMITS.put(`ctx:${user.id}`, context.slice(0, MAX_CONTEXT), { expirationTtl: CONTEXT_TTL });
-    const text = await askGemini(env, `${PROMPTS[section]} ${RULES}`, [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }]);
+    const text = await askGemini(env, `${PROMPTS[section]} ${RULES}${await stylePrompt(env, user.id)}`, [{ role: "user", parts: [{ text: `Данные пользователя:\n${context.slice(0, MAX_CONTEXT)}` }] }]);
     if (text === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
     return reply(200, { text: text || "Пока нечего посоветовать: запишите больше данных за день" });
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -172,7 +195,7 @@ async function syncReminders(env, user, body) {
   const keys = items.map((x) => x.key);
   // Удаляем то, чего в календаре больше нет. Событие из чата, ещё не забранное приложением, не трогаем.
   await env.DB.prepare(
-    `DELETE FROM reminders WHERE user_id = ? AND sent = 0 ${keys.length ? `AND key NOT IN (${keys.map(() => "?").join(",")})` : ""}
+    `DELETE FROM reminders WHERE user_id = ? AND sent < 2 ${keys.length ? `AND key NOT IN (${keys.map(() => "?").join(",")})` : ""}
      AND (key NOT LIKE 'c%' OR CAST(substr(key, 2) AS INTEGER) IN (SELECT id FROM inbox WHERE user_id = ? AND done = 1))`
   ).bind(user.id, ...keys, user.id).run();
   if (items.length) {
@@ -184,20 +207,25 @@ async function syncReminders(env, user, body) {
   }
 }
 
+// Два уведомления: за REMIND_MINUTES до начала (sent = 1) и в момент начала (sent = 2).
 export async function sendDueReminders(env, now = Date.now()) {
   if (!env.DB) return 0;
   const lead = remindLead(env);
-  const due = (await env.DB.prepare("SELECT r.id, r.user_id, r.title, r.at, r.time FROM reminders r JOIN users u ON u.id = r.user_id WHERE r.sent = 0 AND r.at - ? <= ? AND r.at > ? AND u.blocked = 0 LIMIT 100")
-    .bind(lead, now, now - 10 * 60000).all()).results || [];
-  for (const r of due) {
-    const mins = Math.max(0, Math.round((r.at - now) / 60000));
-    const when = mins <= 1 ? "сейчас" : `через ${mins} мин`;
-    await env.DB.prepare("UPDATE reminders SET sent = 1 WHERE id = ?").bind(r.id).run();
-    await sendMessage(env, r.user_id, `⏰ ${when}: ${r.title}${r.time ? ` (в ${r.time})` : ""}\nНе опаздывайте!`, true).catch(() => {});
+  const rows = (await env.DB.prepare(
+    `SELECT r.id, r.user_id, r.title, r.at, r.time, r.sent FROM reminders r JOIN users u ON u.id = r.user_id
+     WHERE u.blocked = 0 AND ((r.sent = 0 AND r.at - ? <= ? AND r.at > ?) OR (r.sent < 2 AND r.at <= ? AND r.at > ?)) LIMIT 200`
+  ).bind(lead, now, now, now, now - 10 * 60000).all()).results || [];
+  for (const r of rows) {
+    const started = r.at <= now;
+    await env.DB.prepare("UPDATE reminders SET sent = ? WHERE id = ?").bind(started ? 2 : 1, r.id).run();
+    const text = started
+      ? `🔔 Сейчас: ${r.title}${r.time ? ` (${r.time})` : ""}\nПора идти!`
+      : `⏰ Через ${Math.max(1, Math.round((r.at - now) / 60000))} мин: ${r.title}${r.time ? ` (в ${r.time})` : ""}\nНе опаздывайте!`;
+    await sendMessage(env, r.user_id, text, true).catch(() => {});
   }
   // старые записи чистим, чтобы база не росла
   await env.DB.prepare("DELETE FROM reminders WHERE at < ?").bind(now - 7 * 86400000).run();
-  return due.length;
+  return rows.length;
 }
 
 // ---- голосовые: Telegram → Gemini (распознавание речи) ----
@@ -245,6 +273,28 @@ const sleepKb = () => kb([...chunk(CHECK_SLEEP.map((h) => ({ text: `${h} ч`, ca
 const stepsKb = () => kb([...chunk(CHECK_STEPS.map((n) => ({ text: n >= 12000 ? "12 000+" : `~${n / 1000} 000`, callback_data: `ci:steps:${n}` })), 3), [{ text: "Пропустить", callback_data: "ci:skip" }]]);
 const waterKb = () => kb([...chunk(CHECK_WATER.map((ml) => ({ text: `${ml / 1000} л`.replace(".", ","), callback_data: `ci:water:${ml}` })), 3), [{ text: "Пропустить", callback_data: "ci:skip" }]]);
 
+// Отчёт недели всем: воскресенье, 19:00 по времени человека. У Plus — ещё и закономерности за 30 дней.
+export async function sendWeekly(env, now = Date.now()) {
+  if (!env.DB) return 0;
+  const users = (await env.DB.prepare("SELECT id, tz, last_w, premium_until FROM users WHERE blocked = 0 LIMIT 5000").all()).results || [];
+  let n = 0;
+  for (const u of users) {
+    const l = localNow(u.tz || "Europe/Moscow", now);
+    const day = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
+    if (l.wd !== 0 || l.hh !== 19 || u.last_w === day) continue;
+    await env.DB.prepare("UPDATE users SET last_w = ? WHERE id = ?").bind(day, u.id).run();
+    const plus = (u.premium_until || 0) > now;
+    const week = await insights(env, u.id, now, { days: 7, patterns: false });
+    if (!week) continue; // за неделю нет данных — не беспокоим
+    const more = plus ? await insights(env, u.id, now, { days: 30, patterns: true }) : "";
+    const pat = plus && more.includes("🔍") ? "\n\n" + more.slice(more.indexOf("🔍")) : "";
+    await telegram(env, "sendMessage", { chat_id: u.id, text: `📬 Ваш отчёт недели${plus ? " ⭐" : ""}\n\n${week.replace(/^📈 Ваша неделя\n\n/, "")}${pat}\n\nХорошей новой недели! 💪`,
+      reply_markup: plus ? MAIN_KB : { inline_keyboard: [[{ text: "⭐ Закономерности в Plus", callback_data: "pay:info", style: "success" }]] } }).catch(() => {});
+    n++;
+  }
+  return n;
+}
+
 export async function sendCheckins(env, now = Date.now()) {
   if (!env.DB) return 0;
   const users = (await env.DB.prepare("SELECT id, tz, morning_h, last_m FROM users WHERE checkin_on = 1 AND blocked = 0 LIMIT 5000").all()).results || [];
@@ -267,6 +317,14 @@ async function handleCallback(q, env) {
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
   if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
+  if (data.startsWith("st:")) {
+    const k = data.slice(3);
+    if (k === "menu" || !STYLES[k]) { await answer(); return sendStyle(env, chatId, userId); }
+    if (k !== "friend" && !(await isPlus(env, userId))) { await answer("Это бонус подписки Plus"); return sendPlusInfo(env, chatId, userId); }
+    await env.DB.prepare("UPDATE users SET ai_style = ? WHERE id = ?").bind(k, userId).run();
+    await answer("Готово");
+    return edit(`🎭 Теперь ИИ отвечает в стиле: ${STYLES[k].name}`);
+  }
   if (!data.startsWith("ci:") || !env.DB) return answer();
   await track(env, q.from, "checkin");
   const [, kind, val] = data.split(":");
@@ -302,6 +360,8 @@ async function handleCallback(q, env) {
   }
   return answer();
 }
+
+const PLAN_HEAD = /^(план|планы|задач[аи]|сделать|todo|напомни)\s*[:\-—]\s*/i;
 
 const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((s) => s.trim()).filter(Boolean).includes(String(id));
 
@@ -357,9 +417,20 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v3";
+  const flag = "webhook-updates-v4";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
+  // меню бота (кнопка «Меню» у поля ввода)
+  await telegram(env, "setMyCommands", { commands: [
+    { command: "plus", description: "⭐ Подписка Plus: безлимитный ИИ и бонусы" },
+    { command: "insights", description: "📈 Мои итоги и закономерности" },
+    { command: "challenge", description: "🏃 Челлендж шагов с друзьями" },
+    { command: "top", description: "🏆 Таблица челленджа" },
+    { command: "checkin", description: "☀️ Утренний вопрос про сон" },
+    { command: "style", description: "🎭 Характер ИИ (Plus)" },
+    { command: "start", description: "❓ Что умеет бот" },
+    { command: "paysupport", description: "Вопросы по оплате" },
+  ] });
   await env.LIMITS.put(flag, "1");
 }
 
@@ -394,14 +465,24 @@ async function handleMessage(message, env) {
     return sendMessage(env, chatId, `🏃 Вы в челлендже шагов с ${owner}!\n\nЗаписывайте шаги в приложении или пишите мне «9000 шагов». Таблица: /top\n\n` + boardText(b, "Участники"), true);
   }
   if (text.startsWith("/start")) {
-    return sendMessage(env, chatId, `Привет, ${message.from.first_name || ""}! Я помощник Kwantoww.\n\nПиши мне обычными сообщениями, я сам запишу в приложение:\n• «14 000 шагов»\n• «выпил 300 мл воды»\n• «спал 7,5 часов»\n• «потратил 500 на кафе»\n• «план: купить хлеб»\n• «завтра в 12:00 поликлиника» — запишу в календарь и напомню за 15 минут\n\nМожно говорить голосовыми 🎤. Каждое утро в 10:00 спрошу, как вы поспали (время или выключить: /checkin)\n\nМожно и просто спросить совет про деньги, питание, привычки.\n\n📈 /insights — что видно в ваших данных\n🏃 /challenge — челлендж шагов с друзьями\n⭐ /plus — подписка: безлимитные вопросы ИИ\n/reset — начать разговор заново`, "plus");
+    await telegram(env, "sendMessage", { chat_id: chatId, text: `Привет, ${message.from.first_name || ""}! 👋`, reply_markup: MAIN_KB });
+    return sendMessage(env, chatId, helpText(), "plus");
   }
+
   if (text.startsWith("/admin")) {
     if (!isAdmin(env, userId)) return sendMessage(env, chatId, "Эта команда только для администратора.");
     await ensureWebhookUpdates(env).catch(() => {});
     return sendMessage(env, chatId, await adminText(env));
   }
-  if (text.startsWith("/plus") || text.startsWith("/premium") || /купить подписку/i.test(text)) return sendPlusInfo(env, chatId, userId);
+  if (text.startsWith("/plus") || text.startsWith("/premium") || /купить подписку|подписка plus/i.test(text)) return sendPlusInfo(env, chatId, userId);
+  if (text === "📈 Мои итоги") return sendMessage(env, chatId, env.DB ? await insights(env, userId) : "Пока недоступно.");
+  if (text === "❓ Помощь") return sendMessage(env, chatId, helpText(), "plus");
+  if (text === "🏃 Челлендж") {
+    const my = env.DB ? await myChallenge(env, userId) : null;
+    if (my) return sendMessage(env, chatId, boardText(await leaderboard(env, my.code), "🏃 Ваш челлендж шагов") + "\n\nНовый челлендж с другими друзьями: /challenge");
+    return sendMessage(env, chatId, "🏃 Челлендж шагов: соревнуйтесь с друзьями неделю, кто пройдёт больше.\n\nСоздать и получить ссылку для друзей: /challenge");
+  }
+  if (text.startsWith("/style") || text === "🎭 Характер ИИ") return sendStyle(env, chatId, userId);
   if (text.startsWith("/paysupport")) return sendMessage(env, chatId, "Вопросы по оплате и возврату звёзд: напишите @Kwantoww. Ответим в течение дня.");
   if (text.startsWith("/insights") || /^(мои )?закономерност/i.test(text)) return sendMessage(env, chatId, env.DB ? await insights(env, userId) : "Пока недоступно.", true);
   if (text.startsWith("/challenge")) {
@@ -409,7 +490,7 @@ async function handleMessage(message, env) {
     const c = await createChallenge(env, userId);
     const link = `https://t.me/${await botUsername(env)}?start=ch_${c.code}`;
     return telegram(env, "sendMessage", { chat_id: chatId, text: `🏃 Челлендж шагов на 7 дней создан!\n\nОтправьте друзьям эту ссылку. Кто пройдёт больше шагов до ${c.end.slice(8)}.${c.end.slice(5, 7)}, тот победил:\n${link}\n\nТаблица: /top`,
-      reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Давай соревноваться, кто больше пройдёт шагов за неделю!")}` }]] } });
+      reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Давай соревноваться, кто больше пройдёт шагов за неделю!")}` }]] } });
   }
   if (text.startsWith("/top")) {
     if (!env.DB) return sendMessage(env, chatId, "Пока недоступно.");
@@ -424,32 +505,45 @@ async function handleMessage(message, env) {
     return sendMessage(env, chatId, "Начали заново. О чём поговорим?");
   }
 
-  // 1) записи обычным кодом; 2) если в сообщении есть числа, но код не понял — спрашиваем ИИ; 3) иначе разговор.
-  let entries = parseEntries(text);
-  if (!entries.length && /\d/.test(text) && text.length <= 500 && env.GEMINI_KEY) {
+  // 1) события со временем («завтра в 12:00 врач», в плане — построчно); 2) записи обычным кодом;
+  // 3) если в сообщении есть числа, но код не понял — спрашиваем ИИ; 4) иначе разговор.
+  const ts = (message.date || Math.floor(Date.now() / 1000)) * 1000;
+  const tzRow = env.DB ? await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first() : null;
+  const tz = tzRow?.tz || "Europe/Moscow";
+  const isPlan = PLAN_HEAD.test(text);
+  const events = [];
+  let rest = text;
+  if (isPlan) {
+    const lines = text.replace(PLAN_HEAD, "").split(/\n|;/).map((l) => l.replace(/^(\d+[.)]\s+|[-•*]\s*)/, "").trim()).filter(Boolean);
+    const other = [];
+    for (const l of lines) { const ev = parseEvent(l, tz); if (ev) events.push(ev); else other.push(l); }
+    rest = other.length ? "план: " + other.join("\n") : "";
+  }
+  let entries = rest ? parseEntries(rest) : [];
+  if (!isPlan && !entries.length) { const ev = parseEvent(text, tz); if (ev) events.push(ev); }
+  if (!entries.length && !events.length && /\d/.test(text) && text.length <= 500 && env.GEMINI_KEY) {
     const json = await askGemini(env, AI_EXTRACT_PROMPT, [{ role: "user", parts: [{ text }] }], { json: true, maxTokens: 400 });
     try { entries = entriesFromAI(JSON.parse(json || "[]")); } catch { entries = []; }
   }
-  if (!entries.length && env.DB) {
-    const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first();
-    const tz = u?.tz || "Europe/Moscow";
-    const ev = parseEvent(text, tz);
-    if (ev) {
-      const ts = (message.date || Math.floor(Date.now() / 1000)) * 1000;
+  if (events.length || entries.length) {
+    if (!env.DB) return sendMessage(env, chatId, "Записи из чата пока не подключены. Запишите в приложении.", true);
+    const out = [];
+    for (const ev of events) {
       const res = await env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, eventCmd(ev), ts).run();
       const inboxId = res.meta?.last_row_id ?? res.lastInsertRowid;
       await env.DB.prepare("INSERT INTO reminders (user_id, key, title, at, time, sent) VALUES (?, ?, ?, ?, ?, 0) ON CONFLICT(user_id, key) DO NOTHING")
         .bind(userId, "c" + inboxId, ev.title, ev.at, ev.time).run();
       const day = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", weekday: "long", timeZone: "UTC" }).format(new Date(ev.date + "T12:00:00Z"));
-      const lead = Math.round(remindLead(env) / 60000);
-      return sendMessage(env, chatId, `📅 Записал в календарь: ${ev.title}\n${day}, ${ev.time}${u?.tz ? "" : " (по московскому времени: откройте приложение один раз, и я узнаю ваш часовой пояс)"}\n\n⏰ Напомню за ${lead} минут.`, true);
+      out.push(`📅 Записал в календарь: ${ev.title}\n${day}, ${ev.time}`);
     }
-  }
-  if (entries.length) {
-    if (!env.DB) return sendMessage(env, chatId, "Записи из чата пока не подключены. Запишите в приложении.", true);
-    await saveEntries(env, userId, entries, (message.date || Math.floor(Date.now() / 1000)) * 1000);
-    const extra = await praise(env, userId, entries.map((e) => e.cmd)).catch(() => "");
-    return sendMessage(env, chatId, `Записал ✅\n${entries.map((e) => "• " + e.label).join("\n")}${extra ? "\n\n" + extra : ""}\n\nВ приложении появится при следующем открытии.`, true);
+    if (events.length) out.push(`⏰ Напомню за ${Math.round(remindLead(env) / 60000)} минут и в момент начала.${tzRow?.tz ? "" : " Время московское: откройте приложение один раз, и я узнаю ваш часовой пояс."}`);
+    if (entries.length) {
+      await saveEntries(env, userId, entries, ts);
+      const extra = await praise(env, userId, entries.map((e) => e.cmd)).catch(() => "");
+      out.push(`Записал ✅\n${entries.map((e) => "• " + e.label).join("\n")}${extra ? "\n\n" + extra : ""}`);
+    }
+    out.push("В приложении появится при следующем открытии.");
+    return sendMessage(env, chatId, out.join("\n\n"), true);
   }
 
   const q = await takeAiQuota(userId, env);
@@ -457,7 +551,7 @@ async function handleMessage(message, env) {
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const history = JSON.parse((await env.LIMITS.get(histKey)) || "[]");
   const context = await env.LIMITS.get(`ctx:${userId}`);
-  const system = `${CHAT_PROMPT} ${RULES}${context ? `\n\nДанные пользователя из приложения:\n${context}` : "\n\nДанных из приложения пока нет."}`;
+  const system = `${CHAT_PROMPT} ${RULES}${await stylePrompt(env, userId)}${context ? `\n\nДанные пользователя из приложения:\n${context}` : "\n\nДанных из приложения пока нет."}`;
   const contents = [...history, { role: "user", parts: [{ text: text.slice(0, 2000) }] }];
   const answer = await askGemini(env, system, contents, { maxTokens: 400 });
   if (answer === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Попробуй через минуту");
@@ -487,29 +581,46 @@ async function takeAiQuota(userId, env) {
   return { ok: true, plus, left: plus ? null : FREE_AI(env) - used - 1 };
 }
 const limitText = (env) => `На сегодня бесплатные вопросы ИИ закончились (${FREE_AI(env)} в день). Завтра будут снова.\n\n⭐ С подпиской Kwantoww Plus — без ограничений.`;
-const plusButton = { inline_keyboard: [[{ text: "⭐ Купить подписку", callback_data: "pay:info" }]] };
+const plusButton = { inline_keyboard: [[{ text: "⭐ Купить подписку", callback_data: "pay:info", style: "success" }]] };
 
 async function sendPlusInfo(env, chatId, userId) {
   const plus = await isPlus(env, userId);
   if (plus) {
     const u = await env.DB.prepare("SELECT premium_until FROM users WHERE id = ?").bind(userId).first();
     const till = new Date(u.premium_until).toISOString().slice(0, 10).split("-").reverse().join(".");
-    return sendMessage(env, chatId, `⭐ У вас подписка Kwantoww Plus до ${till}. Продлевается сама, отменить можно в Telegram: Настройки → Telegram Stars → Подписки.\n\nВопросы по оплате: /paysupport`);
+    return telegram(env, "sendMessage", { chat_id: chatId, text: `⭐ У вас подписка Kwantoww Plus до ${till}. Продлевается сама, отменить можно в Telegram: Настройки → Telegram Stars → Подписки.\n\nВыбрать характер ИИ: /style\nВопросы по оплате: /paysupport`,
+      reply_markup: { inline_keyboard: [[{ text: "🎭 Выбрать характер ИИ", callback_data: "st:menu" }]] } });
   }
+  const url = await invoiceLink(env, userId);
+  if (!url) return sendMessage(env, chatId, "Оплата временно недоступна. Попробуйте позже.");
+  return telegram(env, "sendMessage", {
+    chat_id: chatId,
+    text: `⭐ Kwantoww Plus — ${PLUS_STARS(env)} звёзд в месяц (около 200 ₽)\n\nЧто входит:\n• ♾ Безлимитные вопросы ИИ в чате и в приложении (бесплатно — ${FREE_AI(env)} в день)\n• 🎭 Характер ИИ на выбор: друг, строгий тренер или с юмором\n• 🔍 Закономерности в отчёте недели: как сон влияет на шаги, настроение и расходы\n• ⭐ Звезда рядом с именем в челленджах\n\nВсё остальное бесплатно для всех: записи из чата и голосом, напоминания, утренний вопрос про сон, /insights, челленджи.\n\nОплата звёздами Telegram, подписка продлевается сама через 30 дней. Отменить можно в любой момент: Настройки Telegram → Telegram Stars → Подписки.`,
+    reply_markup: { inline_keyboard: [[{ text: `Оформить за ${PLUS_STARS(env)} ⭐`, url, style: "success" }]] },
+  });
+}
+
+async function invoiceLink(env, userId) {
   const link = await (await telegram(env, "createInvoiceLink", {
     title: "Kwantoww Plus",
-    description: "Безлимитные вопросы ИИ в чате и в приложении. Подписка на 30 дней, продлевается сама, отменить можно в любой момент.",
-    payload: `plus:${userId}`,
-    currency: "XTR",
+    description: "Безлимитные вопросы ИИ, характер ИИ на выбор, закономерности в отчёте недели. 30 дней, продлевается сама.",
+    payload: `plus:${userId}`, currency: "XTR",
     prices: [{ label: "Kwantoww Plus, 30 дней", amount: PLUS_STARS(env) }],
     subscription_period: 2592000,
   })).json();
-  if (!link.ok) return sendMessage(env, chatId, "Оплата временно недоступна. Попробуйте позже.");
-  return telegram(env, "sendMessage", {
-    chat_id: chatId,
-    text: `⭐ Kwantoww Plus — ${PLUS_STARS(env)} звёзд в месяц (около 200 ₽)\n\nЧто входит:\n• Безлимитные вопросы ИИ в чате и в приложении (бесплатно — ${FREE_AI(env)} в день)\n• «Итог дня» и советы ИИ без ограничений\n\nВсё остальное бесплатно для всех: записи из чата и голосом, напоминания, утренний вопрос про сон, /insights, челленджи.\n\nОплата звёздами Telegram, подписка продлевается сама через 30 дней. Отменить можно в любой момент: Настройки Telegram → Telegram Stars → Подписки.`,
-    reply_markup: { inline_keyboard: [[{ text: `Оформить за ${PLUS_STARS(env)} ⭐`, url: link.result }]] },
-  });
+  return link.ok ? link.result : null;
+}
+
+async function sendStyle(env, chatId, userId) {
+  const plus = await isPlus(env, userId);
+  const u = env.DB ? await env.DB.prepare("SELECT ai_style FROM users WHERE id = ?").bind(userId).first() : null;
+  const cur = plus && STYLES[u?.ai_style] ? u.ai_style : "friend";
+  return telegram(env, "sendMessage", { chat_id: chatId,
+    text: plus ? "🎭 Каким будет ваш ИИ-помощник?" : "🎭 Характер ИИ — бонус подписки Plus. Сейчас ИИ отвечает как друг. С Plus можно выбрать строгого тренера или ИИ с юмором.",
+    reply_markup: { inline_keyboard: [
+      ...Object.entries(STYLES).map(([k, v]) => [{ text: `${cur === k ? "✅ " : ""}${v.name}`, callback_data: `st:${k}` }]),
+      ...(plus ? [] : [[{ text: "⭐ Купить подписку", callback_data: "pay:info", style: "success" }]]),
+    ] } });
 }
 
 async function handlePreCheckout(q, env) {
@@ -578,9 +689,40 @@ function telegram(env, method, payload) {
   });
 }
 
+function helpText() {
+  return [
+    "🆓 Бот бесплатный. Вот что я умею:",
+    "",
+    "✍️ Записываю за вас в приложение — просто напишите или скажите голосом 🎤:",
+    "«14 000 шагов», «выпил 300 мл воды», «спал 7 часов», «потратил 500 на кафе»",
+    "",
+    "📅 Ставлю дела в календарь и напоминаю за 15 минут: «завтра в 12:00 поликлиника»",
+    "",
+    "☀️ Каждое утро спрашиваю, как вы поспали — ответ одной кнопкой",
+    "",
+    "🏃 Челленджи с друзьями: кто пройдёт больше шагов за неделю — нажмите «Челлендж» внизу",
+    "",
+    "📬 Каждое воскресенье вечером присылаю отчёт недели",
+    "",
+    "📈 Показываю ваши итоги: нажмите «Мои итоги» внизу",
+    "",
+    "🤖 Отвечаю на вопросы про здоровье, деньги и привычки — 3 вопроса ИИ в день",
+    "",
+    "———",
+    "⭐ Хотите больше? В подписке Plus — безлимитные вопросы ИИ, характер ИИ на выбор и закономерности в отчёте недели.",
+  ].join("\n");
+}
+
+// Постоянные кнопки внизу чата: подписку и главное видно без команд.
+const MAIN_KB = {
+  keyboard: [[{ text: "🏃 Челлендж" }, { text: "📈 Мои итоги" }], [{ text: "❓ Помощь" }, { text: "⭐ Подписка Plus", style: "success" }]],
+  resize_keyboard: true,
+  is_persistent: true,
+};
+
 function sendMessage(env, chatId, text, withAppButton = false) {
-  const payload = { chat_id: chatId, text };
-  if (withAppButton) payload.reply_markup = { inline_keyboard: [[{ text: "Открыть Kwantoww", web_app: { url: env.APP_URL } }], ...(withAppButton === "plus" ? [[{ text: "⭐ Купить подписку", callback_data: "pay:info" }]] : [])] };
+  const payload = { chat_id: chatId, text, reply_markup: MAIN_KB };
+  if (withAppButton) payload.reply_markup = { inline_keyboard: [[{ text: "📱 Открыть Kwantoww", web_app: { url: env.APP_URL }, style: "primary" }], ...(withAppButton === "plus" ? [[{ text: "⭐ Купить подписку", callback_data: "pay:info", style: "success" }]] : [])] };
   return telegram(env, "sendMessage", payload);
 }
 

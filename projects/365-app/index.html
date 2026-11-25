@@ -982,7 +982,7 @@ function vOverview(){
   };
   const list=(S.settings.widgets||WDEF).filter(k=>WG[k]);
   const ed=!!ui.wEdit;
-  return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день",adviceBtn("overview")+askBtn()+`<button class="btn" data-a="day-card">${ic("send","s")}Карточка дня</button>`)}
+  return`${head(`${greet()}${name?", "+esc(name):""}`,"Посмотрим, как проходит день",adviceBtn("overview")+askBtn())}
   ${quickActions()}
   <div class="scoreblock">
     <span class="sec">${per==="w"?"Средний счёт за неделю":per==="m"?"Средний счёт за месяц":"Счёт дня"}</span>
@@ -1496,52 +1496,6 @@ async function sendAsk(form){
   const log=$("#askLog");if(log){log.innerHTML=askLog();log.lastElementChild?.scrollIntoView({block:"nearest",behavior:"smooth"})}
 }
 document.addEventListener("submit",e=>{if(e.target.dataset.f==="askai"){e.preventDefault();e.stopPropagation();sendAsk(e.target)}},true);
-/* карточка дня для сторис: рисуем картинку 1080×1920 и делимся ей */
-function drawCard(){
-  const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
-  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#1d2b64");g.addColorStop(1,"#0f766e");x.fillStyle=g;x.fillRect(0,0,W,H);
-  x.globalAlpha=.08;x.fillStyle="#fff";x.beginPath();x.arc(W-120,260,320,0,7);x.fill();x.beginPath();x.arc(80,H-300,260,0,7);x.fill();x.globalAlpha=1;
-  const F=(w,sz)=>`${w} ${sz}px -apple-system,"Segoe UI",Roboto,Arial,sans-serif`;
-  const T=today(),l=hlog(T),G=S.settings.goals,d=new Date(),name=S.settings.name||tgName()||"";
-  x.fillStyle="#fff";x.font=F(800,96);x.fillText("Мой день",90,250);
-  x.font=F(500,46);x.fillStyle="rgba(255,255,255,.8)";x.fillText(`${d.getDate()} ${MG[d.getMonth()]}${name?" · "+name:""}`,90,330);
-  const rows=[["😴","Сон",l.sleep?hm(l.sleep):"—",l.sleep/(G.sleep||480)],["👟","Шаги",l.steps?fmt(l.steps):"—",(l.steps||0)/(G.steps||8000)],["💧","Вода",l.water?fmt1(l.water/1000)+" л":"—",(l.water||0)/(G.water||2500)]];
-  const doneT=S.tasks.filter(t=>t.done&&(t.doneAt?iso(new Date(t.doneAt))===T:t.due===T)).length;
-  let y=520;
-  for(const [e,label,val,frac] of rows){
-    x.fillStyle="rgba(255,255,255,.12)";x.beginPath();x.roundRect(70,y-90,W-140,250,40);x.fill();
-    x.font=F(400,80);x.fillStyle="#fff";x.fillText(e,110,y+20);
-    x.font=F(500,44);x.fillStyle="rgba(255,255,255,.75)";x.fillText(label,240,y-10);
-    x.font=F(800,76);x.fillStyle="#fff";x.fillText(val,240,y+70);
-    const p=Math.max(0,Math.min(1,frac||0));x.fillStyle="rgba(255,255,255,.18)";x.beginPath();x.roundRect(240,y+100,W-380,18,9);x.fill();
-    if(p>0){x.fillStyle=p>=1?"#fde047":"#5eead4";x.beginPath();x.roundRect(240,y+100,(W-380)*p,18,9);x.fill()}
-    if(p>=1){x.font=F(700,40);x.fillStyle="#fde047";x.textAlign="right";x.fillText("цель ✓",W-110,y-10);x.textAlign="left"}
-    y+=300;
-  }
-  const extra=[l.mood?`Настроение ${l.mood}/5`:"",doneT?`Задач сделано: ${doneT}`:""].filter(Boolean).join("   ·   ");
-  if(extra){x.font=F(600,46);x.fillStyle="#fff";x.fillText(extra,90,y+10)}
-  x.font=F(700,52);x.fillStyle="#fff";x.fillText("Kwantoww",90,H-170);
-  x.font=F(400,40);x.fillStyle="rgba(255,255,255,.75)";x.fillText("личный помощник в Telegram",90,H-110);
-  return c;
-}
-function showCard(){
-  ui.qs={type:"_advice"};const c=drawCard();ui.cardUrl=c.toDataURL("image/png");ui.cardCanvas=c;
-  $("#qsPanel").innerHTML=`<div class="grid" style="gap:14px"><div class="card-h"><h2 style="font-size:18px">Карточка дня</h2><button type="button" class="btn icon ghost" data-a="qs-close" aria-label="Закрыть">${ic("x")}</button></div>
-    <img src="${ui.cardUrl}" alt="Карточка дня" style="width:min(260px,70vw);aspect-ratio:9/16;border-radius:16px;margin:0 auto;display:block;box-shadow:0 10px 30px rgba(0,0,0,.2)">
-    <button class="btn pri" data-a="card-share">${ic("send","s")}Поделиться в сторис</button>
-    <span class="meta" id="cardHint">Если кнопка не сработает, нажмите на картинку и удерживайте, чтобы сохранить её, и добавьте в сторис Instagram или Telegram.</span></div>`;
-  $("#toast").classList.remove("show");$("#qs").classList.add("open");
-}
-function shareCard(){
-  const c=ui.cardCanvas;if(!c)return;
-  c.toBlob(async b=>{
-    try{const f=new File([b],"kwantoww-day.png",{type:"image/png"});
-      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Мой день в Kwantoww"});return}
-    }catch(e){if(e&&e.name==="AbortError")return}
-    try{const a=document.createElement("a");a.href=ui.cardUrl;a.download="kwantoww-day.png";document.body.appendChild(a);a.click();a.remove()}catch{}
-    const h=$("#cardHint");if(h)h.textContent="Нажмите на картинку и удерживайте, чтобы сохранить. Потом добавьте её в сторис.";
-  },"image/png");
-}
 /* ---------- settings ---------- */
 function vPrefs(){
   const s=S.settings,g=s.goals,f=s.focus;
@@ -1598,8 +1552,6 @@ document.addEventListener("click",e=>{
     case"nav":go(v);break;
     case"advice":showAdvice(v);break;
     case"ask-ai":showAsk();break;
-    case"day-card":showCard();break;
-    case"card-share":shareCard();break;
     case"ask-chip":{const t=$("#askQ");if(t){t.value=el.dataset.v||"";t.focus()}break}
     case"w-edit":ui.wEdit=!ui.wEdit;render();break;
     case"w-pick":openWidgetPicker();break;

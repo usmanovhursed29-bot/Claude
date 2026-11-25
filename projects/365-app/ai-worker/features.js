@@ -72,10 +72,10 @@ export async function praise(env, userId, cmds, now = Date.now()) {
 
 // ---- 4. закономерности в данных человека ----
 const avg = (a) => a.reduce((s, x) => s + x, 0) / a.length;
-export async function insights(env, userId, now = Date.now()) {
+export async function insights(env, userId, now = Date.now(), { patterns = true, days: span = 30 } = {}) {
   const { tz, goals } = await userTz(env, userId);
   const today = localNow(tz, now);
-  const from = ymd(localNow(tz, now - 30 * 86400000));
+  const from = ymd(localNow(tz, now - span * 86400000));
   const rows = ((await env.DB.prepare("SELECT * FROM days WHERE user_id = ? AND date >= ? AND date < ? ORDER BY date").bind(userId, from, ymd(today)).all()).results) || [];
   const has = (k) => rows.filter((r) => r[k] != null && r[k] > 0);
   const found = [];
@@ -110,9 +110,13 @@ export async function insights(env, userId, now = Date.now()) {
     if (best[0] > 0) lines.push(`💸 Больше всего вы тратите в ${names[best[1]]}: в среднем ${sp(best[0])} ₽.`);
   }
   if (!rows.length || (!lines.length && !found.length)) {
-    return "📈 Пока мало данных для выводов. Записывайте сон, шаги и расходы хотя бы неделю и откройте приложение, чтобы я увидел данные. Потом напишите /insights ещё раз.";
+    return span === 7 ? "" : "📈 Пока мало данных для выводов. Записывайте сон, шаги и расходы хотя бы неделю и откройте приложение, чтобы я увидел данные. Потом напишите /insights ещё раз.";
   }
-  const parts = ["📈 Что видно в ваших данных за последние 30 дней", "", ...lines];
+  const parts = [span === 7 ? "📈 Ваша неделя" : "📈 Что видно в ваших данных за последние 30 дней", "", ...lines];
+  if (!patterns) {
+    if (found.length) parts.push("", `🔍 В ваших данных есть закономерности (${found.length}) — например, как сон влияет на расходы и шаги. Они доступны в подписке ⭐ Plus.`);
+    return parts.join("\n");
+  }
   if (found.length) parts.push("", "🔍 Закономерности:", ...found.slice(0, 3).map((f) => "• " + f.text), "", "Это совпадения в ваших днях, не обязательно причина и следствие. Но присмотреться стоит.");
   else parts.push("", "Явных закономерностей пока нет: нужно больше дней, где записаны и сон, и шаги или расходы.");
   return parts.join("\n");
@@ -162,9 +166,9 @@ async function stepsFor(env, userId, startMs, endMs) {
 export async function leaderboard(env, code) {
   const ch = await env.DB.prepare("SELECT * FROM challenges WHERE code = ?").bind(code).first();
   if (!ch) return null;
-  const members = (await env.DB.prepare("SELECT m.user_id, u.first_name FROM challenge_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.code = ?").bind(code).all()).results || [];
+  const members = (await env.DB.prepare("SELECT m.user_id, u.first_name, u.premium_until FROM challenge_members m LEFT JOIN users u ON u.id = m.user_id WHERE m.code = ?").bind(code).all()).results || [];
   const rows = [];
-  for (const m of members) rows.push({ id: m.user_id, name: m.first_name || "Участник", steps: await stepsFor(env, m.user_id, ch.started_at || ch.ends_at - 7 * 86400000, ch.ends_at) });
+  for (const m of members) rows.push({ id: m.user_id, name: (m.first_name || "Участник") + ((m.premium_until || 0) > Date.now() ? " ⭐" : ""), steps: await stepsFor(env, m.user_id, ch.started_at || ch.ends_at - 7 * 86400000, ch.ends_at) });
   rows.sort((a, b) => b.steps - a.steps);
   return { ch, rows };
 }

@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { createHmac, createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import worker from "./worker.js";
+import { leaderboard, boardText } from "./features.js";
+const parseEventCmd = (cmd) => JSON.parse(Buffer.from(cmd.slice(6).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString());
 
 const db = new DatabaseSync(":memory:");
 db.exec(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
@@ -67,7 +69,13 @@ const app = async (path, body) => {
 assert.equal((await worker.fetch(new Request("https://w/telegram", { method: "POST", body: "{}" }), env, { waitUntil() {} })).status, 403);
 
 let out = await say(42, "/start");
-assert.match(lastText(out), /сам запишу в приложение/);
+assert.match(lastText(out), /^🆓 Бот бесплатный[\s\S]*Челленджи с друзьями[\s\S]*⭐ Хотите больше\? В подписке Plus/);
+const welcome = out.filter((m) => m.method === "sendMessage");
+assert.equal(welcome.length, 2);
+assert.equal(welcome[0].body.reply_markup.keyboard[1][1].text, "⭐ Подписка Plus");
+assert.equal(welcome[0].body.reply_markup.keyboard[1][1].style, "success");
+const wkb = welcome[1].body.reply_markup.inline_keyboard;
+assert.deepEqual([wkb[0][0].style, wkb[1][0].callback_data, wkb[1][0].style], ["primary", "pay:info", "success"]);
 
 out = await say(42, "сегодня я сделал 14 000 шагов");
 assert.match(lastText(out), /Записал ✅[\s\S]*Шаги: 14000/);
@@ -141,16 +149,32 @@ const before = sent.length;
 assert.equal(await sendDueReminders(env), 1);
 const msg = sent.slice(before).find((m) => m.method === "sendMessage");
 assert.equal(msg.body.chat_id, 42);
-assert.match(msg.body.text, /⏰ через (9|10) мин: Созвон \(в 15:10\)/);
+assert.match(msg.body.text, /⏰ Через (9|10) мин: Созвон \(в 15:10\)/);
 assert.equal(await sendDueReminders(env), 0, "второй раз не напоминает");
+// в момент начала — второе уведомление «Сейчас»
+const b7 = sent.length;
+assert.equal(await sendDueReminders(env, soon + 30000), 1);
+assert.match(sent.slice(b7).find((m) => m.method === "sendMessage").body.text, /🔔 Сейчас: Созвон \(15:10\)\nПора идти!/);
+assert.equal(await sendDueReminders(env, soon + 60000), 0, "и только один раз");
 
 // приложение забрало событие из чата и прислало календарь уже с ним; удалённое событие исчезает
 await app("/inbox/ack", { initData: initData(42), ids: [evItem.id] });
 await app("/reminders", { initData: initData(42), tz: "Asia/Dushanbe", items: [{ key: "c" + evItem.id, title: "Поликлиника", at: rem.at, time: "12:00" }] });
 const keys = db.prepare("SELECT key, sent FROM reminders WHERE user_id = 42 ORDER BY key").all().map((r) => r.key + ":" + r.sent).join(",");
-assert.equal(keys, `app1:1,c${evItem.id}:0`, "отправленное остаётся до очистки, событие из чата одно");
+assert.equal(keys, `app1:2,c${evItem.id}:0`, "полностью отправленное остаётся до очистки, событие из чата одно");
 await app("/reminders", { initData: initData(42), tz: "Asia/Dushanbe", items: [] });
 assert.equal(db.prepare("SELECT COUNT(*) c FROM reminders WHERE user_id = 42 AND sent = 0").get().c, 0, "удалённое из календаря не напомнит");
+
+// план со временем: строка со временем — событие с напоминанием, остальное — задачи; ИИ не нужен
+const b8 = sent.length;
+out = await say(42, "план: пойти спать в 22:34\nкупить хлеб");
+assert.ok(!sent.slice(b8).some((m) => m.method === "gemini"), "план со временем разобран без ИИ");
+assert.match(lastText(out), /📅 Записал в календарь: Спать\n[\s\S]*22:34[\s\S]*и в момент начала[\s\S]*Задача: купить хлеб/);
+const ev2 = parseEventCmd(db.prepare("SELECT cmd FROM inbox WHERE user_id = 42 AND cmd LIKE 'event_%' ORDER BY id DESC").get().cmd);
+assert.equal(ev2.h, "22:34");
+// одно сообщение «в 22:34 лечь спать» тоже событие, а не задача
+out = await say(42, "в 23:59 лечь спать");
+assert.match(lastText(out), /📅 Записал в календарь: Лечь спать/);
 
 // перенос события: время изменилось — напомнит снова
 await app("/reminders", { initData: initData(42), items: [{ key: "app1", title: "Созвон", at: soon + 5 * 60000, time: "15:15" }] });
@@ -295,5 +319,49 @@ out = await say(55, "/plus");
 assert.match(lastText(out), /У вас подписка Kwantoww Plus до/);
 out = await say(1, "/admin");
 assert.match(lastText(out), /Подписчиков Plus: 1, оплачено за 30 дней: 150 звёзд/);
+
+// ---- видимость подписки и бонусы Plus ----
+out = await say(66, "⭐ Подписка Plus");
+assert.match(lastText(out), /Характер ИИ на выбор[\s\S]*отчёте недели/);
+assert.ok(!/сторис/.test(lastText(out)), "карточки для сторис больше нет");
+out = await say(66, "🏃 Челлендж");
+assert.match(lastText(out), /Ваш челлендж шагов|Челлендж шагов: соревнуйтесь/);
+out = await say(66, "📈 Мои итоги");
+assert.match(lastText(out), /данных/);
+out = await say(66, "/style");
+assert.match(lastText(out), /бонус подписки Plus/);
+out = await tap(66, "st:coach");
+assert.ok(out.some((m) => m.method === "createInvoiceLink"), "без подписки предлагает оплату");
+// подписчик 55 выбирает тренера: стиль уходит в запрос к ИИ
+out = await tap(55, "st:coach");
+assert.match(out.find((m) => m.method === "editMessageText").body.text, /Строгий тренер/);
+const b5 = sent.length;
+await say(55, "как не лениться?");
+assert.match(sent.slice(b5).find((m) => m.method === "gemini").body.systemInstruction.parts[0].text, /требовательный, но справедливый тренер/);
+// приложение: статус и оплата из приложения
+assert.deepEqual((await app("/me", { initData: initData(55) })).json, { plus: true, freeAi: 3, stars: 150 });
+assert.equal((await app("/me", { initData: initData(66) })).json.plus, false);
+assert.equal((await app("/plus-link", { initData: initData(66) })).json.url, "https://t.me/$plus-invoice");
+// звезда в челлендже у подписчика
+await say(55, "/start ch_" + code);
+assert.match(boardText(await leaderboard(env, code), "x"), /U55 ⭐/);
+// отчёт недели всем: воскресенье 19:00 по Душанбе (14:00 UTC); у Plus — закономерности
+const { sendWeekly } = await import("./worker.js");
+db.prepare("UPDATE users SET tz = 'Asia/Dushanbe' WHERE id IN (42, 55)").run();
+db.prepare("INSERT OR REPLACE INTO days (user_id, date, sleep, steps, water, spend) SELECT 55, date, sleep, steps, water, spend FROM days WHERE user_id = 42").run();
+const sunday = Date.UTC(2026, 10, 29, 14, 5);
+const realNow2 = Date.now;
+Date.now = () => sunday;
+const b6 = sent.length;
+const sentCount = await sendWeekly(env, sunday);
+Date.now = realNow2;
+const reps = sent.slice(b6).filter((m) => m.method === "sendMessage" && /отчёт недели/.test(m.body.text));
+const r42 = reps.find((m) => m.body.chat_id === 42), r55 = reps.find((m) => m.body.chat_id === 55);
+assert.ok(sentCount >= 1 && r42, "бесплатный пользователь получает отчёт");
+assert.match(r42.body.text, /Ваш отчёт недели\n[\s\S]*Сон: в среднем[\s\S]*Хорошей новой недели/);
+assert.equal(r42.body.reply_markup.inline_keyboard[0][0].style, "success");
+if (r55) assert.match(r55.body.text, /отчёт недели ⭐[\s\S]*🔍 Закономерности/);
+assert.equal(await sendWeekly(env, sunday + 600000), 0, "один раз");
+assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в субботу");
 
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));

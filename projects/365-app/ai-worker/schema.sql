@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
   last_e TEXT,
   goals TEXT,                      -- цели из приложения JSON {water, steps, sleep}
   synced_at INTEGER,               -- когда приложение последний раз присылало данные
-  premium_until INTEGER            -- подписка Plus активна до (мс)
+  premium_until INTEGER,           -- подписка Plus активна до (мс)
+  ai_style TEXT,                   -- характер ИИ (Plus): friend, coach, fun
+  last_w TEXT                      -- дата последнего отчёта недели
 );
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
