@@ -20,3 +20,4 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS fsm (user_id INTEGER PRIMARY KEY, state TEXT, data TEXT NOT NULL DEFAULT '{}');
 CREATE INDEX IF NOT EXISTS idx_likes_to ON likes (to_id, responded);
 CREATE INDEX IF NOT EXISTS idx_users_feed ON users (active, banned, gender, age);
+CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);

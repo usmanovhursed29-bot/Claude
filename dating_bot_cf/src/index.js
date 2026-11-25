@@ -14,7 +14,16 @@ const BTN_PROFILE = "👤 Моя анкета";
 const BTN_PREMIUM = "⭐ Купить подписку";
 const BTN_CHAT = "💬 Общий чат";
 const BTN_ADMIN = "🛠 Админка";
+const BTN_SWITCH = "🔄 Сменить анкету";
 let ADMIN = 0; // ID админа текущего запроса (из env)
+
+// У админа до 5 анкет. Анкета 1 — его настоящий ID, анкеты 2–5 — служебные отрицательные ID.
+// Все они помечены «👑 Админ», возраст у всех — как в основной анкете.
+const SLOTS = 5;
+const slotId = (n) => (n === 1 ? ADMIN : -(9000000000 + n));
+const slotNum = (id) => (ADMIN && id === ADMIN ? 1 : id <= -9000000002 && id >= -9000000005 ? -id - 9000000000 : 0);
+const isAdminProfile = (id) => !!ADMIN && slotNum(id) > 0;
+const adminIds = () => Array.from({ length: SLOTS }, (_, i) => slotId(i + 1));
 const MENU_BUTTONS = [BTN_BROWSE, BTN_LIKERS, BTN_PROFILE, BTN_PREMIUM, BTN_CHAT];
 
 const PREMIUM_TEXT =
@@ -38,6 +47,11 @@ const fmtDate = (ts) => {
 const titleCase = (s) => s.toLowerCase().replace(/(^|[\s-])(\S)/g, (_, a, b) => a + b.toUpperCase());
 
 // ================= Telegram API =================
+
+// куда слать уведомление анкете и с какой подписью
+const inbox = (id) => isAdminProfile(id)
+  ? { chat: ADMIN, pre: `👑 <b>[Анкета ${slotNum(id)}]</b>\n` }
+  : { chat: id, pre: "" };
 
 class Bot {
   constructor(env) {
@@ -85,7 +99,7 @@ class Bot {
       [{ text: BTN_PROFILE }, { text: BTN_PREMIUM }],
     ];
     if (this.chatLink) rows.push([{ text: BTN_CHAT }]);
-    if (this.adminId && this.uid === this.adminId) rows.push([{ text: BTN_ADMIN }]);
+    if (this.adminId && this.uid === this.adminId) rows.push([{ text: BTN_ADMIN }, { text: BTN_SWITCH }]);
     return { keyboard: rows, resize_keyboard: true };
   }
 }
@@ -107,17 +121,18 @@ const likerKb = (uid) => ikb([["❤️ Взаимно", `lb:${uid}`], ["👎", `
 // ================= база данных =================
 
 // у админа — вечный премиум: безлимит лайков, сообщений и всех функций
-const isPremium = (u) => (ADMIN && u.user_id === ADMIN) || u.premium_until > now();
-const premiumUntil = (u) => (ADMIN && u.user_id === ADMIN ? "навсегда (админ)" : `до ${fmtDate(u.premium_until)}`);
+const isPremium = (u) => isAdminProfile(u.user_id) || u.premium_until > now();
+const premiumUntil = (u) => (isAdminProfile(u.user_id) ? "навсегда (админ)" : `до ${fmtDate(u.premium_until)}`);
 
 function caption(u, extra = "") {
-  let t = `<b>${esc(u.name)}</b>, ${u.age}, ${esc(u.city)}${isPremium(u) ? " ⭐" : ""}`;
+  let t = `<b>${esc(u.name)}</b>, ${u.age}, ${esc(u.city)}${isAdminProfile(u.user_id) ? " 👑 Админ" : isPremium(u) ? " ⭐" : ""}`;
   if (u.about) t += `\n\n${esc(u.about)}`;
   if (extra) t += `\n\n${extra}`;
   return t.slice(0, 1024);
 }
 
 const contactLink = (u) =>
+  isAdminProfile(u.user_id) && !u.username ? `<a href="tg://user?id=${ADMIN}">${esc(u.name)}</a>` :
   u.username ? `@${esc(u.username)}` : `<a href="tg://user?id=${u.user_id}">${esc(u.name)}</a>`;
 
 async function getUser(db, id) {
@@ -168,6 +183,7 @@ async function nextCandidate(db, me) {
        AND (?6=0 OR lower(u.city)=lower(?7))
        AND u.user_id NOT IN (
          SELECT to_id FROM views WHERE from_id=?1 AND (action!='skip' OR created > ?8))
+       ${isAdminProfile(me.user_id) ? `AND u.user_id NOT IN (${adminIds().join(",")})` : ""}
      ORDER BY (lower(u.city)=lower(?7)) DESC, (u.premium_until > ?9) DESC, RANDOM()
      LIMIT 1`
   ).bind(me.user_id, me.looking, me.gender, lo, hi, cityOnly, me.city, now() - SKIP_COOLDOWN, now()).first();
@@ -251,11 +267,13 @@ async function doLike(bot, me, targetId, message) {
   if (!target) return;
   if (await addLike(bot.db, me.user_id, targetId, message)) {
     for (const [a, b] of [[me, target], [target, me]]) {
-      await bot.photo(a.user_id, b.photo_id, caption(b, `🎉 <b>Взаимная симпатия!</b>\nПиши: ${contactLink(b)}`));
+      const to = inbox(a.user_id);
+      await bot.photo(to.chat, b.photo_id, caption(b, `${to.pre}🎉 <b>Взаимная симпатия!</b>\nПиши: ${contactLink(b)}`));
     }
   } else {
     const n = await pendingCount(bot.db, targetId);
-    await bot.send(targetId, `💘 Ты кому-то понравился(ась)! Лайков ждут ответа: <b>${n}</b>`,
+    const to = inbox(targetId);
+    await bot.send(to.chat, `${to.pre}💘 Ты кому-то понравился(ась)! Лайков ждут ответа: <b>${n}</b>`,
       ikb([["👀 Посмотреть", "likers"]]));
   }
 }
@@ -288,12 +306,18 @@ function filtersKb(me) {
 
 // ---------- регистрация ----------
 
-async function handleRegistration(bot, m, st) {
-  const db = bot.db, uid = m.from.id, chat = m.chat.id, text = (m.text || "").trim();
+async function handleRegistration(bot, m, st, uid) {
+  const db = bot.db, chat = m.chat.id, text = (m.text || "").trim();
   const d = st.data;
   switch (st.state) {
     case "reg_name":
       if (!text || text.length > 30) return bot.send(chat, "Имя должно быть от 1 до 30 символов.");
+      if (slotNum(uid) > 1) {
+        const main = await getUser(db, ADMIN);
+        if (!main) return bot.send(chat, "Сначала заполни основную анкету (№1).");
+        await setState(db, uid, "reg_gender", { ...d, name: text, age: main.age });
+        return bot.send(chat, `Возраст — как в основной анкете: ${main.age}.\nКто ты?`, replyKb(["Парень", "Девушка"]));
+      }
       await setState(db, uid, "reg_age", { ...d, name: text });
       return bot.send(chat, "Сколько тебе лет?");
     case "reg_age": {
@@ -330,7 +354,7 @@ async function handleRegistration(bot, m, st) {
       if (!m.photo) return bot.send(chat, "Нужно именно фото (не файл и не видео) 📸");
       const nd = { ...d, photo_id: m.photo[m.photo.length - 1].file_id };
       await setState(db, uid, "reg_confirm", nd);
-      await bot.photo(chat, nd.photo_id, caption({ ...nd, premium_until: 0 }));
+      await bot.photo(chat, nd.photo_id, caption({ ...nd, user_id: uid, premium_until: 0 }));
       return bot.send(chat, "Так выглядит твоя анкета. Всё верно?", replyKb(["✅ Да", "✏️ Заново"]));
     }
     case "reg_confirm":
@@ -343,7 +367,11 @@ async function handleRegistration(bot, m, st) {
            photo_id=excluded.photo_id, active=1`
       ).bind(uid, m.from.username || null, d.name, d.age, d.gender, d.looking, d.city, d.about, d.photo_id, now()).run();
       await clearState(db, uid);
-      await bot.send(chat, "🎉 Анкета сохранена!", bot.mainMenu());
+      if (uid === ADMIN) {
+        // возраст всех анкет админа всегда совпадает с основной
+        await db.prepare(`UPDATE users SET age=? WHERE user_id IN (${adminIds().join(",")})`).bind(d.age).run();
+      }
+      await bot.send(chat, slotNum(uid) ? `🎉 Анкета №${slotNum(uid)} сохранена!` : "🎉 Анкета сохранена!", bot.mainMenu());
       if (!m.from.username) {
         await bot.send(chat, "💡 Совет: поставь себе @username в настройках Telegram — так при взаимной симпатии тебе точно смогут написать.");
       }
@@ -385,9 +413,10 @@ async function handleMenu(bot, m, me) {
 // ---------- сообщения ----------
 
 async function onMessage(bot, m) {
-  const db = bot.db, uid = m.from.id, chat = m.chat.id, text = m.text || "";
+  const db = bot.db, realUid = m.from.id, chat = m.chat.id, text = m.text || "";
   if (m.chat.type !== "private") return;
-  bot.uid = uid;
+  bot.uid = realUid;
+  const uid = await actingId(bot, realUid);
 
   if (m.successful_payment) {
     const sp = m.successful_payment;
@@ -416,7 +445,7 @@ async function onMessage(bot, m) {
   if (text.startsWith("/paysupport")) {
     return bot.send(chat, "Вопросы по оплате: напиши администратору бота. Возврат звёзд — в течение 7 дней после покупки.");
   }
-  if (uid === bot.adminId && text.startsWith("/")) {
+  if (realUid === bot.adminId && text.startsWith("/")) {
     const parts = text.split(/\s+/);
     if (parts[0] === "/stats") {
       const q = async (sql, ...b) => (await db.prepare(sql).bind(...b).first()).c;
@@ -437,15 +466,19 @@ async function onMessage(bot, m) {
     }
   }
 
-  if (bot.adminId && uid === bot.adminId && (text === BTN_ADMIN || text.startsWith("/admin"))) {
+  if (bot.adminId && realUid === bot.adminId && (text === BTN_ADMIN || text.startsWith("/admin"))) {
     await clearState(db, uid);
     return adminPanel(bot, chat);
+  }
+  if (bot.adminId && realUid === bot.adminId && text === BTN_SWITCH) {
+    await clearState(db, uid);
+    return slotMenu(bot, chat);
   }
 
   const st = await getState(db, uid);
 
   // регистрация идёт первой — во время неё меню нет
-  if (st.state && st.state.startsWith("reg_")) return handleRegistration(bot, m, st);
+  if (st.state && st.state.startsWith("reg_")) return handleRegistration(bot, m, st, uid);
 
   const me = await activeUser(db, uid);
   if (!me) {
@@ -504,19 +537,26 @@ async function onMessage(bot, m) {
 // ---------- кнопки под сообщениями ----------
 
 async function onCallback(bot, cb) {
-  const db = bot.db, uid = cb.from.id, chat = cb.message?.chat.id, data = cb.data || "";
+  const db = bot.db, realUid = cb.from.id, chat = cb.message?.chat.id, data = cb.data || "";
   const [action, arg] = data.split(":");
   const target = Number(arg);
-  bot.uid = uid;
+  bot.uid = realUid;
+  const uid = await actingId(bot, realUid);
+
+  if (action === "sw") {
+    if (!bot.adminId || realUid !== bot.adminId) return bot.answerCb(cb);
+    await bot.answerCb(cb);
+    return switchSlot(bot, cb, target);
+  }
 
   if (action === "adm") {
-    if (!bot.adminId || uid !== bot.adminId) return bot.answerCb(cb);
+    if (!bot.adminId || realUid !== bot.adminId) return bot.answerCb(cb);
     await bot.answerCb(cb);
     return adminAction(bot, cb, data.split(":").slice(1));
   }
 
   if (action === "ban") {
-    if (uid !== bot.adminId) return bot.answerCb(cb);
+    if (realUid !== bot.adminId || isAdminProfile(target)) return bot.answerCb(cb);
     await updateUser(db, target, { banned: 1, active: 0 });
     await bot.dropKeyboard(cb);
     await bot.answerCb(cb, "Забанен");
@@ -642,6 +682,41 @@ async function onPreCheckout(bot, q) {
   return bot.api("answerPreCheckoutQuery", {
     pre_checkout_query_id: q.id, ok: !!ok, error_message: ok ? undefined : "Тариф не найден, попробуй ещё раз.",
   });
+}
+
+// ================= НЕСКОЛЬКО АНКЕТ АДМИНА =================
+
+async function actingId(bot, realUid) {
+  if (!bot.adminId || realUid !== bot.adminId) return realUid;
+  const r = await bot.db.prepare("SELECT v FROM kv WHERE k='admin_slot'").first();
+  return slotId(Number(r?.v) || 1);
+}
+
+async function slotMenu(bot, chat) {
+  const cur = slotNum(await actingId(bot, bot.adminId));
+  const rows = [];
+  for (let n = 1; n <= SLOTS; n++) {
+    const u = await getUser(bot.db, slotId(n));
+    const label = u ? `${n}. ${u.name}, ${u.city}${u.active ? "" : " 🙈"}` : `${n}. ➕ Создать`;
+    rows.push([[`${n === cur ? "✅ " : ""}${label}`, `sw:${n}`]]);
+  }
+  return bot.send(chat, `🔄 <b>Твои анкеты</b>\nСейчас ты действуешь от анкеты №${cur}.\n\nВсе анкеты помечены «👑 Админ».`, ikb(...rows));
+}
+
+async function switchSlot(bot, cb, n) {
+  if (!(n >= 1 && n <= SLOTS)) return;
+  const db = bot.db, chat = cb.message.chat.id;
+  await bot.dropKeyboard(cb);
+  if (n > 1 && !(await getUser(db, ADMIN))) return bot.send(chat, "Сначала заполни основную анкету (№1): /start");
+  await db.prepare("INSERT OR REPLACE INTO kv (k, v) VALUES ('admin_slot', ?)").bind(String(n)).run();
+  const id = slotId(n);
+  const u = await getUser(db, id);
+  if (!u) {
+    await setState(db, id, "reg_name");
+    return bot.send(chat, `Анкета №${n} пустая — заполним. Как зовут?`, removeKb);
+  }
+  await clearState(db, id);
+  return bot.photo(chat, u.photo_id, caption(u, `🔄 Теперь ты действуешь от анкеты №${n}`), bot.mainMenu());
 }
 
 // ================= АДМИНКА (только для ADMIN_ID) =================
@@ -780,7 +855,7 @@ async function adminAction(bot, cb, [sub, a, b]) {
     const id = off, back = Number(b);
     const u = await getUser(db, id);
     if (!u) return;
-    if (id === bot.adminId) return bot.send(chat, "Себя забанить нельзя 🙂");
+    if (isAdminProfile(id)) return bot.send(chat, "Свои анкеты забанить нельзя 🙂");
     const banned = u.banned ? 0 : 1;
     await updateUser(db, id, { banned, active: banned ? 0 : 1 });
     await bot.dropKeyboard(cb);
