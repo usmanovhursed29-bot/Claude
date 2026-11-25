@@ -9,7 +9,7 @@ const path = require("path"), fs = require("fs");
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
   p.on("pageerror", (e) => console.error("PAGE ERROR", e.message));
-  await p.goto("file://" + path.resolve(__dirname, "ad.html"));
+  await p.goto("file://" + path.resolve(__dirname, process.env.PAGE || "ad.html"));
   await p.evaluate(() => window.__ready);
   const times = list.length ? list.map(Number) : null;
   const n0 = Number(fromS || 0), n1 = Number(toS || Math.round(25 * fps));
