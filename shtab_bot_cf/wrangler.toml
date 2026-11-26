@@ -1,0 +1,20 @@
+name = "shtab-bot"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+keep_vars = true
+
+# ИИ Cloudflare (бесплатный лимит в день)
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shtab-db"
+database_id = "47b63e3c-a30b-4066-ad48-3c54e26c2f43"
+
+# Раз в минуту команда берёт следующую задачу из очереди
+[triggers]
+crons = ["* * * * *"]
+
+# BOT_TOKEN, ADMIN_ID, WEBHOOK_SECRET — секреты, задаются в панели Cloudflare, не здесь.
