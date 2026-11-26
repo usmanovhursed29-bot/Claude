@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Флёр — мастерская букетов</title>
 <meta name="description" content="Авторские букеты с доставкой за 2 часа. Пример сайта цветочного магазина.">
+<link rel="preconnect" href="https://images.unsplash.com">
 <meta name="theme-color" content="#f7f1ec">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,11 +61,11 @@ nav.menu a:hover{color:var(--ink)}
 .facts{display:flex;gap:28px;margin-top:36px;flex-wrap:wrap}
 .facts b{display:block;font:600 30px/1 var(--serif)}
 .facts span{font-size:13px;color:var(--muted)}
-.hero-art{position:relative;aspect-ratio:1;max-width:520px;justify-self:center;width:100%}
-.hero-art .disc{position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#fff 0,var(--kraft) 70%)}
-.hero-art svg.main{position:absolute;inset:0;width:100%;height:100%}
-.sway{transform-origin:50% 92%;animation:sway 6s ease-in-out infinite}
-@keyframes sway{50%{transform:rotate(1.6deg)}}
+.hero-art{position:relative;aspect-ratio:4/5;max-width:460px;justify-self:center;width:100%}
+.hero-art .frame{position:absolute;inset:0;border-radius:999px 999px 28px 28px;overflow:hidden;background:var(--kraft);box-shadow:0 40px 80px -50px rgba(43,29,26,.6)}
+.hero-art .frame img{width:100%;height:100%;object-fit:cover;display:block;animation:kb 16s ease-in-out infinite alternate}
+@keyframes kb{to{transform:scale(1.07) translateY(-1.5%)}}
+.hero-art .ring{position:absolute;inset:-14px;border-radius:999px 999px 40px 40px;border:1.5px solid rgba(196,92,102,.35);pointer-events:none}
 .petal{position:absolute;width:14px;height:10px;border-radius:70% 0 70% 0;background:var(--rose);opacity:.7;animation:fall 9s linear infinite}
 @keyframes fall{0%{transform:translate(0,-20px) rotate(0);opacity:0}10%{opacity:.7}100%{transform:translate(-60px,420px) rotate(540deg);opacity:0}}
 .badge{position:absolute;right:2%;bottom:12%;background:var(--card);border-radius:16px;padding:12px 14px;box-shadow:0 18px 40px -24px rgba(43,29,26,.45);display:flex;gap:10px;align-items:center;font-size:14px;animation:float 5s ease-in-out infinite}
@@ -87,9 +88,9 @@ section{padding:56px 0}
 .item{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;transition:transform .35s var(--ease),box-shadow .35s var(--ease),opacity .35s}
 .item:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px var(--line),0 24px 44px -30px rgba(43,29,26,.55)}
 .item.hide{display:none}
-.item .pic{aspect-ratio:1;position:relative;display:grid;place-items:center}
-.item .pic svg{width:86%;height:86%;transition:transform .5s var(--ease)}
-.item:hover .pic svg{transform:scale(1.04) rotate(-1deg)}
+.item .pic{aspect-ratio:1;position:relative;overflow:hidden;background:var(--kraft)}
+.item .pic img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s var(--ease)}
+.item:hover .pic img{transform:scale(1.06)}
 .item .tag{position:absolute;left:14px;top:14px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--card)}
 .item .info{padding:16px 18px 18px;display:flex;flex-direction:column;gap:4px;flex:1}
 .item h3{font-size:26px}
@@ -130,6 +131,14 @@ section{padding:56px 0}
 .slot[aria-pressed="true"]{background:var(--sage);color:#fff;box-shadow:none}
 .slot:disabled{opacity:.4;text-decoration:line-through;cursor:default}
 
+/* галерея */
+.gallery{display:grid;grid-template-columns:1.3fr 1fr 1fr;grid-template-rows:240px 240px;gap:14px}
+.gallery figure{margin:0;border-radius:var(--r);overflow:hidden;position:relative;background:var(--kraft)}
+.gallery figure:first-child{grid-row:span 2}
+.gallery img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s var(--ease)}
+.gallery figure:hover img{transform:scale(1.05)}
+.gallery figcaption{position:absolute;left:12px;bottom:12px;background:rgba(255,250,246,.9);padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600}
+
 /* отзывы */
 .quotes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .quote{padding:24px;border-radius:var(--r);background:var(--kraft)}
@@ -153,7 +162,9 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
 .lines{flex:1;overflow-y:auto;padding:12px 20px}
 .line{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
 .line .mini{width:56px;height:56px;border-radius:14px;background:var(--kraft);display:grid;place-items:center}
+.line .mini{overflow:hidden}
 .line .mini svg{width:48px;height:48px}
+.line .mini img{width:100%;height:100%;object-fit:cover}
 .line b{display:block;font-size:15px}
 .line small{color:var(--muted)}
 .qty{display:flex;align-items:center;gap:6px}
@@ -174,6 +185,10 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
   .hero-art{max-width:380px;order:-1}
   .grid,.steps,.quotes{grid-template-columns:repeat(2,minmax(0,1fr))}
   .builder{grid-template-columns:1fr;padding:18px}
+  .gallery{grid-template-columns:repeat(4,72%);grid-template-rows:300px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:-20px;padding-inline:20px}
+  .gallery::-webkit-scrollbar{display:none}
+  .gallery figure{scroll-snap-align:start}
+  .gallery figure:first-child{grid-row:auto}
 }
 @media (max-width:560px){
   .grid,.steps,.quotes{grid-template-columns:1fr}
@@ -181,7 +196,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
   .cta .btn{flex:1}
   .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .facts b{font-size:24px}
-  .badge{font-size:12px;padding:8px 10px;right:0;bottom:6%;gap:8px}
+  .hero-art{max-width:320px;margin-bottom:24px}
+  .badge{font-size:12px;padding:8px 10px;right:-8px;bottom:8%;gap:8px}
   .badge b{font-size:13px}
   .badge svg{width:22px;height:22px}
   section{padding:40px 0}
@@ -226,8 +242,8 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
       </div>
     </div>
     <div class="hero-art" aria-hidden="true">
-      <div class="disc"></div>
-      <svg class="main" viewBox="0 0 400 400"><g class="sway" id="heroBouquet"></g></svg>
+      <div class="frame"><img src="https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=700&h=875&fit=crop&auto=format&q=75" srcset="https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=500&h=625&fit=crop&auto=format&q=75 500w, https://images.unsplash.com/photo-1487530811176-3780de880c2d?w=900&h=1125&fit=crop&auto=format&q=75 900w" sizes="(max-width:900px) 320px, 460px" alt="Пышный букет с розами, эвкалиптом и ягодами" fetchpriority="high"></div>
+      <div class="ring"></div>
       <span class="petal" style="left:30%;top:10%;animation-delay:0s"></span>
       <span class="petal" style="left:60%;top:5%;animation-delay:3s;background:#e8a9a1"></span>
       <span class="petal" style="left:75%;top:20%;animation-delay:6s"></span>
@@ -242,7 +258,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
       <button class="chip" aria-pressed="false" data-f="roses">Розы</button>
       <button class="chip" aria-pressed="false" data-f="season">Сезонные</button>
       <button class="chip" aria-pressed="false" data-f="mono">Монобукеты</button>
-      <button class="chip" aria-pressed="false" data-f="box">В коробке</button>
+      <button class="chip" aria-pressed="false" data-f="vase">В вазе</button>
     </div>
     <div class="grid" id="grid"></div>
   </section>
@@ -285,6 +301,16 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
     <div class="rv"><p style="margin-top:28px;font-weight:600">Свободное время на сегодня</p><div class="slots" id="slots"></div></div>
   </section>
 
+  <section id="gallery">
+    <div class="sh rv"><h2>Из нашей мастерской</h2><p>Собираем букеты под настроение, повод и характер человека.</p></div>
+    <div class="gallery rv">
+      <figure><img loading="lazy" src="https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=800&h=900&fit=crop&auto=format&q=75" alt="Букет в форме сердца в руках"><figcaption>На 14 февраля</figcaption></figure>
+      <figure><img loading="lazy" src="https://images.unsplash.com/photo-1520763185298-1b434c919102?w=600&h=480&fit=crop&auto=format&q=75" alt="Розовый тюльпан"><figcaption>Тюльпаны</figcaption></figure>
+      <figure><img loading="lazy" src="https://images.unsplash.com/photo-1562690868-60bbe7293e94?w=600&h=480&fit=crop&auto=format&q=75" alt="Красная роза в каплях росы"><figcaption>Розы</figcaption></figure>
+      <figure><img loading="lazy" src="https://images.unsplash.com/photo-1591886960571-74d43a9d4166?w=1000&h=480&fit=crop&auto=format&q=75" alt="Букет кремовых и розовых роз" style="object-position:50% 40%"><figcaption>Свадебные</figcaption></figure>
+    </div>
+  </section>
+
   <section>
     <div class="sh rv"><h2>Что говорят</h2></div>
     <div class="quotes rv">
@@ -302,7 +328,7 @@ footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--m
   </section>
 </main>
 
-<footer><div class="wrap">«Флёр» — вымышленная мастерская: это пример сайта цветочного магазина от <a href="/">kwantoww</a>. Цены, отзывы и время доставки показаны для примера.</div></footer>
+<footer><div class="wrap">«Флёр» — вымышленная мастерская: это пример сайта цветочного магазина от <a href="/">kwantoww</a>. Цены, отзывы и время доставки показаны для примера. Фото: <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a>.</div></footer>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-label="Корзина" aria-hidden="true">
@@ -381,21 +407,21 @@ function bouquet({pal="blush",count=15,wrap="kraft",type="mix",seed=7}={}){
 }
 
 // ---------- каталог ----------
+const IMG = (id,w=600,h=600)=>`https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=75`;
 const ITEMS = [
-  {id:"r1", name:"Утро в саду", desc:"Кустовые розы и эвкалипт", price:3900, f:["roses"], pal:"blush", type:"rose", n:13, wrap:"kraft", tag:"Хит"},
-  {id:"r2", name:"Сто причин", desc:"Красные розы, 25 штук", price:6500, f:["roses","mono"], pal:"berry", type:"rose", n:25, wrap:"white"},
-  {id:"s1", name:"Летний луг", desc:"Ромашки, маттиола, зелень", price:2900, f:["season"], pal:"white", type:"daisy", n:15, wrap:"kraft", tag:"Сезон"},
-  {id:"s2", name:"Пионы", desc:"Ароматные пионы, 9 штук", price:5200, f:["season","mono"], pal:"blush", type:"peony", n:9, wrap:"white", tag:"Новинка"},
-  {id:"b1", name:"Шляпная коробка", desc:"Розы и пионы в коробке", price:5900, f:["box","roses"], pal:"blush", type:"mix", n:17, wrap:"box"},
-  {id:"b2", name:"Яркое настроение", desc:"Микс сезонных цветов", price:3400, f:["season","box"], pal:"bright", type:"mix", n:15, wrap:"box"},
+  {id:"r1", name:"Вечерний сад", desc:"Розы, ранункулюсы, протея и зелень", price:5900, f:["roses"], img:"1457089328109-e5d9bd499191", tag:"Хит"},
+  {id:"r2", name:"Персиковое облако", desc:"Пионовидные розы и диантус в вазе", price:4700, f:["roses","vase"], img:"1572454591674-2739f30d8c40"},
+  {id:"s1", name:"Тюльпаны", desc:"Розовые тюльпаны, 15 штук", price:2900, f:["season","mono","vase"], img:"1561181286-d3fee7d55364", tag:"Сезон"},
+  {id:"r3", name:"Пионовидные розы", desc:"Нежно-розовые, 11 штук", price:5200, f:["roses","mono"], img:"1582794543139-8ac9cb0f7b11", tag:"Новинка"},
+  {id:"s2", name:"Солнечный крафт", desc:"Подсолнух, хлопок и сухоцветы", price:3400, f:["season"], img:"1567696153798-9111f9cd3d0d"},
+  {id:"v1", name:"Пудровая нежность", desc:"Розы и пионы с зеленью в вазе", price:6200, f:["vase","roses"], img:"1563241527-3004b7be0ffd"},
 ];
 
 const rub = n => n.toLocaleString("ru-RU")+" ₽";
 const grid = document.getElementById("grid");
 grid.innerHTML = ITEMS.map((it,i)=>`
   <article class="item rv" data-f="${it.f.join(" ")}">
-    <div class="pic" style="background:${i%2?'#f1e6dc':'#eef0e8'}">${it.tag?`<span class="tag">${it.tag}</span>`:""}
-      <svg viewBox="40 80 320 320" aria-hidden="true">${bouquet({pal:it.pal,count:it.n,wrap:it.wrap,type:it.type,seed:i*13+3})}</svg></div>
+    <div class="pic"><img loading="lazy" src="${IMG(it.img)}" srcset="${IMG(it.img,400,400)} 400w, ${IMG(it.img,800,800)} 800w" sizes="(max-width:560px) 92vw, (max-width:900px) 46vw, 360px" alt="${it.name}: ${it.desc}">${it.tag?`<span class="tag">${it.tag}</span>`:""}</div>
     <div class="info"><h3>${it.name}</h3><p>${it.desc}</p>
       <div class="buy"><span class="price">${rub(it.price)}</span><button class="add" data-id="${it.id}">В корзину</button></div></div>
   </article>`).join("");
@@ -438,7 +464,6 @@ document.querySelectorAll(".seg").forEach(seg=>seg.addEventListener("click",e=>{
   state[seg.dataset.k]=b.dataset.v; renderCustom();
 }));
 renderCustom();
-document.getElementById("heroBouquet").innerHTML=bouquet({pal:"blush",count:19,wrap:"kraft",seed:11});
 
 // ---------- время доставки ----------
 const slotsEl=document.getElementById("slots"), hour=new Date().getHours();
@@ -462,7 +487,7 @@ function renderCart(){
   const total=cart.reduce((s,c)=>s+c.q*c.price,0);
   document.getElementById("cartSum").textContent=rub(total);
   document.getElementById("lines").innerHTML = cart.length ? cart.map((c,i)=>`
-    <div class="line"><span class="mini"><svg viewBox="40 80 320 320">${c.svg}</svg></span>
+    <div class="line"><span class="mini">${c.thumb}</span>
       <div><b>${c.name}</b><small>${rub(c.price)}</small></div>
       <div class="qty"><button data-i="${i}" data-d="-1" aria-label="Меньше">−</button><span>${c.q}</span><button data-i="${i}" data-d="1" aria-label="Больше">+</button></div></div>`).join("")
     : '<p class="empty">Здесь пока пусто.<br>Выберите букет — он появится тут.</p>';
@@ -474,12 +499,12 @@ document.getElementById("lines").addEventListener("click",e=>{
 grid.addEventListener("click",e=>{
   const b=e.target.closest(".add"); if(!b) return;
   const it=ITEMS.find(x=>x.id===b.dataset.id), i=ITEMS.indexOf(it);
-  addToCart({id:it.id,name:it.name,price:it.price,svg:bouquet({pal:it.pal,count:it.n,wrap:it.wrap,type:it.type,seed:i*13+3})});
+  addToCart({id:it.id,name:it.name,price:it.price,thumb:`<img src="${IMG(it.img,120,120)}" alt="">`});
   b.classList.add("done"); b.textContent="Добавлено ✓"; setTimeout(()=>{b.classList.remove("done");b.textContent="В корзину"},1400);
 });
 document.getElementById("addCustom").addEventListener("click",()=>{
   const p=PALETTES[state.pal].name.toLowerCase();
-  addToCart({id:`c-${state.size}-${state.pal}-${state.wrap}-${state.card}`,name:`Свой букет ${state.size}, ${p}`,price:customPrice(),svg:bouquet({pal:state.pal,count:SIZES[state.size].n,wrap:state.wrap,seed:42})});
+  addToCart({id:`c-${state.size}-${state.pal}-${state.wrap}-${state.card}`,name:`Свой букет ${state.size}, ${p}`,price:customPrice(),thumb:`<svg viewBox="40 80 320 320">${bouquet({pal:state.pal,count:SIZES[state.size].n,wrap:state.wrap,seed:42})}</svg>`});
   openCart(true);
 });
 const body=document.body, drawer=document.getElementById("drawer");
