@@ -7,11 +7,12 @@ for d, _, fs in os.walk(root):
     if 'index.html' in fs:
         rel = os.path.relpath(d, root)
         pages['/' if rel == '.' else '/' + rel + '/'] = open(os.path.join(d, 'index.html'), encoding='utf-8').read()
-for f in sorted(os.listdir(os.path.join(root, 'shots'))):
-    assets['/shots/' + f] = base64.b64encode(open(os.path.join(root, 'shots', f), 'rb').read()).decode()
+for folder in ['shots', '3d/lib']:
+    for f in sorted(os.listdir(os.path.join(root, folder))):
+        assets['/' + folder + '/' + f] = base64.b64encode(open(os.path.join(root, folder, f), 'rb').read()).decode()
 print(f'''const PAGES = {json.dumps(pages, ensure_ascii=False)};
 const ASSETS = {json.dumps(assets)};
-const TYPES = {{ webp: "image/webp", png: "image/png", jpg: "image/jpeg", svg: "image/svg+xml" }};
+const TYPES = {{ webp: "image/webp", png: "image/png", jpg: "image/jpeg", svg: "image/svg+xml", js: "text/javascript; charset=utf-8" }};
 export default {{
   async fetch(request) {{
     const url = new URL(request.url);
