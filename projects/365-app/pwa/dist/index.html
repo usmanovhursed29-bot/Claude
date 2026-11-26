@@ -181,6 +181,21 @@ svg.i.s{width:16px;height:16px}
 textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .in:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--accent)}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.j-wrap{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.card.j-date{display:flex;flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:6px 10px}
+.j-date .j-d{font-size:22px;font-weight:650;letter-spacing:-.01em}
+.j-h{display:flex;align-items:baseline;flex:1 1 220px;min-width:0;font-size:18px;color:var(--fg2)}
+.j-hl{flex:1;min-width:0;border:0;background:transparent;font-size:18px;color:var(--fg);padding:2px 4px;border-bottom:1px dashed var(--line)}
+.j-hl:focus{outline:none;border-bottom-color:var(--accent)}
+.j-card{gap:8px}
+.j-l{font-size:14px;font-weight:600;display:flex;flex-direction:column;gap:2px}
+.j-l span{font-size:12px;font-weight:400;color:var(--fg2)}
+.j-t{min-height:72px}
+.j-list{display:flex;flex-direction:column}
+.j-item{display:flex;gap:10px;align-items:baseline;text-align:left;padding:10px 0;border-bottom:1px solid var(--line);min-width:0}
+.j-item b{white-space:nowrap;font-weight:600}
+.j-item span{color:var(--fg2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.j-item.on b{color:var(--accent)}
 .field label{font-size:12px;color:var(--fg2)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .row>.grow{flex:1 1 160px}
@@ -545,6 +560,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
     <symbol id="i-food" viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10"/><path d="M17 21V3c-2 1-3 4-3 7s1 4 3 4"/></symbol>
     <symbol id="i-gym" viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></symbol>
     <symbol id="i-money" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
     <symbol id="i-ai" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></symbol>
     <symbol id="i-set" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
@@ -606,12 +622,12 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="d023e13a";
+const BUILD="6c8ddd49";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
 window.addEventListener("unhandledrejection",e=>{const m=String(e.reason&&e.reason.message||e.reason||"ошибка");try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}});
-const KEYS=["settings","tasks","events","habits","health","food","workouts","money","notes","chats","focus","meta"];
+const KEYS=["settings","tasks","events","habits","health","food","workouts","money","notes","journal","chats","focus","meta"];
 const S={};
 const TAGS={work:["Работа","var(--c3)"],personal:["Личное","var(--c1)"],study:["Учёба","var(--c4)"],home:["Дом","var(--c2)"],meet:["Встречи","var(--c5)"],sport:["Спорт","var(--c6)"]};
 const CATS={food:["Продукты","var(--c1)"],cafe:["Кафе","var(--c2)"],home:["Дом и связь","var(--c3)"],transport:["Транспорт","var(--c5)"],subs:["Подписки","var(--c4)"],health:["Здоровье","var(--c6)"],other:["Другое","var(--fg3)"]};
@@ -624,7 +640,7 @@ function defaults(){
       focus:{work:25,short:5,long:15,rounds:4},aiSee:{tasks:true,calendar:true,habits:true,money:true,health:true}},
     tasks:[],events:[],habits:[],health:{log:{}},
     food:{profile:{sex:"m",age:"",height:"",weight:"",target:"",deadline:"",activity:1.55},meals:{}},
-    workouts:[],money:{accounts:[],tx:[],subs:[]},notes:[],chats:[],focus:{log:{}},meta:{demo:false,created:today()}
+    workouts:[],money:{accounts:[],tx:[],subs:[]},notes:[],journal:{days:{}},chats:[],focus:{log:{}},meta:{demo:false,created:today()}
   };
 }
 
@@ -660,7 +676,7 @@ function applyLoaded(obj){
   S.settings={...D.settings,...S.settings,goals:{...D.settings.goals,...(S.settings.goals||{})},focus:{...D.settings.focus,...(S.settings.focus||{})},aiSee:{...D.settings.aiSee,...(S.settings.aiSee||{})}};
   S.food={...D.food,...S.food,profile:{...D.food.profile,...(S.food.profile||{})}};
   S.money={...D.money,...S.money};
-  S.health={...D.health,...S.health};S.focus={...D.focus,...S.focus};
+  S.health={...D.health,...S.health};S.focus={...D.focus,...S.focus};S.journal={days:{},...(S.journal||{})};
 }
 async function boot(){
   const local=lsRead();
@@ -802,10 +818,10 @@ function ring(frac,val,sub,color="var(--accent)"){
 
 /* ---------- navigation ---------- */
 const VIEWS=[
-  ["overview","Обзор","home"],["tasks","Задачи","tasks"],["calendar","Календарь","cal"],["habits","Привычки","habit"],
-  ["health","Здоровье","health"],["money","Финансы","money"],["notes","Заметки","note"],
+  ["overview","Главная","home"],["calendar","Календарь","cal"],["journal","Дневник","book"],["notes","Заметки","note"],
+  ["tasks","Задачи","tasks"],["habits","Привычки","habit"],["health","Здоровье","health"],["money","Финансы","money"],
   ["assistant","Ассистент","ai"],["prefs","Настройки","set"]].filter(v=>!(STANDALONE&&v[0]==="assistant"));
-const ui={seen:{},evEdit:null,view:"overview",bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
+const ui={seen:{},evEdit:null,view:"overview",jDay:null,bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
 function pruneNotes(keep){const n0=S.notes.length;S.notes=S.notes.filter(n=>n.id===keep||(n.title||"").trim()||(n.body||"").trim());if(S.notes.length!==n0)persist("notes")}
 function route(view){
   pruneNotes(null);
@@ -839,7 +855,7 @@ function renderChrome(){
 let lastView=null;
 function render(enter){
   renderChrome();
-  const fn={overview:vOverview,tasks:vTasks,calendar:vCalendar,habits:vHabits,health:vHealth,money:vMoney,notes:vNotes,assistant:vAssistant,prefs:vPrefs}[ui.view];
+  const fn={overview:vOverview,journal:vJournal,tasks:vTasks,calendar:vCalendar,habits:vHabits,health:vHealth,money:vMoney,notes:vNotes,assistant:vAssistant,prefs:vPrefs}[ui.view];
   const y=window.scrollY,cs=$("#weekb")?.scrollTop;
   const ae=document.activeElement;let fk=null,fsel=null;
   if(ae&&ae!==document.body&&$("#view").contains(ae)&&ae.matches("input,textarea,select")){fk=ae.id?"#"+ae.id:(ae.name&&ae.form?.dataset.f?`form[data-f="${ae.form.dataset.f}"]${ae.form.dataset.bucket?`[data-bucket="${ae.form.dataset.bucket}"]`:""} [name="${ae.name}"]`:null);try{fsel=ae.selectionStart}catch{}}
@@ -1298,6 +1314,24 @@ function vMoney(){
   <div class="card"><div class="card-h"><h2>Операции</h2><span class="meta">последние 20</span></div>
     <div class="list">${last.map(x=>`<div class="li"><span class="tag-dot" style="background:${x.type==="inc"?"var(--good)":CATS[x.cat]?.[1]}"></span><span class="t">${esc(x.note||CATS[x.cat]?.[0])}<br><span class="meta">${dLabel(x.date)} · ${x.type==="inc"?"доход":CATS[x.cat]?.[0]}${x.acc&&S.money.accounts.find(a=>a.id===x.acc)?` · ${esc(S.money.accounts.find(a=>a.id===x.acc).name)}`:""}</span></span><span class="r" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="btn sm ghost x ${ui.armed===x.id?"armed":""}" data-a="tx-del" data-id="${x.id}" aria-label="Удалить">${ui.armed===x.id?"Удалить?":ic("x","s")}</button></div>`).join("")||`<div class="empty">Операций нет</div>`}</div></div>`;
 }
+/* ---------- дневник дня: вопросы задаёт бот вечером, ответы приходят сюда; можно дописать вручную ---------- */
+const JQ=[["vibe","Вайб дня","пунктами: каким был день"],["desc","Описание дня",""],["insight","Инсайт дня",""],
+  ["dream","Что я сделал на пути к мечте",""],["drain","Что отодвинуло от мечты и высосало энергию. Как избежать завтра",""],
+  ["first","Главное завтра в первую очередь","что сильнее приблизит к мечте или сделает остальное проще"],["tomorrow","Завтрашний день","утро, день, вечер"]];
+const MONTHS_G=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const jDate=d=>`${+d.slice(8)} ${MONTHS_G[+d.slice(5,7)-1]} ${d.slice(0,4)}`;
+function vJournal(){
+  const d=ui.jDay||today(),e=S.journal.days[d]||{};
+  const filled=Object.keys(S.journal.days).filter(k=>Object.values(S.journal.days[k]||{}).some(v=>String(v||"").trim())).sort().reverse();
+  const nav=`<div class="row" style="gap:4px"><button class="btn sm ghost icon" data-a="j-day" data-v="-1" aria-label="Предыдущий день">${ic("left","s")}</button>${d!==today()?`<button class="btn sm ghost" data-a="j-day" data-v="0">Сегодня</button>`:""}<button class="btn sm ghost icon" data-a="j-day" data-v="1" aria-label="Следующий день" ${d>=today()?"disabled":""}>${ic("right","s")}</button></div>`;
+  const field=([k,label,hint])=>`<div class="card j-card"><label class="j-l" for="j_${k}">${label}${hint?`<span>${hint}</span>`:""}</label><textarea class="in j-t" id="j_${k}" data-j="${k}" rows="${k==="vibe"||k==="tomorrow"?4:3}" placeholder="Бот спросит вечером, или напиши сам">${esc(e[k]||"")}</textarea></div>`;
+  return`${head("Дневник",`${filled.length} ${plural(filled.length,"день","дня","дней")} записано · вопросы бот задаёт в 21:00`,nav)}
+  <div class="j-wrap">
+    <div class="card j-date"><div class="j-d">${jDate(d)}</div><div class="j-h">(<input class="j-hl" id="j_highlight" data-j="highlight" value="${esc(e.highlight||"")}" placeholder="хайлайт дня" aria-label="Хайлайт дня">)</div><span class="meta" id="jSaved">${e.upd?"сохранено":""}</span></div>
+    ${JQ.map(field).join("")}
+    ${filled.length?`<div class="card"><div class="card-h"><h2>Прошлые дни</h2></div><div class="j-list">${filled.slice(0,30).map(k=>`<button class="j-item ${k===d?"on":""}" data-a="j-open" data-v="${k}"><b>${jDate(k)}</b><span>${esc(S.journal.days[k].highlight||"")}</span></button>`).join("")}</div></div>`:""}
+  </div>`;
+}
 function vNotes(){
   const q=ui.noteQ.toLowerCase();
   const list=S.notes.filter(n=>!q||(n.title+" "+n.body).toLowerCase().includes(q)).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated));
@@ -1563,6 +1597,8 @@ document.addEventListener("click",e=>{
   const a=el.dataset.a,id=el.dataset.id,v=el.dataset.v;
   switch(a){
     case"theme":S.settings.theme=v;applyTheme();commit("settings");break;
+    case"j-day":{const cur=ui.jDay||today();ui.jDay=v==="0"?today():iso(addDays(new Date(cur+"T12:00:00"),+v));if(ui.jDay>today())ui.jDay=today();render();break}
+    case"j-open":ui.jDay=v;render();window.scrollTo(0,0);break;
     case"theme-cycle":{const o=["system","light","dark"];S.settings.theme=o[(o.indexOf(S.settings.theme)+1)%3];applyTheme();commit("settings");break}
     case"dark-toggle":{const dark=el.getAttribute("aria-checked")==="true";S.settings.theme=dark?"light":"dark";applyTheme();commit("settings");break}
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
@@ -1661,6 +1697,7 @@ document.addEventListener("input",e=>{
   if(t.closest("#profileForm")){const p=S.food.profile;p[t.name]=t.type==="number"?parseFloat(t.value)||0:t.value;const box=$("#planBox");if(box){box.innerHTML=planHtml();drawCharts()}clearTimeout(profT);profT=setTimeout(()=>persist("food"),400);return}
   if(t.id==="noteTitle"||t.id==="noteBody"){const n=find("notes",ui.noteId);if(!n)return;n[t.id==="noteTitle"?"title":"body"]=t.value;n.updated=Date.now();persist("notes");
     const q=ui.noteQ.toLowerCase();const list=S.notes.filter(x=>!q||(x.title+" "+x.body).toLowerCase().includes(q)).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated));$("#noteItems").innerHTML=noteItems(list);const sv=$("#noteSaved");if(sv)sv.textContent="сохранено";return}
+  if(t.dataset&&t.dataset.j){const d=ui.jDay||today();const e=S.journal.days[d]=S.journal.days[d]||{};e[t.dataset.j]=t.value;e.upd=Date.now();persist("journal");const sv=$("#jSaved");if(sv)sv.textContent="сохранено";return}
   if(t.id==="noteQ"){ui.noteQ=t.value;const q=t.value.toLowerCase();$("#noteItems").innerHTML=noteItems(S.notes.filter(x=>!q||(x.title+" "+x.body).toLowerCase().includes(q)).sort((a,b)=>(b.pinned-a.pinned)||(b.updated-a.updated)));return}
   if(t.id==="ask"){t.style.height="40px";t.style.height=Math.min(140,t.scrollHeight)+"px"}
 });
@@ -1745,6 +1782,12 @@ function runCommand(cmd,day,srcId){
     if(!e||!/^\d{4}-\d{2}-\d{2}$/.test(e.d)||!/^\d{2}:\d{2}$/.test(e.h))return null;
     const id=srcId?"c"+srcId:rid();if(S.events.some(x=>x.id===id))return null;
     S.events.push({id,title:String(e.t||"Событие").slice(0,120),date:e.d,time:e.h,dur:60,tag:"personal"});persist("events");return`Событие: ${e.t}, ${e.d.slice(8)}.${e.d.slice(5,7)} в ${e.h}`}
+  if(cmd.startsWith("journal_")){/* ответ на вопрос дневника из чата: {d:YYYY-MM-DD,k:поле,v:текст} */
+    let j;try{j=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(cmd.slice(8).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))))}catch{return null}
+    const keys=["highlight",...JQ.map(x=>x[0])];
+    if(!j||!/^\d{4}-\d{2}-\d{2}$/.test(j.d)||!keys.includes(j.k))return null;
+    const e=S.journal.days[j.d]=S.journal.days[j.d]||{};e[j.k]=String(j.v||"").slice(0,4000);e.upd=Date.now();persist("journal");
+    return`Дневник: ${j.k==="highlight"?"хайлайт дня":JQ.find(x=>x[0]===j.k)[1].toLowerCase()}`}
   const m=cmd.startsWith("task_")?[cmd,"task",cmd.slice(5)]:/^([a-z]+)_([0-9-]+)(?:_([a-z]+))?$/.exec(cmd);if(!m)return null;
   const [,k,raw,extra]=m;const num=parseFloat(raw.replace("-","."));const T=day||today();const l=()=>S.health.log[T]=S.health.log[T]||{};
   const acc=S.money.accounts[0];
@@ -1824,7 +1867,7 @@ setTimeout(syncContext,3000);
 boot();
 importCommand();
 if(STANDALONE){if(!S.settings.name){OB.step=0;OB.data={};setTimeout(()=>{if(!OB.data.name&&tgName()){const i=$("#ob input[name=name]");if(i&&!i.value)i.value=tgName()}},800);showOnboarding()}else showHello(false)}
-window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$};
+window.KW={S,ui,go,closeQS,render,hlog,totalBal,meals,$,runCommand,today};
 })();
 </script>
 

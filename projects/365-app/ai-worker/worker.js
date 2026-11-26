@@ -6,6 +6,7 @@
 // Routes: POST /me, /plus-link, /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
 import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard, boardText, myChallenge, finishChallenges } from "./features.js";
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
+import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -149,7 +150,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -317,6 +318,10 @@ async function handleCallback(q, env) {
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
   if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
+  if (data.startsWith("jr:")) {
+    if (!isOwner(env, userId) || !env.DB) return answer();
+    return answer(await journalCallback(env, (m, p) => telegram(env, m, p), userId, data.slice(3)));
+  }
   if (data.startsWith("st:")) {
     const k = data.slice(3);
     if (k === "menu" || !STYLES[k]) { await answer(); return sendStyle(env, chatId, userId); }
@@ -417,11 +422,11 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v4";
+  const flag = "webhook-updates-v5";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
-  await telegram(env, "setMyCommands", { commands: [
+  const cmds = [
     { command: "plus", description: "⭐ Подписка Plus: безлимитный ИИ и бонусы" },
     { command: "insights", description: "📈 Мои итоги и закономерности" },
     { command: "challenge", description: "🏃 Челлендж шагов с друзьями" },
@@ -430,7 +435,12 @@ async function ensureWebhookOnce(env) {
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
     { command: "start", description: "❓ Что умеет бот" },
     { command: "paysupport", description: "Вопросы по оплате" },
-  ] });
+  ];
+  await telegram(env, "setMyCommands", { commands: cmds });
+  // у владельца в меню есть ещё «Дневник»
+  for (const id of String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean)) {
+    await telegram(env, "setMyCommands", { scope: { type: "chat", chat_id: Number(id) }, commands: [{ command: "diary", description: "📔 Дневник дня" }, ...cmds] }).catch(() => {});
+  }
   await env.LIMITS.put(flag, "1");
 }
 
@@ -456,6 +466,16 @@ async function handleMessage(message, env) {
   }
   const histKey = `hist:${userId}`;
   await track(env, message.from, text.startsWith("/start") ? "start" : "message");
+
+  // Дневник дня — только у владельца бота.
+  if (isOwner(env, userId) && env.DB && env.LIMITS) {
+    const tg = (m, p) => telegram(env, m, p);
+    if (text.startsWith("/diary") || text === "📔 Дневник") {
+      const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first();
+      return startJournal(env, tg, userId, u?.tz);
+    }
+    if (!text.startsWith("/") && (await journalAnswer(env, tg, userId, text))) return;
+  }
 
   if (text.startsWith("/start ch_") && env.DB) {
     const r = await joinChallenge(env, userId, text.slice(10).trim());
