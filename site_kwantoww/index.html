@@ -69,8 +69,6 @@ section{padding:32px 0 72px}
 .work{display:flex;flex-direction:column;background:var(--card);border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);text-decoration:none;overflow:hidden;transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
 .work:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px var(--line),0 24px 48px -32px rgba(0,0,0,.5)}
 .shot{aspect-ratio:16/9;position:relative;overflow:hidden}
-.shot .scr{position:absolute;inset:18px 18px 0;border-radius:10px 10px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px;transition:transform .5s var(--ease)}
-.work:hover .scr{transform:translateY(-6px)}
 .meta{padding:18px 20px 20px;display:flex;flex-direction:column;gap:6px;flex:1}
 .meta .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
 .meta h3{font-size:20px}
@@ -82,36 +80,12 @@ section{padding:32px 0 72px}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
 .tags span{font-size:13px;color:var(--fg2);background:var(--raised);padding:2px 8px;border-radius:6px}
 
-/* превью работ — в цветах каждого клиента */
-.t .scr{background:#f7f6f2;color:#14231f}
-.t .scr h4,.d .scr h4,.l .scr h4,.z .scr h4{margin:0;font-weight:600;line-height:1.1}
-.t .scr h4{font-size:22px}.t .scr h4 i{font-style:normal;color:#0f6e5f}
-.t .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:auto}
-.t .tiles span{height:34px;border-radius:8px;background:#fff;box-shadow:inset 0 0 0 1px rgba(20,35,31,.1)}
-.t .pill{align-self:flex-start;background:#0f6e5f;color:#fff;font-size:11px;padding:5px 10px;border-radius:8px}
-.d .scr{background:#f5f6f7;color:#111820}
-.d .scr h4{font-size:20px}
-.d .bars{display:grid;gap:5px;margin-top:auto}
-.d .bars i{display:block;height:12px;border-radius:4px;background:#1f5fa8;transform-origin:left}
-.d .bars i.s{width:30%;background:rgba(31,95,168,.15);box-shadow:inset 0 0 0 1px #1f5fa8}
-.l .scr{background:#e6ebee;color:#16212a}
-.l .scr h4{font:800 30px/1.05 "Arial Narrow",sans-serif}
-.l .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:auto}
-.l .slots span{height:16px;border-radius:4px;background:#f5f7f8}
-.l .slots span.x{background:repeating-linear-gradient(135deg,#d3dade 0 4px,transparent 4px 8px)}
-.l .slots span.p{background:#7c2a1f}
-.z .scr{background:#f6f7fb;color:#1c3b8f;flex-direction:row;align-items:center;gap:16px}
-.z .scr h4{font:400 24px Georgia,serif}
-.z .plate{width:42%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#d9930f 0 8%,#fff 9% 30%,#1c3b8f 31% 34%,#fff 35% 62%,#1c3b8f 63% 70%,#e7ebf5 71%);flex:none;animation:spin 40s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.fl .scr{background:#f7f1ec;color:#2b1d1a;flex-direction:row;align-items:center;gap:12px}
-.fl .scr h4{margin:0;font-size:24px;font-weight:600;line-height:1.05}
-.fl .scr h4 i{color:#c45c66}
-.fl .bq{flex:none;width:38%;aspect-ratio:1;position:relative;transform-origin:50% 90%;animation:bqsway 5s ease-in-out infinite}
-.fl .bq b{position:absolute;border-radius:50%}
-.fl .bq .lf{position:absolute;width:12%;height:30%;border-radius:50%;background:#7d9a72}
-.fl .bq em{position:absolute;left:22%;right:22%;bottom:0;height:55%;background:#d9b99b;clip-path:polygon(0 0,100% 0,50% 100%)}
-@keyframes bqsway{50%{transform:rotate(3deg)}}
+/* обложки работ: скриншот компьютера + телефона */
+.shot{background:linear-gradient(160deg,var(--raised),var(--bg))}
+.shot .desk{position:absolute;left:5%;top:7%;width:80%;height:auto;border-radius:10px;box-shadow:0 0 0 1px var(--line),0 18px 40px -24px rgba(0,0,0,.45);transition:transform .5s var(--ease)}
+.shot .phone{position:absolute;right:5%;bottom:-18%;width:23%;height:auto;border-radius:16px;border:4px solid #1a1814;box-shadow:0 18px 40px -18px rgba(0,0,0,.55);transition:transform .5s var(--ease)}
+.work:hover .shot .desk{transform:translateY(-4px)}
+.work:hover .shot .phone{transform:translateY(-10px)}
 
 /* цены */
 .prices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
@@ -168,9 +142,6 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
 .enter{animation:rise .6s var(--ease) both}.enter.d1{animation-delay:.08s}.enter.d2{animation-delay:.16s}
 .rv{transition:opacity .6s var(--ease),transform .6s var(--ease)}
 .rv-on .rv:not(.in){opacity:0;transform:translateY(20px)}
-.in .bars i{animation:grow .9s var(--ease) both}
-.in .bars i:nth-child(2){animation-delay:.08s}.in .bars i:nth-child(3){animation-delay:.16s}.in .bars i:nth-child(4){animation-delay:.24s}
-@keyframes grow{from{transform:scaleX(0)}}
 
 @media (max-width:900px){
   .hero,.how,.order{grid-template-columns:minmax(0,1fr)}
@@ -185,8 +156,7 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
   .cta .btn{width:100%}
   section{padding:24px 0 48px}
   .trust{grid-template-columns:minmax(0,1fr)}
-  .shot .scr{inset:14px 14px 0;padding:12px}
-  .meta{padding:16px 16px 18px}
+    .meta{padding:16px 16px 18px}
   .order{padding:22px}
   .gets{padding:20px}
 }
@@ -226,50 +196,50 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
     <div class="sh rv"><h2>Работы</h2><p>Это живые сайты — откройте любой с телефона и попробуйте записаться или собрать заказ.</p></div>
     <div class="grid">
       <a class="work fl rv" href="https://kwantoww.pages.dev/fleur/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#efe2d8"><div class="scr"><h4>Букеты, которые <i>хочется дарить</i></h4><span class="bq"><b style="left:20%;top:8%;width:34%;height:34%;background:#e8a9a1"></b><b style="left:46%;top:4%;width:36%;height:36%;background:#d98c8f"></b><i class="lf" style="left:12%;top:30%;transform:rotate(-40deg)"></i><i class="lf" style="right:8%;top:28%;transform:rotate(40deg)"></i><b style="left:32%;top:26%;width:34%;height:34%;background:#f2c4c4"></b><i class="lf" style="left:44%;top:44%;height:22%;transform:rotate(8deg)"></i><em></em></span></div></div>
+        <div class="shot"><img class="desk" src="/shots/fleur-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Мастерская букетов «Флёр»» на компьютере"><img class="phone" src="/shots/fleur-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Мастерская букетов «Флёр»» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Мастерская букетов «Флёр»</h3><span class="stamp">пример</span></div>
           <p>Цветочный магазин: каталог с фильтрами, конструктор букета с живой ценой, корзина и заказ в Telegram, выбор времени доставки.</p>
           <div class="tags"><span>конструктор букета</span><span>корзина</span><span>анимации</span></div>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work t rv" href="https://kwantoww.pages.dev/triumf/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#dcefe9"><div class="scr"><span class="pill">Открыто до 20:00</span><h4>Врачи для всей семьи <i>рядом с домом</i></h4><div class="tiles"><span></span><span></span><span></span><span></span></div></div></div>
+        <div class="shot"><img class="desk" src="/shots/triumf-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Клиника на Триумфальной» на компьютере"><img class="phone" src="/shots/triumf-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Клиника на Триумфальной» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Клиника на Триумфальной</h3><span class="stamp">концепт</span></div>
           <p>Семейная клиника в Одинцово: 20 направлений, врачи с фильтром, цены по вкладкам, вызов врача на дом, запись.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work d rv" href="https://kwantoww.pages.dev/dializ/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#e3e8ee"><div class="scr"><h4>Диализ в Одинцово бесплатно по ОМС</h4><div class="bars"><i></i><i class="s"></i><i></i><i class="s"></i></div></div></div>
+        <div class="shot"><img class="desk" src="/shots/dializ-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Диализный центр» на компьютере"><img class="phone" src="/shots/dializ-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Диализный центр» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Диализный центр</h3><span class="stamp">концепт</span></div>
           <p>Живое расписание смен, путь пациента в 4 шага и чек-лист документов. Спокойный, понятный дизайн для пациентов.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work l rv" href="https://kwantoww.pages.dev/lezvie/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#cdd6db"><div class="scr"><h4>Мужская стрижка<br>и бритьё</h4><div class="slots"><span></span><span class="x"></span><span></span><span class="x"></span><span class="p"></span><span></span></div></div></div>
+        <div class="shot"><img class="desk" src="/shots/lezvie-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цирюльня «Лезвие»» на компьютере"><img class="phone" src="/shots/lezvie-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цирюльня «Лезвие»» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Цирюльня «Лезвие»</h3><span class="stamp">пример</span></div>
           <p>Барбершоп с онлайн-записью по расписанию мастеров: выбрал свободное время и записался за полминуты.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work z rv" href="https://kwantoww.pages.dev/kazan/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#dfe5f3"><div class="scr"><h4>Плов из казана на дровах</h4><span class="plate"></span></div></div>
+        <div class="shot"><img class="desk" src="/shots/kazan-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Плов-центр «Казан»» на компьютере"><img class="phone" src="/shots/kazan-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Плов-центр «Казан»» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Плов-центр «Казан»</h3><span class="stamp">пример</span></div>
           <p>Меню с ценами, живой статус казана «сколько плова осталось», фото блюд и бронь стола.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work rv" href="https://kwantoww.pages.dev/gippokrat/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#e4ecf2"><div class="scr"><h4>Врачи для всей семьи без спешки</h4><div style="margin-top:12px;background:#fff;border-radius:8px;padding:8px 10px;font-size:11px;color:#24577f;width:max-content">Талон · терапевт · 3 500 ₽</div></div></div>
+        <div class="shot"><img class="desk" src="/shots/gippokrat-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Сеть клиник «Гиппократ»» на компьютере"><img class="phone" src="/shots/gippokrat-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Сеть клиник «Гиппократ»» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Сеть клиник «Гиппократ»</h3><span class="stamp">концепт</span></div>
           <p>Сеть клиник в Химках: переключатель филиалов, поиск врача по отзывам, запись в 4 шага с талоном.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work rv" href="https://kwantoww.pages.dev/tsiryulnya/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#efe6dc"><div class="scr"><h4>Стрижка, цвет и ногти у дома</h4><div style="display:flex;gap:3px;margin-top:12px"><i style="width:8px;height:44px;border-radius:4px;background:#2a1d17"></i><i style="width:8px;height:44px;border-radius:4px;background:#6b4029"></i><i style="width:8px;height:44px;border-radius:4px;background:#b07c4c"></i><i style="width:8px;height:44px;border-radius:4px;background:#dcbf92"></i></div></div></div>
+        <div class="shot"><img class="desk" src="/shots/tsiryulnya-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цирюльня на Триумфальной» на компьютере"><img class="phone" src="/shots/tsiryulnya-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цирюльня на Триумфальной» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Цирюльня на Триумфальной</h3><span class="stamp">концепт</span></div>
           <p>Салон красоты в Одинцово: прайс по вкладкам с палитрой оттенков, мастера из отзывов, запись сразу в WhatsApp.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
       <a class="work rv" href="https://kwantoww.pages.dev/flowers/" target="_blank" rel="noopener">
-        <div class="shot" style="background:#eceee6"><div class="scr"><h4>Свежие цветы и шары с гелием</h4><div style="display:flex;gap:8px;align-items:end;margin-top:12px"><i style="width:18px;height:22px;border-radius:50%;background:#c94a68"></i><i style="width:24px;height:28px;border-radius:50%;background:#5f8fb0"></i><i style="width:30px;height:34px;border-radius:50%;background:#a3304d"></i></div></div></div>
+        <div class="shot"><img class="desk" src="/shots/flowers-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цветочная баллада» на компьютере"><img class="phone" src="/shots/flowers-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цветочная баллада» на телефоне"></div>
         <div class="meta"><div class="row"><h3>Цветочная баллада</h3><span class="stamp">концепт</span></div>
           <p>Цветочный магазин: связка шаров вместо прайса, ассортимент, фото, заказ с доставкой через Telegram.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
