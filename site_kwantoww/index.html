@@ -87,6 +87,17 @@ section{padding:32px 0 72px}
 .work:hover .shot .desk{transform:translateY(-4px)}
 .work:hover .shot .phone{transform:translateY(-10px)}
 
+/* обо мне */
+.about{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px;align-items:center;background:var(--card);border-radius:24px;padding:32px;box-shadow:inset 0 0 0 1px var(--line)}
+.about h2{font-size:clamp(28px,3.4vw,40px);margin-bottom:14px}
+.about-text p{color:var(--fg2);margin-bottom:12px}
+.about-text .btn{margin-top:8px}
+.about-note{font-size:15px;margin-top:10px}
+.about-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.about-list li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:14px 16px;border-radius:14px;background:var(--bg);font-size:16px}
+.about-list svg{width:22px;height:22px;color:var(--acc);margin-top:2px}
+.about-list b{font-weight:600}
+
 /* цены */
 .prices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .plan{background:var(--card);border-radius:20px;padding:26px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px}
@@ -144,7 +155,7 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
 .rv-on .rv:not(.in){opacity:0;transform:translateY(20px)}
 
 @media (max-width:900px){
-  .hero,.how,.order{grid-template-columns:minmax(0,1fr)}
+  .hero,.how,.order,.about{grid-template-columns:minmax(0,1fr)}
   .grid,.prices{grid-template-columns:minmax(0,1fr)}
   .trust{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sticky{display:flex}
@@ -158,6 +169,8 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
   .trust{grid-template-columns:minmax(0,1fr)}
     .meta{padding:16px 16px 18px}
   .order{padding:22px}
+  .about{padding:22px}
+  .about-text .btn{width:100%}
   .gets{padding:20px}
 }
 @media (max-width:480px){header.top .btn.tg span{display:none}header.top .btn.tg{padding:0 12px}}
@@ -244,6 +257,25 @@ footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--
           <p>Цветочный магазин: связка шаров вместо прайса, ассортимент, фото, заказ с доставкой через Telegram.</p>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="about rv">
+      <div class="about-text">
+        <span class="kicker">Обо мне</span>
+        <h2>Я Хуршед, разработчик сайтов</h2>
+        <p>Уже более 2,5 лет создаю сайты для экспертов и малого бизнеса, которые помогают выделяться и привлекать клиентов.</p>
+        <p class="how-short">Как мы работаем: созваниваемся, обсуждаем задачу, я разрабатываю дизайн и собираю сайт, а вы получаете готовый инструмент для своего бизнеса.</p>
+        <a class="btn tgb" href="https://t.me/kwantoww?text=%D0%A1%D0%90%D0%99%D0%A2" target="_blank" rel="noopener">Написать «САЙТ» в Telegram</a>
+        <p class="about-note">Бесплатно разберу ваш проект или идею и подскажу, что можно улучшить.</p>
+      </div>
+      <ul class="about-list">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Уникальный дизайн</b> без шаблонов</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Логичная структура</b>, которая ведёт к заявке</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Адаптация</b> под все устройства</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Комфортная работа</b> и связь на каждом этапе</span></li>
+      </ul>
     </div>
   </section>
 
