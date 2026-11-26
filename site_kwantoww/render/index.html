@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Визуализация квартиры — до и после</title>
+<meta name="description" content="Фотореалистичная визуализация евродвушки 48 м²: пустая квартира и с мебелью. Пример работы kwantoww.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--line:rgba(26,24,20,.1);--fg:#1a1814;--fg2:#55504a;--acc:#c2552c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 17px/1.6 "Onest",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.1;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+.wrap{max-width:1160px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-left,0px))}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+.logo{font-weight:600;font-size:20px;text-decoration:none}.logo span{color:var(--acc)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 22px;border-radius:14px;font-weight:600;text-decoration:none;font-size:16px}
+.btn.pri{background:var(--acc);color:#fff}.btn.sec{box-shadow:inset 0 0 0 1.5px var(--line)}
+.intro{padding:24px 0 32px;display:grid;gap:14px;max-width:760px}
+.intro h1{font-size:clamp(32px,4.6vw,54px)}
+.intro p{color:var(--fg2);font-size:18px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+section{padding:24px 0 48px}
+section h2{font-size:clamp(24px,3vw,34px);margin-bottom:8px}
+section .sub{color:var(--fg2);margin-bottom:18px}
+/* слайдер до/после */
+.ba{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:16/10;background:#ddd;user-select:none;-webkit-user-select:none;touch-action:pan-y;box-shadow:0 30px 60px -40px rgba(0,0,0,.5)}
+.ba img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.ba .after{clip-path:inset(0 0 0 var(--x,50%))}
+.ba .handle{position:absolute;top:0;bottom:0;left:var(--x,50%);width:3px;background:#fff;transform:translateX(-50%);box-shadow:0 0 12px rgba(0,0,0,.35)}
+.ba .knob{position:absolute;top:50%;left:50%;width:48px;height:48px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.ba .knob svg{width:26px;height:26px;color:var(--fg)}
+.ba .tag{position:absolute;top:14px;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.88);font-size:14px;font-weight:600}
+.ba .tag.l{left:14px}.ba .tag.r{right:14px}
+.ba input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:ew-resize;margin:0}
+/* галерея */
+.gal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.gal figure{margin:0;border-radius:18px;overflow:hidden;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.gal img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;cursor:zoom-in;transition:transform .6s cubic-bezier(.22,1,.36,1)}
+.gal figure:hover img{transform:scale(1.02)}
+.gal figcaption{padding:12px 16px;font-size:15px;color:var(--fg2)}
+.note{background:var(--card);border-radius:18px;padding:22px;box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:8px}
+.note b{font-size:18px}
+.cta{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;padding:28px;border-radius:22px;background:var(--fg);color:var(--bg);margin:8px 0 48px}
+.cta h2{font-size:clamp(24px,3vw,34px)}
+.cta p{opacity:.8;margin-top:6px}
+.cta .btn{background:#2aabee;color:#fff}
+dialog{border:0;padding:0;background:transparent;max-width:96vw;max-height:92vh}
+dialog img{max-width:96vw;max-height:92vh;border-radius:12px;display:block}
+dialog::backdrop{background:rgba(0,0,0,.8)}
+@media (max-width:760px){.gal{grid-template-columns:minmax(0,1fr)}.actions .btn{flex:1}.cta{padding:22px}.cta .btn{width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><a class="logo" href="/">kwantoww<span>.</span></a><a class="btn sec" href="/3d/" style="min-height:44px">Интерактивная 3D</a></header>
+
+  <div class="intro">
+    <h1>Евродвушка 48 м²: пустая и с мебелью</h1>
+    <p>Фотореалистичная визуализация квартиры: так покупатель сразу видит, как здесь можно жить. Подходит для объявлений риелторов, застройщиков и мебельных компаний.</p>
+    <div class="actions"><a class="btn pri" href="#before-after">Сравнить до и после</a><a class="btn sec" href="/3d/">Покрутить в 3D</a></div>
+  </div>
+
+  <section id="before-after">
+    <h2>Гостиная: до и после</h2>
+    <p class="sub">Потяните ползунок, чтобы сравнить.</p>
+    <div class="ba"><img src="/render/img/living-empty.webp" alt="Гостиная без мебели"><img class="after" src="/render/img/living.webp" alt="Гостиная с мебелью">
+      <span class="tag l">Было</span><span class="tag r">Стало</span>
+      <div class="handle"><span class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6-6 6 6 6M15 6l6 6-6 6"/></svg></span></div>
+      <input type="range" min="0" max="100" value="50" aria-label="Сравнение до и после"></div>
+  </section>
+
+  <section>
+    <h2>Спальня: до и после</h2>
+    <p class="sub">Та же комната — с кроватью, тумбами, рабочим местом у окна.</p>
+    <div class="ba"><img src="/render/img/bed-empty.webp" alt="Спальня без мебели"><img class="after" src="/render/img/bed.webp" alt="Спальня с мебелью">
+      <span class="tag l">Было</span><span class="tag r">Стало</span>
+      <div class="handle"><span class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6-6 6 6 6M15 6l6 6-6 6"/></svg></span></div>
+      <input type="range" min="0" max="100" value="50" aria-label="Сравнение до и после"></div>
+  </section>
+
+  <section>
+    <h2>Вся квартира</h2>
+    <p class="sub">Нажмите на картинку, чтобы открыть крупно.</p>
+    <div class="gal">
+      <figure><img loading="lazy" src="/render/img/overview.webp" alt="Общий вид гостиной и кухни"><figcaption>Гостиная и кухня-столовая</figcaption></figure>
+      <figure><img loading="lazy" src="/render/img/kitchen.webp" alt="Кухня и обеденная зона"><figcaption>Кухня и обеденная зона</figcaption></figure>
+      <figure><img loading="lazy" src="/render/img/living.webp" alt="Гостиная"><figcaption>Гостиная у большого окна</figcaption></figure>
+      <figure><img loading="lazy" src="/render/img/bed.webp" alt="Спальня"><figcaption>Спальня с рабочим местом</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="note"><b>Как это делается</b><p>Квартира строится в 3D по планировке, затем расставляется мебель и настраивается дневной свет. Готово за 1–3 дня. На изображениях стоит пометка «визуализация», чтобы покупатель не был введён в заблуждение.</p></div>
+  </section>
+
+  <div class="cta">
+    <div><h2>Нужна визуализация вашего объекта?</h2><p>Пришлите планировку или фото — покажу, как квартира будет выглядеть с мебелью.</p></div>
+    <a class="btn" href="https://t.me/kwantoww?text=%D0%9D%D1%83%D0%B6%D0%BD%D0%B0%20%D0%B2%D0%B8%D0%B7%D1%83%D0%B0%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F" target="_blank" rel="noopener">Написать в Telegram</a>
+  </div>
+</div>
+<dialog id="zoom"><img alt=""></dialog>
+<script>
+document.querySelectorAll(".ba").forEach(ba => {
+  const r = ba.querySelector("input");
+  const set = v => ba.style.setProperty("--x", v + "%");
+  r.addEventListener("input", () => set(r.value)); set(r.value);
+});
+const dlg = document.getElementById("zoom");
+document.querySelectorAll(".gal img").forEach(img => img.addEventListener("click", () => {
+  dlg.querySelector("img").src = img.src; dlg.querySelector("img").alt = img.alt; dlg.showModal();
+}));
+dlg.addEventListener("click", () => dlg.close());
+</script>
+</body>
+</html>
