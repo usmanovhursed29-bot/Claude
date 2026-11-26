@@ -3,7 +3,7 @@
 // Vars: ALLOWED_ORIGIN, GEMINI_MODEL, DAILY_LIMIT, APP_URL, ADMIN_IDS (Telegram user ids через запятую).
 // Bindings: KV LIMITS (лимиты, история чата, сводка дня), D1 DB (пользователи, события, очередь записей).
 // Vars (необязательно): REMIND_MINUTES — за сколько минут напоминать о событии (по умолчанию 15).
-// Routes: POST /me, /plus-link, /advice, /ask, /sync, /inbox, /inbox/ack, /reminders (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
+// Routes: POST /me, /plus-link, /advice, /ask, /sync, /inbox, /inbox/ack, /reminders, /backup, /restore (from the mini app), POST /telegram (bot webhook). Cron: напоминания.
 import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard, boardText, myChallenge, finishChallenges } from "./features.js";
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
@@ -21,6 +21,8 @@ const PROMPTS = {
 };
 
 const MAX_CONTEXT = 6000;
+const BACKUP_KEYS = ["settings", "tasks", "events", "habits", "health", "food", "workouts", "money", "notes", "journal", "chats", "focus", "meta"];
+const BACKUP_MAX = 1_800_000; // символов JSON на раздел (лимит строки D1 — 2 МБ)
 const AUTH_MAX_AGE = 24 * 60 * 60;
 const HISTORY = 12;
 const DAY_TTL = 2 * 24 * 60 * 60;
@@ -95,6 +97,28 @@ export default {
         await env.DB.prepare(`UPDATE inbox SET done = 1 WHERE user_id = ? AND id IN (${ids.map(() => "?").join(",")})`).bind(user.id, ...ids).run();
       }
       return reply(200, { ok: true });
+    }
+
+    // Облачная копия данных приложения: по разделам, новее побеждает. Так данные идут за аккаунтом Telegram на любое устройство.
+    if (path === "/backup") {
+      if (!env.DB) return reply(503, { error: "Нет базы" });
+      const docs = body.docs && typeof body.docs === "object" ? body.docs : {};
+      const stmts = [];
+      for (const [k, d] of Object.entries(docs)) {
+        if (!BACKUP_KEYS.includes(k) || !d || !(Number(d.at) > 0)) continue;
+        const v = JSON.stringify(d.v ?? null);
+        if (v.length > BACKUP_MAX) continue;
+        stmts.push(env.DB.prepare("INSERT INTO backups (user_id, key, at, v) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, key) DO UPDATE SET at = excluded.at, v = excluded.v WHERE excluded.at > backups.at").bind(user.id, k, Math.round(Number(d.at)), v));
+      }
+      if (stmts.length) await env.DB.batch(stmts);
+      return reply(200, { ok: true, saved: stmts.length });
+    }
+    if (path === "/restore") {
+      if (!env.DB) return reply(200, { docs: {} });
+      const rows = (await env.DB.prepare("SELECT key, at, v FROM backups WHERE user_id = ?").bind(user.id).all()).results || [];
+      const docs = {};
+      for (const r of rows) { try { docs[r.key] = { at: r.at, v: JSON.parse(r.v) }; } catch {} }
+      return reply(200, { docs });
     }
 
     // Статус подписки для приложения и ссылка на оплату прямо из приложения.

@@ -81,3 +81,11 @@ CREATE TABLE IF NOT EXISTS payments (
   ts INTEGER NOT NULL,
   recurring INTEGER NOT NULL DEFAULT 0
 );
+-- Облачная копия данных приложения по разделам (settings, tasks, journal …): данные идут за аккаунтом Telegram.
+CREATE TABLE IF NOT EXISTS backups (
+  user_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  at INTEGER NOT NULL,             -- когда раздел меняли в приложении (мс)
+  v TEXT NOT NULL,                 -- JSON раздела
+  PRIMARY KEY (user_id, key)
+);

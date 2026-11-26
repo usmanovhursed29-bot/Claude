@@ -364,4 +364,17 @@ if (r55) assert.match(r55.body.text, /отчёт недели ⭐[\s\S]*🔍 З�
 assert.equal(await sendWeekly(env, sunday + 600000), 0, "один раз");
 assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в субботу");
 
+// Облачная копия: новее побеждает, чужой раздел не принимается, на другом «устройстве» данные возвращаются.
+{
+  const id = initData(77);
+  assert.equal((await app("/backup", { initData: id, docs: { journal: { at: 100, v: { days: { "2026-11-26": { highlight: "А" } } } }, evil: { at: 1, v: 1 } } })).json.saved, 1);
+  assert.equal((await app("/backup", { initData: id, docs: { journal: { at: 50, v: { days: {} } } } })).json.saved, 1); // старее — сервер оставит прежнее
+  let r = (await app("/restore", { initData: id })).json.docs;
+  assert.equal(r.journal.at, 100); assert.equal(r.journal.v.days["2026-11-26"].highlight, "А"); assert.equal(r.evil, undefined);
+  await app("/backup", { initData: id, docs: { journal: { at: 200, v: { days: { "2026-11-27": { highlight: "Б" } } } } } });
+  r = (await app("/restore", { initData: id })).json.docs;
+  assert.equal(r.journal.at, 200);
+  assert.deepEqual((await app("/restore", { initData: initData(78) })).json.docs, {}, "чужие данные не видны");
+  assert.equal((await app("/restore", { initData: "user=%7B%22id%22%3A77%7D&hash=bad" })).status, 401);
+}
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));

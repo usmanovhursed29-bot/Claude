@@ -631,8 +631,54 @@ const store={mode:"local",db:null,uid:null,timers:{},busy:{},again:{},pending:ne
 const LS="kwantoww:v1";
 function lsRead(){try{return JSON.parse(localStorage.getItem(LS)||"null")}catch{return null}}
 function lsWrite(){try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(LS,JSON.stringify(o))}catch{}}
+/* ---------- облачная копия: данные идут за аккаунтом Telegram на любое устройство (сервер бота, /backup и /restore) ---------- */
+const cloud={at:{},dirty:new Set(),early:new Set(),t:null,ready:false};
+try{cloud.at=JSON.parse(localStorage.getItem("kwantoww:at")||"{}")||{}}catch{}
+const cloudOn=()=>!!(AI_URL&&window.Telegram?.WebApp?.initData);
+function cloudSaveAt(){try{localStorage.setItem("kwantoww:at",JSON.stringify(cloud.at))}catch{}}
+function cloudMark(key){
+  if(!cloudOn())return;
+  if(!cloud.ready){cloud.early.add(key);return} /* пока не пришла копия с сервера, не перебиваем её */
+  cloud.at[key]=Date.now();cloudSaveAt();cloud.dirty.add(key);
+  clearTimeout(cloud.t);cloud.t=setTimeout(cloudPush,2500);
+}
+function cloudPush(leaving){
+  if(!cloudOn()||!cloud.dirty.size)return;
+  const keys=[...cloud.dirty];cloud.dirty.clear();
+  const docs={};keys.forEach(k=>docs[k]={at:cloud.at[k]||Date.now(),v:S[k]});
+  const body=JSON.stringify({initData:window.Telegram.WebApp.initData,docs});
+  fetch(AI_URL.replace(/\/$/,"")+"/backup",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:!!leaving&&body.length<60000,body})
+    .then(r=>{if(!r.ok)throw 0}).catch(()=>{keys.forEach(k=>cloud.dirty.add(k))});
+}
+async function cloudRestore(){
+  if(!cloudOn()){cloud.ready=true;return}
+  try{
+    const r=await fetch(AI_URL.replace(/\/$/,"")+"/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:window.Telegram.WebApp.initData})});
+    const docs=r.ok?((await r.json()).docs||{}):null;
+    if(docs){
+      const obj={};KEYS.forEach(k=>obj[k]=S[k]);let changed=false;
+      const D=defaults(),J=x=>JSON.stringify(x??null);
+      for(const k of KEYS){
+        const d=docs[k],first=!cloud.at[k];
+        const localEmpty=J(S[k])===J(D[k])||(k==="meta"||k==="settings")&&first;
+        if(!d){if(!localEmpty||!first){if(first)cloud.at[k]=Date.now();cloud.dirty.add(k)}continue}
+        const serverEmpty=J(d.v)===J(D[k]);
+        /* устройство синхронизируется впервые: пустое не затирает полное; если данные есть с двух сторон — берём ту, где их больше */
+        const takeServer=first?(localEmpty||(!serverEmpty&&J(d.v).length>=J(S[k]).length)):d.at>cloud.at[k];
+        if(takeServer){obj[k]=d.v;cloud.at[k]=d.at;cloud.early.delete(k);changed=true}
+        else if(first||cloud.at[k]>d.at){if(first)cloud.at[k]=Date.now();cloud.dirty.add(k)}
+      }
+      cloudSaveAt();
+      if(changed){applyLoaded(obj);lsWrite();applyTheme();render()}
+    }
+  }catch{}
+  cloud.ready=true;
+  for(const k of cloud.early){cloud.at[k]=Date.now();cloud.dirty.add(k)}cloud.early.clear();cloudSaveAt();
+  cloudPush();
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){clearTimeout(cloud.t);cloudPush(true)}});
 function persist(key){
-  lsWrite();
+  lsWrite();cloudMark(key);
   if(key==="events"){clearTimeout(window.__remT);window.__remT=setTimeout(()=>{try{syncReminders()}catch{}},1500)}
   if(store.mode!=="db")return;
   store.pending.add(key);
@@ -1844,7 +1890,7 @@ function syncReminders(){
 }
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")syncReminders()});
 setTimeout(syncReminders,2500);
-setTimeout(pullInbox,1200);
+setTimeout(()=>cloudRestore().then(pullInbox),700);
 setTimeout(syncContext,3000);
 boot();
 importCommand();
