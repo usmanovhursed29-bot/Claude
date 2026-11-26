@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Цирюльня на Триумфальной</title>
+<meta name="description" content="Салон красоты в Одинцово: стрижки, окрашивание, маникюр и педикюр. Триумфальная, 12, ежедневно 10:00–22:00.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Manrope:wght@400;500;600&display=swap">
+<style>
+/* Мир: зеркало салона, тёплая лампа и веер прядей окрашивания. Фирменная деталь — прядь-образец оттенка у каждой строки прайса. */
+:root{
+  --paper:#f7f2ec; --card:#fffdfa; --ink:#2b2420; --muted:#6f625a; --faint:#9a8d84;
+  --line:rgba(43,36,32,.1); --accent:#8e4428; --accent-ink:#fff;
+  --display:"Lora", Georgia, serif; --body:"Manrope", "Segoe UI", system-ui, sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#1b1715; --card:#24201d; --ink:#f1e9e2; --muted:#bcaea4; --faint:#8f827a;
+  --line:rgba(241,233,226,.1); --accent:#e09a78; --accent-ink:#1b1715; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.6 var(--body);overflow-x:clip}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,4vw)}
+h1,h2,h3{font-family:var(--display);font-weight:500;line-height:1.1;margin:0;text-wrap:balance}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+.concept{background:var(--ink);color:var(--paper);font-size:13px;text-align:center;padding:8px 16px}
+.concept a{color:inherit}
+
+header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
+.logo{font-family:var(--display);font-size:22px;text-decoration:none}
+.top nav{display:flex;gap:24px;align-items:center}
+.top nav a{text-decoration:none;color:var(--muted);transition:color .2s var(--ease)}
+.top nav a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 24px;border-radius:10px;border:0;
+  background:var(--accent);color:var(--accent-ink);font:600 15px var(--body);text-decoration:none;cursor:pointer;
+  transition:transform .15s var(--ease),background-color .2s var(--ease)}
+.btn:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+.btn:active{transform:scale(.97)}
+.btn.quiet{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.quiet:hover{background:var(--card)}
+.top nav a.btn{height:40px;padding:0 16px;color:var(--accent-ink)}
+@media (max-width:720px){.top nav a:not(.btn){display:none}}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:48px;align-items:center;padding:32px 0 72px}
+.hero h1{font-size:clamp(40px,6vw,68px)}
+.hero p.lead{color:var(--muted);font-size:18px;max-width:42ch;margin:20px 0 32px}
+.facts{display:flex;gap:32px;margin-top:40px;flex-wrap:wrap}
+.facts b{display:block;font:500 28px var(--display);font-variant-numeric:tabular-nums}
+.facts span{color:var(--muted);font-size:14px}
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+
+.mirror{position:relative;aspect-ratio:4/5;border-radius:200px 200px 20px 20px;overflow:hidden;background:#e9dfd5;
+  box-shadow:0 24px 48px -24px rgba(43,36,32,.35)}
+.mirror img{width:100%;height:100%;object-fit:cover;display:block}
+.fan{position:absolute;left:-28px;bottom:32px;display:flex;gap:4px;padding:12px;background:var(--card);border-radius:14px;
+  box-shadow:0 12px 32px -12px rgba(43,36,32,.3)}
+.hero-visual{position:relative;padding-left:28px}
+.strand{width:14px;height:96px;border-radius:7px 7px 3px 3px;transform-origin:top;animation:drop .7s var(--ease) both}
+.fan .strand:nth-child(n){animation-delay:calc(var(--i)*60ms + .3s)}
+@keyframes drop{from{transform:scaleY(.2);opacity:0}}
+.fan figcaption{position:absolute;left:12px;top:-28px;font-size:13px;color:var(--muted);white-space:nowrap}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr);gap:40px}.hero-visual{max-width:420px}}
+
+section{padding:72px 0}
+.head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+.head h2{font-size:clamp(32px,4vw,44px)}
+.head p{color:var(--muted);margin:0;max-width:40ch}
+
+.tabs{display:flex;gap:4px;padding:4px;background:var(--card);border-radius:12px;box-shadow:inset 0 0 0 1px var(--line);width:max-content;max-width:100%;overflow-x:auto;margin-bottom:24px}
+.tabs button{height:40px;padding:0 16px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:500 15px var(--body);cursor:pointer;white-space:nowrap;transition:background-color .2s var(--ease),color .2s var(--ease)}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.price{background:var(--card);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:8px 24px}
+.row{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:16px;align-items:center;padding:16px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row i{width:6px;height:28px;border-radius:3px;justify-self:center}
+.row small{display:block;color:var(--faint);font-size:13px}
+.row b{font:500 17px var(--body);font-variant-numeric:tabular-nums;white-space:nowrap}
+.price.swap{animation:fadein .35s var(--ease)}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}}
+.note{color:var(--faint);font-size:13px;margin-top:12px}
+
+.gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.gallery img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;display:block;background:#e9dfd5}
+.gallery img:nth-child(2n){margin-top:32px}
+@media (max-width:720px){.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.masters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.master{background:var(--card);border-radius:14px;padding:20px;box-shadow:inset 0 0 0 1px var(--line)}
+.master h3{font-size:22px}
+.master p{color:var(--muted);margin:4px 0 0;font-size:15px}
+@media (max-width:860px){.masters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.reviews{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+blockquote{margin:0;background:var(--card);border-radius:14px;padding:24px;box-shadow:inset 0 0 0 1px var(--line)}
+blockquote p{margin:0 0 12px}
+blockquote footer{color:var(--faint);font-size:13px}
+@media (max-width:860px){.reviews{grid-template-columns:1fr}}
+
+.book{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start}
+form{background:var(--card);border-radius:16px;padding:24px;box-shadow:inset 0 0 0 1px var(--line);display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+input,select{width:100%;min-width:0}
+label{display:grid;gap:6px;font-size:14px;color:var(--muted)}
+input,select{height:48px;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:0 14px;font:400 16px var(--body)}
+.info dl{display:grid;grid-template-columns:auto 1fr;gap:12px 24px;margin:24px 0 0}
+.info dt{color:var(--faint)}
+.info dd{margin:0}
+@media (max-width:860px){.book{grid-template-columns:minmax(0,1fr)}}
+
+footer.site{padding:32px 0 48px;color:var(--faint);font-size:14px;border-top:1px solid var(--line)}
+
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="concept">Концепт сайта от <a href="https://kwantoww.pages.dev/">Kwantoww</a>. Данные взяты из открытой карточки салона на Яндекс Картах</div>
+
+<div class="wrap">
+<header class="top">
+  <a class="logo" href="#">Цирюльня на Триумфальной</a>
+  <nav>
+    <a href="#prices">Цены</a>
+    <a href="#masters">Мастера</a>
+    <a href="#contacts">Контакты</a>
+    <a class="btn" href="#book">Записаться</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" style="padding-top:32px">
+  <div>
+    <h1>Стрижка, цвет и ногти в пяти минутах от дома</h1>
+    <p class="lead">Салон в Гусарской балладе на Триумфальной, 12. Работаем каждый день с 10 до 22, записываем в WhatsApp и по телефону.</p>
+    <div class="actions">
+      <a class="btn" href="#book">Записаться</a>
+      <a class="btn quiet" href="#prices">Посмотреть цены</a>
+    </div>
+    <div class="facts">
+      <div><b data-count="4.5" data-dec="1">4,5</b><span>рейтинг на Яндекс Картах</span></div>
+      <div><b data-count="203">203</b><span>оценки клиентов</span></div>
+      <div><b>10–22</b><span>без выходных</span></div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="mirror"><img src="https://avatars.mds.yandex.net/get-altay/1426646/2a00000167359865d91b319efc5cf7eca8e9/XXL" alt="Зал салона" onerror="this.remove()"></div>
+    <figure class="fan" aria-label="Палитра оттенков окрашивания">
+      <figcaption>Окрашивание в 1 тон от 4 200 ₽</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="prices" class="reveal">
+  <div class="head">
+    <h2>Цены</h2>
+    <p>Цена зависит от длины волос и мастера. Показываем стоимость «от»</p>
+  </div>
+  <div class="tabs" role="tablist"></div>
+  <div class="price" id="price"></div>
+  <p class="note">По прайсу салона на Яндекс Картах. Точную стоимость назовёт администратор</p>
+</section>
+
+<section class="reveal" aria-label="Фото салона">
+  <div class="gallery">
+    <img loading="lazy" alt="Салон" src="https://avatars.mds.yandex.net/get-altay/1622057/2a00000167359865722b4b5385c1091fcc4c/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Салон" src="https://avatars.mds.yandex.net/get-altay/1427475/2a000001673598671a5818665c56645dcd7f/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Салон" src="https://avatars.mds.yandex.net/get-altay/1622057/2a0000016735986db24b87fa9c9c365d56f9/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Салон" src="https://avatars.mds.yandex.net/get-altay/1420183/2a0000016735986644c3d2a21fd457f331fb/XXL" onerror="this.remove()">
+  </div>
+</section>
+
+<section id="masters" class="reveal">
+  <div class="head">
+    <h2>Мастера, которых называют в отзывах</h2>
+    <p>К кому-то клиенты ходят по пять и по десять лет</p>
+  </div>
+  <div class="masters">
+    <div class="master"><h3>Виктория</h3><p>Стилист: стрижки и сложное окрашивание</p></div>
+    <div class="master"><h3>Валерия</h3><p>Стилист: стрижки и окрашивание</p></div>
+    <div class="master"><h3>Артак</h3><p>Мужские стрижки</p></div>
+    <div class="master"><h3>Луиза</h3><p>Маникюр</p></div>
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="head"><h2>Что пишут клиенты</h2><p>78 отзывов на Яндекс Картах</p></div>
+  <div class="reviews">
+    <blockquote><p>Хожу к стилисту Виктории пять лет. Идеально окрашивание брюнетки в блондинку. Качество волос сохраняется.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+    <blockquote><p>Мне все очень понравилось. Начиная с записи, напоминания о ней и заканчивая самими услугами.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+    <blockquote><p>Отличный мужской мастер Артак, постригаюсь у него около 10 лет.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+  </div>
+</section>
+
+<section id="book" class="reveal">
+  <div class="book">
+    <div class="info" id="contacts">
+      <h2 style="font-size:clamp(32px,4vw,44px)">Запись</h2>
+      <p style="color:var(--muted)">Выберите услугу и удобное время. Заявка откроется в WhatsApp салона, администратор подтвердит запись.</p>
+      <dl>
+        <dt>Адрес</dt><dd>Одинцово, Триумфальная улица, 12</dd>
+        <dt>Часы</dt><dd>Ежедневно, 10:00–22:00</dd>
+        <dt>Телефон</dt><dd><a href="tel:+79680000963">+7 968 000-09-63</a></dd>
+        <dt>Соцсети</dt><dd><a href="https://t.me/Gusbalsalon12">Telegram</a> · <a href="https://vk.ru/gusbalsalon">ВКонтакте</a></dd>
+      </dl>
+    </div>
+    <form id="form">
+      <label>Услуга<select id="svc"></select></label>
+      <label>Имя<input id="name" autocomplete="given-name" required></label>
+      <label>Когда удобно<input id="when" placeholder="Например, суббота после 14:00" required></label>
+      <button class="btn" type="submit">Отправить в WhatsApp</button>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="site">Цирюльня на Триумфальной · Одинцово, Триумфальная, 12</footer>
+</div>
+
+<script>
+const TONES=["#2a1d17","#4a2e22","#6b4029","#8e5a35","#b07c4c","#c99c69","#dcbf92","#ebdcc0"];
+const PRICES={
+  "Стрижки":[["Стрижка, короткие волосы",1800],["Стрижка, средняя длина",2000],["Стрижка, длинные волосы",2300],["Стрижка, супердлинные волосы",2600]],
+  "Окрашивание":[["В 1 тон, короткие волосы",4200],["В 1 тон, средняя длина",5600],["В 1 тон, длинные волосы",6800],["Окрашивание корней, средняя длина",4400],["Сложное окрашивание, короткие волосы",8000],["Сложное окрашивание, средняя длина",10000],["Сложное окрашивание, длинные волосы",15000]],
+  "Тонирование":[["Короткие волосы",3800],["Средняя длина",5000],["Длинные волосы",6300],["Супердлинные волосы",7500]],
+  "Ногти":[["Комбинированный маникюр без покрытия",1500],["Комби-маникюр с укреплением цветным биогелем",2900],["SMART-педикюр",2500],["SMART-педикюр с покрытием гель-лаком",3400],["Снятие гелевого покрытия",600]],
+  "Уход":[["Уход и восстановление волос Bouticle",2800]]
+};
+const rub=n=>n.toLocaleString("ru-RU")+" ₽";
+
+const fan=document.querySelector(".fan");
+TONES.forEach((c,i)=>{const s=document.createElement("span");s.className="strand";s.style.background=c;s.style.setProperty("--i",i);fan.append(s)});
+
+const tabs=document.querySelector(".tabs"),box=document.getElementById("price");
+function show(cat){
+  tabs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",b.textContent===cat));
+  box.innerHTML=PRICES[cat].map(([n,p],i)=>`<div class="row"><i style="background:${TONES[(i*2+1)%TONES.length]}"></i><span>${n}</span><b>от ${rub(p)}</b></div>`).join("");
+  box.classList.remove("swap");void box.offsetWidth;box.classList.add("swap");
+}
+Object.keys(PRICES).forEach(cat=>{const b=document.createElement("button");b.role="tab";b.type="button";b.textContent=cat;b.onclick=()=>show(cat);tabs.append(b)});
+show("Стрижки");
+
+const svc=document.getElementById("svc");
+Object.entries(PRICES).forEach(([cat,list])=>{const g=document.createElement("optgroup");g.label=cat;list.forEach(([n])=>g.append(new Option(n,cat+": "+n)));svc.append(g)});
+document.getElementById("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const text=`Здравствуйте! Хочу записаться.\nУслуга: ${svc.value}\nИмя: ${document.getElementById("name").value}\nКогда: ${document.getElementById("when").value}`;
+  window.open("https://wa.me/79680000963?text="+encodeURIComponent(text),"_blank");
+});
+
+const still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function count(el){
+  const to=+el.dataset.count,dec=+(el.dataset.dec||0),t0=performance.now();
+  const tick=t=>{const k=Math.min(1,(t-t0)/900),v=to*(1-Math.pow(1-k,3));el.textContent=v.toFixed(dec).replace(".",",");if(k<1)requestAnimationFrame(tick)};
+  requestAnimationFrame(tick);
+}
+if(!still)document.querySelectorAll("[data-count]").forEach(count);
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+</script>
+<div class="kw-credit" style="text-align:center;padding:24px 16px 32px;font:400 14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;opacity:.7">Сайт сделан в <a href="https://kwantoww.pages.dev/" style="color:inherit">Kwantoww</a>: сайты, Telegram-боты и продвижение для бизнеса · <a href="https://t.me/kwantoww" style="color:inherit">Telegram @kwantoww</a></div>
+</body>
+</html>

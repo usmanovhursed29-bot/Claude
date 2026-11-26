@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Цветочная баллада</title>
+<meta name="description" content="Цветы, шары с гелием и подарки в посёлке ВНИИССОК. Улица Дениса Давыдова, 10, ежедневно 8:00–21:00, доставка.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prata&family=Golos+Text:wght@400;500;600&display=swap">
+<style>
+/* Мир: прилавок с вёдрами цветов, крафтовая бумага и связка шаров у входа. Фирменная деталь — крафтовая бирка на нитке, на ней цена. */
+:root{
+  --paper:#f5f4ee; --card:#fffefa; --ink:#1f2620; --muted:#5f6a60; --faint:#8b958b;
+  --line:rgba(31,38,32,.1); --accent:#a3304d; --accent-ink:#fff; --kraft:#d9bf94; --kraft-ink:#4a3a22;
+  --display:"Prata", Georgia, serif; --body:"Golos Text", "Segoe UI", system-ui, sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#161a17; --card:#1f241f; --ink:#ecefe8; --muted:#b2bcb1; --faint:#869085;
+  --line:rgba(236,239,232,.1); --accent:#e27a93; --accent-ink:#161a17; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.6 var(--body);overflow-x:clip}
+.wrap{max-width:1120px;margin:0 auto;padding:0 max(16px,4vw)}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.12;margin:0;text-wrap:balance}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+.concept{background:var(--ink);color:var(--paper);font-size:13px;text-align:center;padding:8px 16px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
+.logo{font-family:var(--display);font-size:24px;text-decoration:none}
+.top nav{display:flex;gap:24px;align-items:center}
+.top nav a{text-decoration:none;color:var(--muted);transition:color .2s var(--ease)}
+.top nav a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:48px;padding:0 24px;border-radius:10px;border:0;
+  background:var(--accent);color:var(--accent-ink);font:600 15px var(--body);text-decoration:none;cursor:pointer;
+  transition:transform .15s var(--ease),background-color .2s var(--ease)}
+.btn:hover{background:color-mix(in srgb,var(--accent) 86%,#000)}
+.btn:active{transform:scale(.97)}
+.btn.quiet{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.quiet:hover{background:var(--card)}
+.top nav a.btn{height:40px;padding:0 16px;color:var(--accent-ink)}
+@media (max-width:720px){.top nav a:not(.btn){display:none}}
+
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:center;padding:24px 0 72px}
+.hero h1{font-size:clamp(40px,6vw,66px)}
+.lead{color:var(--muted);font-size:18px;max-width:40ch;margin:20px 0 32px}
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+.facts{display:flex;gap:32px;margin-top:40px;flex-wrap:wrap}
+.facts b{display:block;font:400 28px var(--display);font-variant-numeric:tabular-nums}
+.facts span{color:var(--muted);font-size:14px}
+.photo{position:relative}
+.photo img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:20px;display:block;background:#e3e6dc}
+.tag{position:absolute;display:inline-flex;align-items:center;gap:8px;background:var(--kraft);color:var(--kraft-ink);
+  font:500 14px var(--body);padding:8px 14px 8px 22px;border-radius:4px 10px 10px 4px;
+  clip-path:polygon(12px 0,100% 0,100% 100%,12px 100%,0 50%)}
+.tag::before{content:"";position:absolute;left:9px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:var(--paper)}
+.photo .tag{left:-16px;bottom:40px;transform-origin:left center;animation:swing 1s var(--ease) .4s both}
+@keyframes swing{from{transform:rotate(-8deg);opacity:0}}
+@media (max-width:860px){.hero{grid-template-columns:1fr}.photo{max-width:440px}.photo .tag{left:8px}}
+
+section{padding:72px 0}
+.head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+.head h2{font-size:clamp(32px,4vw,44px)}
+.head p{color:var(--muted);margin:0;max-width:42ch}
+
+/* связка шаров: высота нитки — от цены */
+.bunch{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;align-items:end;background:var(--card);border-radius:20px;
+  padding:32px 24px 24px;box-shadow:inset 0 0 0 1px var(--line)}
+.ball{display:flex;flex-direction:column;align-items:center;text-align:center}
+.ball svg{width:72px;height:auto;overflow:visible}
+.ball .string{transform-origin:top;transform:scaleY(0);transition:transform .8s var(--ease)}
+.ball .body{transform:translateY(24px);opacity:0;transition:transform .8s var(--ease),opacity .5s var(--ease)}
+.bunch.in .string{transform:none}
+.bunch.in .body{transform:none;opacity:1}
+.ball .tag{position:static;margin-top:8px}
+.ball p{margin:8px 0 0;font-size:14px;color:var(--muted);line-height:1.35}
+@media (max-width:720px){.bunch{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:32px}}
+
+.list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.item{background:var(--card);border-radius:14px;padding:20px;box-shadow:inset 0 0 0 1px var(--line)}
+.item h3{font-size:22px;margin-bottom:4px}
+.item p{margin:0;color:var(--muted);font-size:15px}
+@media (max-width:860px){.list{grid-template-columns:1fr}}
+
+.gallery{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px}
+.gallery img{width:100%;height:100%;min-height:200px;object-fit:cover;border-radius:14px;display:block;background:#e3e6dc}
+.gallery img:first-child{grid-row:span 2}
+@media (max-width:720px){.gallery{grid-template-columns:1fr 1fr}.gallery img:first-child{grid-column:span 2;grid-row:auto}}
+
+.reviews{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+blockquote{margin:0;background:var(--card);border-radius:14px;padding:24px;box-shadow:inset 0 0 0 1px var(--line)}
+blockquote p{margin:0 0 12px}
+blockquote footer{color:var(--faint);font-size:13px}
+@media (max-width:860px){.reviews{grid-template-columns:1fr}}
+
+.order{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;align-items:start}
+form{background:var(--card);border-radius:16px;padding:24px;box-shadow:inset 0 0 0 1px var(--line);display:grid;gap:16px}
+label{display:grid;gap:6px;font-size:14px;color:var(--muted)}
+input,select,textarea{border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:12px 14px;font:400 16px var(--body)}
+input,select{height:48px;padding-block:0}
+.seg{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line)}
+.seg label{flex:1;display:block;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;text-align:center;height:40px;line-height:40px;border-radius:8px;color:var(--muted);transition:background-color .2s var(--ease),color .2s var(--ease)}
+.seg input:checked+span{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.info dl{display:grid;grid-template-columns:auto 1fr;gap:12px 24px;margin:24px 0 0}
+.info dt{color:var(--faint)}
+.info dd{margin:0}
+@media (max-width:860px){.order{grid-template-columns:1fr}}
+
+footer.site{padding:32px 0 48px;color:var(--faint);font-size:14px;border-top:1px solid var(--line)}
+.reveal{opacity:0;transform:translateY(16px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}.ball .string,.ball .body{transform:none;opacity:1}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="concept">Концепт сайта от <a href="https://kwantoww.pages.dev/">Kwantoww</a>. Данные взяты из открытой карточки магазина на Яндекс Картах</div>
+
+<div class="wrap">
+<header class="top">
+  <a class="logo" href="#">Цветочная баллада</a>
+  <nav>
+    <a href="#balloons">Шары</a>
+    <a href="#flowers">Цветы</a>
+    <a href="#contacts">Контакты</a>
+    <a class="btn" href="#order">Заказать</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" style="padding-top:24px">
+  <div>
+    <h1>Свежие цветы и шары с гелием у дома, с 8 утра</h1>
+    <p class="lead">Магазин в посёлке ВНИИССОК на улице Дениса Давыдова, 10. Соберём букет, надуем шары, упакуем подарок и привезём.</p>
+    <div class="actions">
+      <a class="btn" href="#order">Заказать букет</a>
+      <a class="btn quiet" href="tel:+79264540040">Позвонить</a>
+    </div>
+    <div class="facts">
+      <div><b data-count="5">5,0</b><span>рейтинг на Яндекс Картах</span></div>
+      <div><b data-count="64">64</b><span>оценки покупателей</span></div>
+      <div><b>8–21</b><span>каждый день</span></div>
+    </div>
+  </div>
+  <div class="photo">
+    <img src="https://avatars.mds.yandex.net/get-altay/9728306/2a0000018ac5cd8251d957e450a53abff0db/XXL" alt="Букеты в магазине" onerror="this.remove()">
+    <span class="tag">Доставка и самовывоз</span>
+  </div>
+</section>
+
+<section id="balloons" class="reveal">
+  <div class="head">
+    <h2>Шары с гелием</h2>
+    <p>Надуваем при вас. Покупатели пишут, что шары держатся больше месяца</p>
+  </div>
+  <div class="bunch" id="bunch"></div>
+</section>
+
+<section id="flowers" class="reveal">
+  <div class="head"><h2>Что ещё есть в магазине</h2><p>По карточке магазина на Яндекс Картах</p></div>
+  <div class="list">
+    <div class="item"><h3>Букеты</h3><p>Соберём при вас из свежих цветов, подскажем с выбором</p></div>
+    <div class="item"><h3>Свадебная флористика</h3><p>Букет невесты и оформление по договорённости</p></div>
+    <div class="item"><h3>Комнатные растения</h3><p>Грунт и всё для ухода — от 90 ₽</p></div>
+    <div class="item"><h3>Сухоцветы</h3><p>В ассортименте, от 300 ₽</p></div>
+    <div class="item"><h3>Упаковка и открытки</h3><p>Подарочная упаковка от 120 до 350 ₽</p></div>
+    <div class="item"><h3>Подарки и игрушки</h3><p>Товары для праздника и детские игрушки</p></div>
+  </div>
+</section>
+
+<section class="reveal" aria-label="Фото магазина">
+  <div class="gallery">
+    <img loading="lazy" alt="Магазин" src="https://avatars.mds.yandex.net/get-altay/15343885/2a000001980fca02dd960c38be326c2bbedf/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Букет" src="https://avatars.mds.yandex.net/get-altay/1426646/2a000001893e9936a174cbc359d8204785cc/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Букет" src="https://avatars.mds.yandex.net/get-altay/6197788/2a00000183c564841071d86f98db54185442/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Шары" src="https://avatars.mds.yandex.net/get-altay/13455884/2a00000192e0c959781f06807173a534298f/XXL" onerror="this.remove()">
+    <img loading="lazy" alt="Букет" src="https://avatars.mds.yandex.net/get-altay/15288133/2a00000196e9281583305f184523233a1da5/XXL" onerror="this.remove()">
+  </div>
+</section>
+
+<section class="reveal">
+  <div class="head"><h2>Что пишут покупатели</h2><p>45 отзывов, средняя оценка 5</p></div>
+  <div class="reviews">
+    <blockquote><p>Заказывали шары для ребенка. Признаться честно, удивлена. Шары продержались больше месяца.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+    <blockquote><p>Прекрасное обслуживание, хороший магазин. Первый раз так долго простоял букет.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+    <blockquote><p>Отличный персонал, одарят улыбками и помогут с выбором, на 8 Марта очень выручили.</p><footer>Отзыв на Яндекс Картах</footer></blockquote>
+  </div>
+</section>
+
+<section id="order" class="reveal">
+  <div class="order">
+    <div class="info" id="contacts">
+      <h2 style="font-size:clamp(32px,4vw,44px)">Заказ</h2>
+      <p style="color:var(--muted)">Напишите, что нужно и к какому времени. Текст заявки скопируется, и откроется Telegram магазина: вставьте его в чат, флорист ответит и уточнит детали.</p>
+      <dl>
+        <dt>Адрес</dt><dd>Одинцовский округ, пос. ВНИИССОК, ул. Дениса Давыдова, 10</dd>
+        <dt>Часы</dt><dd>Ежедневно, 8:00–21:00</dd>
+        <dt>Телефоны</dt><dd><a href="tel:+79264540040">+7 926 454-00-40</a><br><a href="tel:+79166827344">+7 916 682-73-44</a></dd>
+        <dt>Оплата</dt><dd>Карта, наличные, QR и перевод</dd>
+        <dt>Соцсети</dt><dd><a href="https://t.me/flowersDenisaDavydova10">Telegram</a> · <a href="https://vk.ru/flowersdenisadavydova10">ВКонтакте</a></dd>
+      </dl>
+    </div>
+    <form id="form">
+      <div class="seg" role="radiogroup" aria-label="Способ получения">
+        <label><input type="radio" name="how" value="Доставка" checked><span>Доставка</span></label>
+        <label><input type="radio" name="how" value="Самовывоз"><span>Самовывоз</span></label>
+      </div>
+      <label>Что нужно<textarea id="what" rows="3" placeholder="Например, букет из роз и три шара с гелием" required></textarea></label>
+      <label>Когда<input id="when" placeholder="Например, завтра к 12:00" required></label>
+      <label>Телефон<input id="phone" type="tel" autocomplete="tel" required></label>
+      <button class="btn" type="submit">Отправить в Telegram</button>
+    </form>
+  </div>
+</section>
+</main>
+
+<footer class="site">Цветочная баллада · пос. ВНИИССОК, ул. Дениса Давыдова, 10</footer>
+</div>
+
+<script>
+const BALLS=[
+  ["Латексный с гелием",190,"#c94a68",34],
+  ["Фольгированный на палочке",150,"#d8a33c",30],
+  ["Фольгированный с гелием",490,"#5f8fb0",40],
+  ["Большой фольгированный",800,"#a3304d",48],
+  ["Шар-цифра",1000,"#c9a24a",44]
+];
+const max=Math.max(...BALLS.map(b=>b[1]));
+document.getElementById("bunch").innerHTML=BALLS.map(([name,price,color,r],i)=>{
+  const len=60+Math.round(price/max*90), h=r*2+len;
+  return `<div class="ball"><svg viewBox="-50 0 100 ${h}" style="width:${r*1.6+24}px" aria-hidden="true">
+    <path class="string" d="M0 ${r*2+6} q -8 ${len/3} 0 ${len/1.6} t 0 ${len/2.6}" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5" style="transition-delay:${i*90}ms"/>
+    <g class="body" style="transition-delay:${i*90+120}ms">
+      <ellipse cx="0" cy="${r}" rx="${r*.86}" ry="${r}" fill="${color}"/>
+      <ellipse cx="${-r*.32}" cy="${r*.6}" rx="${r*.18}" ry="${r*.3}" fill="#fff" fill-opacity=".35"/>
+      <path d="M-4 ${r*2} h8 l-4 6z" fill="${color}"/>
+    </g></svg>
+    <span class="tag">${price.toLocaleString("ru-RU")} ₽</span><p>${name}</p></div>`;
+}).join("");
+
+document.getElementById("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const how=document.querySelector("input[name=how]:checked").value;
+  const text=`Здравствуйте! Хочу сделать заказ.\n${how}\nЧто: ${document.getElementById("what").value}\nКогда: ${document.getElementById("when").value}\nТелефон: ${document.getElementById("phone").value}`;
+  navigator.clipboard?.writeText(text).catch(()=>{});
+  window.open("https://t.me/flowersDenisaDavydova10","_blank");
+});
+
+const still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+if(!still)document.querySelectorAll("[data-count]").forEach(el=>{
+  const to=+el.dataset.count,t0=performance.now(),dec=to<10?1:0;
+  const tick=t=>{const k=Math.min(1,(t-t0)/900);el.textContent=(to*(1-Math.pow(1-k,3))).toFixed(dec).replace(".",",");if(k<1)requestAnimationFrame(tick)};
+  requestAnimationFrame(tick);
+});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");e.target.querySelector(".bunch")?.classList.add("in");io.unobserve(e.target)}}),{threshold:.15});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+</script>
+<div class="kw-credit" style="text-align:center;padding:24px 16px 32px;font:400 14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;opacity:.7">Сайт сделан в <a href="https://kwantoww.pages.dev/" style="color:inherit">Kwantoww</a>: сайты, Telegram-боты и продвижение для бизнеса · <a href="https://t.me/kwantoww" style="color:inherit">Telegram @kwantoww</a></div>
+</body>
+</html>
