@@ -7,7 +7,7 @@
 <meta name="description" content="Сайты, приложения и Telegram-боты для местного бизнеса за 1–2 дня">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 /* Direction: a one-person studio that ships websites and bots for local businesses in a day or two.
    Character: quick, practical, warm. World: a working desk of finished jobs — each card is a live screen.
@@ -98,6 +98,14 @@ section{padding:24px 0 72px}
 .z .scr h4{font:400 24px Georgia,serif}
 .z .plate{width:42%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#d9930f 0 8%,#fff 9% 30%,#1c3b8f 31% 34%,#fff 35% 62%,#1c3b8f 63% 70%,#e7ebf5 71%);flex:none;animation:spin 40s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.fl .scr{background:#f7f1ec;color:#2b1d1a;flex-direction:row;align-items:center;gap:12px}
+.fl .scr h4{margin:0;font:600 26px/1.05 "Cormorant Garamond",Georgia,serif}
+.fl .scr h4 i{color:#c45c66}
+.fl .bq{flex:none;width:38%;aspect-ratio:1;position:relative;transform-origin:50% 90%;animation:bqsway 5s ease-in-out infinite}
+.fl .bq b{position:absolute;border-radius:50%}
+.fl .bq .lf{position:absolute;width:12%;height:30%;border-radius:50%;background:#7d9a72}
+.fl .bq em{position:absolute;left:22%;right:22%;bottom:0;height:55%;background:#d9b99b;clip-path:polygon(0 0,100% 0,50% 100%)}
+@keyframes bqsway{50%{transform:rotate(3deg)}}
 
 .how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .how div{padding:20px 0;border-top:2px solid var(--fg)}
@@ -176,6 +184,14 @@ footer{padding:32px 0 48px;border-top:1px solid var(--line);color:var(--fg3);fon
         <div class="meta"><div class="row"><h3>Kwantoww</h3><span class="stamp">приложение + бот</span></div>
           <p>Личный пульт: задачи, привычки, здоровье, питание с расчётом КБЖУ, финансы и ИИ-помощник. Работает на сайте и внутри Telegram.</p>
           <div class="tags"><span>Telegram Mini App</span><span>ИИ-советы</span><span>офлайн</span></div>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+
+      <a class="work fl rv" href="https://kwantoww.pages.dev/fleur/" target="_blank" rel="noopener">
+        <div class="shot" style="background:#efe2d8"><div class="scr"><h4>Букеты, которые <i>хочется дарить</i></h4><span class="bq"><b style="left:20%;top:8%;width:34%;height:34%;background:#e8a9a1"></b><b style="left:46%;top:4%;width:36%;height:36%;background:#d98c8f"></b><i class="lf" style="left:12%;top:30%;transform:rotate(-40deg)"></i><i class="lf" style="right:8%;top:28%;transform:rotate(40deg)"></i><b style="left:32%;top:26%;width:34%;height:34%;background:#f2c4c4"></b><i class="lf" style="left:44%;top:44%;height:22%;transform:rotate(8deg)"></i><em></em></span></div></div>
+        <div class="meta"><div class="row"><h3>Мастерская букетов «Флёр»</h3><span class="stamp">пример</span></div>
+          <p>Цветочный магазин: каталог с фильтрами, конструктор букета с живой ценой, корзина и заказ в Telegram, выбор времени доставки.</p>
+          <div class="tags"><span>конструктор букета</span><span>корзина</span><span>анимации</span></div>
           <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
       </a>
 

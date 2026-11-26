@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Флёр — мастерская букетов</title>
+<meta name="description" content="Авторские букеты с доставкой за 2 часа. Пример сайта цветочного магазина.">
+<meta name="theme-color" content="#f7f1ec">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Мастерская букетов «Флёр»: тёплая бумага крафт, пыльная роза и шалфей. Главный герой — живой букет, который можно собрать самому. */
+:root{
+  --paper:#f7f1ec; --card:#fffaf6; --kraft:#e9dccd; --line:rgba(60,35,30,.12);
+  --ink:#2b1d1a; --muted:#7a6660; --rose:#c45c66; --rose-d:#a8434e; --sage:#6f8a6a; --sage-l:#dfe7da;
+  --serif:"Cormorant Garamond",Georgia,serif; --sans:"Manrope",system-ui,sans-serif;
+  --ease:cubic-bezier(.22,1,.36,1); --r:20px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.6 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:clip}
+h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0;line-height:1.05;letter-spacing:-.01em;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--rose);outline-offset:3px;border-radius:10px}
+.wrap{max-width:1140px;margin:0 auto;padding-inline:max(20px,env(safe-area-inset-left,0px))}
+
+/* ---------- шапка ---------- */
+header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--paper) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
+header.scrolled{border-color:var(--line)}
+.bar{display:flex;align-items:center;gap:20px;height:68px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;font:600 28px/1 var(--serif)}
+.logo svg{width:30px;height:30px}
+nav.menu{display:flex;gap:26px;margin-left:auto}
+nav.menu a{text-decoration:none;color:var(--muted);font-weight:500;font-size:15px;transition:color .2s}
+nav.menu a:hover{color:var(--ink)}
+.cart-btn{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:0;border-radius:999px;background:var(--ink);color:var(--paper);font-weight:600;font-size:15px}
+.cart-btn svg{width:18px;height:18px}
+.cart-btn .count{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--rose);color:#fff;font-size:12px;display:grid;place-items:center}
+.cart-btn.bump{animation:bump .45s var(--ease)}
+@keyframes bump{30%{transform:scale(1.12)}60%{transform:scale(.96)}}
+
+/* ---------- первый экран ---------- */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:48px 0 64px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--sage);background:var(--sage-l);padding:6px 12px;border-radius:999px}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--sage);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.hero h1{font-size:clamp(46px,7vw,84px);margin:18px 0 18px}
+.hero h1 em{font-style:italic;color:var(--rose)}
+.hero .lead{font-size:18px;color:var(--muted);max-width:30em}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 24px;border-radius:999px;border:0;font-weight:600;text-decoration:none;transition:transform .2s var(--ease),background .2s,box-shadow .2s}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--rose);color:#fff;box-shadow:0 12px 24px -14px var(--rose-d)}
+.btn.pri:hover{background:var(--rose-d)}
+.btn.sec{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink)}
+.facts{display:flex;gap:28px;margin-top:36px;flex-wrap:wrap}
+.facts b{display:block;font:600 30px/1 var(--serif)}
+.facts span{font-size:13px;color:var(--muted)}
+.hero-art{position:relative;aspect-ratio:1;max-width:520px;justify-self:center;width:100%}
+.hero-art .disc{position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle at 50% 40%,#fff 0,var(--kraft) 70%)}
+.hero-art svg.main{position:absolute;inset:0;width:100%;height:100%}
+.sway{transform-origin:50% 92%;animation:sway 6s ease-in-out infinite}
+@keyframes sway{50%{transform:rotate(1.6deg)}}
+.petal{position:absolute;width:14px;height:10px;border-radius:70% 0 70% 0;background:var(--rose);opacity:.7;animation:fall 9s linear infinite}
+@keyframes fall{0%{transform:translate(0,-20px) rotate(0);opacity:0}10%{opacity:.7}100%{transform:translate(-60px,420px) rotate(540deg);opacity:0}}
+.badge{position:absolute;right:2%;bottom:12%;background:var(--card);border-radius:16px;padding:12px 14px;box-shadow:0 18px 40px -24px rgba(43,29,26,.45);display:flex;gap:10px;align-items:center;font-size:14px;animation:float 5s ease-in-out infinite}
+.badge b{display:block;font-size:15px}
+.badge svg{width:28px;height:28px;color:var(--sage)}
+@keyframes float{50%{transform:translateY(-8px)}}
+
+/* ---------- секции ---------- */
+section{padding:56px 0}
+.sh{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.sh h2{font-size:clamp(36px,5vw,54px)}
+.sh p{color:var(--muted);max-width:30em}
+
+/* каталог */
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:24px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);font-weight:500;font-size:14px;transition:background .2s,color .2s}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);box-shadow:none}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.item{background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;transition:transform .35s var(--ease),box-shadow .35s var(--ease),opacity .35s}
+.item:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px var(--line),0 24px 44px -30px rgba(43,29,26,.55)}
+.item.hide{display:none}
+.item .pic{aspect-ratio:1;position:relative;display:grid;place-items:center}
+.item .pic svg{width:86%;height:86%;transition:transform .5s var(--ease)}
+.item:hover .pic svg{transform:scale(1.04) rotate(-1deg)}
+.item .tag{position:absolute;left:14px;top:14px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--card)}
+.item .info{padding:16px 18px 18px;display:flex;flex-direction:column;gap:4px;flex:1}
+.item h3{font-size:26px}
+.item p{color:var(--muted);font-size:14px}
+.item .buy{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:12px}
+.price{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.add{height:42px;padding:0 16px;border-radius:999px;border:0;background:var(--sage-l);color:var(--ink);font-weight:600;font-size:14px;transition:background .2s,transform .2s var(--ease)}
+.add:hover{background:#cfdcc8}
+.add.done{background:var(--sage);color:#fff}
+
+/* конструктор */
+.builder{display:grid;grid-template-columns:1fr 1fr;gap:28px;background:var(--card);border-radius:28px;padding:28px;box-shadow:inset 0 0 0 1px var(--line)}
+.stage{position:relative;border-radius:22px;background:radial-gradient(circle at 50% 35%,#fff,var(--kraft));aspect-ratio:1;display:grid;place-items:center;overflow:hidden}
+.stage svg{width:88%;height:88%}
+.stage .size-label{position:absolute;left:16px;top:16px;font-size:13px;font-weight:600;background:rgba(255,255,255,.8);padding:4px 10px;border-radius:999px}
+.pop{animation:pop .55s var(--ease)}
+@keyframes pop{0%{transform:scale(.92);opacity:.4}100%{transform:none;opacity:1}}
+.opts{display:flex;flex-direction:column;gap:22px}
+.opt h3{font:600 15px var(--sans);margin-bottom:10px}
+.seg{display:flex;flex-wrap:wrap;gap:8px}
+.seg button{border:0;border-radius:14px;padding:10px 14px;background:var(--paper);box-shadow:inset 0 0 0 1px var(--line);font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;transition:box-shadow .2s,background .2s}
+.seg button[aria-pressed="true"]{background:#fff;box-shadow:inset 0 0 0 2px var(--ink)}
+.seg .sw{display:flex}
+.seg .sw i{width:14px;height:14px;border-radius:50%;margin-left:-4px;box-shadow:0 0 0 2px #fff}
+.seg .sw i:first-child{margin-left:0}
+.total{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.total .sum{font:600 40px/1 var(--serif);font-variant-numeric:tabular-nums}
+.total small{display:block;color:var(--muted);font-size:13px}
+
+/* доставка */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.step{padding:24px;border-radius:var(--r);background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.step .n{font:600 44px/1 var(--serif);color:var(--rose)}
+.step b{display:block;margin:10px 0 4px;font-size:17px}
+.step span{color:var(--muted);font-size:15px}
+.slots{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.slot{border:0;border-radius:12px;padding:10px 14px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);font-size:14px;font-variant-numeric:tabular-nums}
+.slot[aria-pressed="true"]{background:var(--sage);color:#fff;box-shadow:none}
+.slot:disabled{opacity:.4;text-decoration:line-through;cursor:default}
+
+/* отзывы */
+.quotes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.quote{padding:24px;border-radius:var(--r);background:var(--kraft)}
+.quote p{font:500 21px/1.35 var(--serif);font-style:italic}
+.quote span{display:block;margin-top:14px;font-size:14px;color:var(--muted)}
+
+/* контакты */
+.contact{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;padding:32px;border-radius:28px;background:var(--ink);color:var(--paper)}
+.contact h2{font-size:clamp(32px,4vw,46px)}
+.contact p{opacity:.75;margin-top:8px}
+footer{padding:28px 0 calc(40px + env(safe-area-inset-bottom,0px));color:var(--muted);font-size:13px}
+
+/* корзина */
+.scrim{position:fixed;inset:0;background:rgba(43,29,26,.35);opacity:0;pointer-events:none;transition:opacity .3s;z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--paper);z-index:41;transform:translateX(100%);visibility:hidden;transition:transform .45s var(--ease),visibility 0s .45s;display:flex;flex-direction:column;box-shadow:-30px 0 60px -40px rgba(0,0,0,.5)}
+.open .scrim{opacity:1;pointer-events:auto}
+.open .drawer{transform:none;visibility:visible;transition:transform .45s var(--ease)}
+.drawer header{position:static;display:flex;justify-content:space-between;align-items:center;padding:20px;border-bottom:1px solid var(--line);background:none;backdrop-filter:none}
+.drawer h2{font-size:34px}
+.x{width:40px;height:40px;border-radius:50%;border:0;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);font-size:20px;line-height:1}
+.lines{flex:1;overflow-y:auto;padding:12px 20px}
+.line{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.line .mini{width:56px;height:56px;border-radius:14px;background:var(--kraft);display:grid;place-items:center}
+.line .mini svg{width:48px;height:48px}
+.line b{display:block;font-size:15px}
+.line small{color:var(--muted)}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{width:30px;height:30px;border-radius:50%;border:0;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.empty{color:var(--muted);text-align:center;padding:48px 0}
+.checkout{padding:20px;border-top:1px solid var(--line);display:grid;gap:12px;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.checkout .row{display:flex;justify-content:space-between;font-weight:600}
+.checkout input{height:48px;border-radius:14px;border:0;box-shadow:inset 0 0 0 1px var(--line);background:var(--card);padding:0 14px;font:inherit}
+
+/* появление при прокрутке */
+.rv{transition:opacity .7s var(--ease),transform .7s var(--ease)}
+.rv-on .rv:not(.in){opacity:0;transform:translateY(24px)}
+
+@media (max-width:900px){
+  nav.menu{display:none}
+  .cart-btn{margin-left:auto}
+  .hero{grid-template-columns:1fr;padding:24px 0 40px;gap:8px}
+  .hero-art{max-width:380px;order:-1}
+  .grid,.steps,.quotes{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .builder{grid-template-columns:1fr;padding:18px}
+}
+@media (max-width:560px){
+  .grid,.steps,.quotes{grid-template-columns:1fr}
+  .hero h1{margin:14px 0}
+  .cta .btn{flex:1}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .facts b{font-size:24px}
+  .badge{font-size:12px;padding:8px 10px;right:0;bottom:6%;gap:8px}
+  .badge b{font-size:13px}
+  .badge svg{width:22px;height:22px}
+  section{padding:40px 0}
+  .contact{padding:24px}
+  .contact .btn{width:100%}
+  .total .btn{width:100%}
+  .cart-btn .txt{display:none}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap bar">
+    <a class="logo" href="#top" aria-label="Флёр — на главную">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><g fill="#c45c66"><circle cx="16" cy="9" r="6"/><circle cx="9" cy="15" r="6" opacity=".8"/><circle cx="23" cy="15" r="6" opacity=".8"/><circle cx="16" cy="20" r="6" opacity=".6"/></g><circle cx="16" cy="15" r="3" fill="#f7f1ec"/></svg>
+      Флёр
+    </a>
+    <nav class="menu" aria-label="Разделы"><a href="#catalog">Букеты</a><a href="#builder">Собрать свой</a><a href="#delivery">Доставка</a><a href="#contacts">Контакты</a></nav>
+    <button class="cart-btn" id="cartBtn" aria-label="Открыть корзину">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+      <span class="txt">Корзина</span><span class="count" id="cartCount">0</span>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <div>
+      <span class="eyebrow"><i></i>Сегодня доставляем до 22:00</span>
+      <h1>Букеты, которые <em>хочется дарить</em></h1>
+      <p class="lead">Собираем вручную из свежих цветов каждое утро. Привезём за 2 часа, а перед отправкой пришлём фото готового букета.</p>
+      <div class="cta">
+        <a class="btn pri" href="#catalog">Выбрать букет</a>
+        <a class="btn sec" href="#builder">Собрать свой</a>
+      </div>
+      <div class="facts">
+        <div><b>2 часа</b><span>доставка по городу</span></div>
+        <div><b>фото</b><span>букета до отправки</span></div>
+        <div><b>7 дней</b><span>стоят наши цветы</span></div>
+      </div>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="disc"></div>
+      <svg class="main" viewBox="0 0 400 400"><g class="sway" id="heroBouquet"></g></svg>
+      <span class="petal" style="left:30%;top:10%;animation-delay:0s"></span>
+      <span class="petal" style="left:60%;top:5%;animation-delay:3s;background:#e8a9a1"></span>
+      <span class="petal" style="left:75%;top:20%;animation-delay:6s"></span>
+      <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg><div><b>Доставка 2 часа</b>бесплатно от 5 000 ₽</div></div>
+    </div>
+  </div>
+
+  <section id="catalog">
+    <div class="sh rv"><h2>Букеты</h2><p>Каждый букет собирает флорист вручную, поэтому он может немного отличаться от картинки: цветы живые.</p></div>
+    <div class="chips rv" role="toolbar" aria-label="Фильтр букетов">
+      <button class="chip" aria-pressed="true" data-f="all">Все</button>
+      <button class="chip" aria-pressed="false" data-f="roses">Розы</button>
+      <button class="chip" aria-pressed="false" data-f="season">Сезонные</button>
+      <button class="chip" aria-pressed="false" data-f="mono">Монобукеты</button>
+      <button class="chip" aria-pressed="false" data-f="box">В коробке</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="builder">
+    <div class="sh rv"><h2>Соберите свой букет</h2><p>Выберите размер, цвета и упаковку — букет и цена меняются сразу.</p></div>
+    <div class="builder rv">
+      <div class="stage"><span class="size-label" id="sizeLabel">M · 15 цветов</span><svg viewBox="0 0 400 400" aria-label="Предпросмотр букета" role="img"><g id="custom"></g></svg></div>
+      <div class="opts">
+        <div class="opt"><h3>Размер</h3><div class="seg" data-k="size">
+          <button aria-pressed="false" data-v="S">S · 9 цветов</button>
+          <button aria-pressed="true" data-v="M">M · 15 цветов</button>
+          <button aria-pressed="false" data-v="L">L · 25 цветов</button>
+        </div></div>
+        <div class="opt"><h3>Цвета</h3><div class="seg" data-k="pal" id="palBtns"></div></div>
+        <div class="opt"><h3>Упаковка</h3><div class="seg" data-k="wrap">
+          <button aria-pressed="true" data-v="kraft">Крафт</button>
+          <button aria-pressed="false" data-v="white">Белая бумага</button>
+          <button aria-pressed="false" data-v="box">Шляпная коробка</button>
+        </div></div>
+        <div class="opt"><h3>Открытка</h3><div class="seg" data-k="card">
+          <button aria-pressed="true" data-v="0">Без открытки</button>
+          <button aria-pressed="false" data-v="1">С открыткой +200 ₽</button>
+        </div></div>
+        <div class="total">
+          <div><small>Итого</small><span class="sum" id="sum">0 ₽</span></div>
+          <button class="btn pri" id="addCustom">В корзину</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="delivery">
+    <div class="sh rv"><h2>Как мы доставляем</h2><p>Работаем каждый день с 8:00 до 22:00.</p></div>
+    <div class="steps rv">
+      <div class="step"><span class="n">1</span><b>Вы выбираете букет</b><span>На сайте или в Telegram. Подскажем, если сомневаетесь.</span></div>
+      <div class="step"><span class="n">2</span><b>Присылаем фото</b><span>Флорист собирает букет и показывает его вам до отправки.</span></div>
+      <div class="step"><span class="n">3</span><b>Курьер привозит</b><span>В выбранный час. Можно анонимно и с открыткой.</span></div>
+    </div>
+    <div class="rv"><p style="margin-top:28px;font-weight:600">Свободное время на сегодня</p><div class="slots" id="slots"></div></div>
+  </section>
+
+  <section>
+    <div class="sh rv"><h2>Что говорят</h2></div>
+    <div class="quotes rv">
+      <div class="quote"><p>«Заказал маме в другой город — прислали фото до доставки, всё как на сайте».</p><span>Пример отзыва</span></div>
+      <div class="quote"><p>«Собрала букет в конструкторе за минуту, привезли через полтора часа».</p><span>Пример отзыва</span></div>
+      <div class="quote"><p>«Пионы простояли почти неделю. Теперь заказываю только здесь».</p><span>Пример отзыва</span></div>
+    </div>
+  </section>
+
+  <section id="contacts">
+    <div class="contact rv">
+      <div><h2>Нужен совет флориста?</h2><p>Напишите — подберём букет под повод и бюджет.</p></div>
+      <a class="btn pri" href="https://t.me/kwantoww" target="_blank" rel="noopener">Написать в Telegram</a>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap">«Флёр» — вымышленная мастерская: это пример сайта цветочного магазина от <a href="/">kwantoww</a>. Цены, отзывы и время доставки показаны для примера.</div></footer>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Корзина" aria-hidden="true">
+  <header><h2>Корзина</h2><button class="x" id="closeCart" aria-label="Закрыть">×</button></header>
+  <div class="lines" id="lines"></div>
+  <div class="checkout">
+    <div class="row"><span>Итого</span><span id="cartSum">0 ₽</span></div>
+    <input id="addr" placeholder="Адрес и время доставки" autocomplete="street-address">
+    <button class="btn pri" id="order">Оформить в Telegram</button>
+  </div>
+</aside>
+
+<script>
+// ---------- рисуем букеты (SVG) ----------
+const PALETTES = {
+  blush:  {name:"Нежный",  c:["#f2c4c4","#e8a9a1","#fbe3dc","#d98c8f"]},
+  bright: {name:"Яркий",   c:["#e2574c","#f39a3d","#f5c84c","#c13a5a"]},
+  white:  {name:"Белый",   c:["#ffffff","#f4efe6","#e9e2d6","#fdfbf7"]},
+  berry:  {name:"Ягодный", c:["#8e2747","#b94a6b","#d98aa0","#5e1f3b"]},
+};
+const WRAPS = {kraft:["#d9b99b","#c9a27f"], white:["#fbf8f4","#e8e1d8"], box:["#2b1d1a","#46302b"]};
+
+function rnd(seed){ let s=seed; return ()=> (s=(s*9301+49297)%233280)/233280; }
+
+function flower(x,y,r,col,type,rand){
+  const dark = shade(col,-18);
+  if(type==="rose"){
+    let g=`<circle cx="${x}" cy="${y}" r="${r}" fill="${col}"/>`;
+    for(let i=0;i<3;i++){ const rr=r*(0.75-i*0.2); g+=`<path d="M${x-rr} ${y} a${rr} ${rr} 0 0 1 ${rr*2} 0" fill="none" stroke="${dark}" stroke-width="${Math.max(1.2,r*.09)}" stroke-linecap="round" transform="rotate(${rand()*360} ${x} ${y})"/>`; }
+    return g;
+  }
+  if(type==="peony"){
+    let g="";
+    for(let i=0;i<7;i++){ const a=i/7*Math.PI*2; g+=`<circle cx="${x+Math.cos(a)*r*.45}" cy="${y+Math.sin(a)*r*.45}" r="${r*.62}" fill="${col}" stroke="${dark}" stroke-width="1" opacity=".95"/>`; }
+    return g+`<circle cx="${x}" cy="${y}" r="${r*.45}" fill="${shade(col,-8)}"/>`;
+  }
+  // ромашка / сезонный цветок
+  let g="";
+  for(let i=0;i<10;i++){ const a=i/10*360; g+=`<ellipse cx="${x}" cy="${y-r*.55}" rx="${r*.22}" ry="${r*.55}" fill="${col}" transform="rotate(${a} ${x} ${y})"/>`; }
+  return g+`<circle cx="${x}" cy="${y}" r="${r*.28}" fill="#e3a72f"/>`;
+}
+
+function shade(hex,p){
+  const n=parseInt(hex.slice(1),16); let r=n>>16,g=(n>>8)&255,b=n&255;
+  const f=v=>Math.max(0,Math.min(255,Math.round(v+(p/100)*255)));
+  return "#"+((1<<24)+(f(r)<<16)+(f(g)<<8)+f(b)).toString(16).slice(1);
+}
+
+function bouquet({pal="blush",count=15,wrap="kraft",type="mix",seed=7}={}){
+  const rand=rnd(seed), cols=PALETTES[pal].c, [w1,w2]=WRAPS[wrap];
+  const types = type==="mix" ? ["rose","peony","daisy"] : [type];
+  const spread = 70 + count*2.2, top = 150 - count*1.6;
+  let stems="", leaves="", heads="";
+  for(let i=0;i<count;i++){
+    const a=(rand()-.5)*1.7, d=rand();
+    const x=200+Math.sin(a)*spread*d*1.15, y=top+70+(1-d)*40-Math.cos(a)*spread*d*.55+rand()*14;
+    stems+=`<path d="M200 330 Q${(200+x)/2} ${(330+y)/2+20} ${x} ${y}" stroke="#5f7a55" stroke-width="2.4" fill="none"/>`;
+    if(i%2===0){ const lx=(200+x)/2+(rand()-.5)*20, ly=(330+y)/2+10; leaves+=`<ellipse cx="${lx}" cy="${ly}" rx="9" ry="22" fill="${i%4?'#7d9a72':'#6f8a6a'}" transform="rotate(${(x-200)/3} ${lx} ${ly})"/>`; }
+    const t=types[Math.floor(rand()*types.length)];
+    heads+=flower(x,y,16+rand()*12+(count<12?6:0),cols[Math.floor(rand()*cols.length)],t,rand);
+  }
+  // зелень-веточки
+  let greens="";
+  for(let i=0;i<5;i++){ const x=200+(i-2)*spread*.45, y=top+60+Math.abs(i-2)*20;
+    greens+=`<path d="M200 320 Q${(200+x)/2} ${y+60} ${x} ${y}" stroke="#6f8a6a" stroke-width="2" fill="none"/>`;
+    for(let k=0;k<4;k++){ const px=200+(x-200)*(.5+k*.15), py=320+(y-320)*(.5+k*.15); greens+=`<ellipse cx="${px}" cy="${py}" rx="5" ry="10" fill="#93ad87" transform="rotate(${(x-200)/2+k*20} ${px} ${py})"/>`; }
+  }
+  let wrapSvg;
+  if(wrap==="box"){
+    wrapSvg=`<ellipse cx="200" cy="300" rx="${spread*.95}" ry="22" fill="${w2}"/><path d="M${200-spread*.95} 300 v62 a${spread*.95} 22 0 0 0 ${spread*1.9} 0 v-62" fill="${w1}"/><text x="200" y="350" text-anchor="middle" font-family="Cormorant Garamond,serif" font-size="22" fill="#e9dccd" font-style="italic">Флёр</text>`;
+  } else {
+    wrapSvg=`<path d="M${200-spread*.95} 250 L200 392 L${200+spread*.95} 250 Q200 300 ${200-spread*.95} 250Z" fill="${w1}"/><path d="M${200-spread*.95} 250 L200 392 L${200-spread*.3} 262Z" fill="${w2}"/><path d="M178 330 q22 14 44 0 l-6 16 q-16 8 -32 0z" fill="${wrap==='white'?'#c45c66':'#7a5a45'}"/>`;
+  }
+  const back = wrap==="box" ? "" : `<path d="M${200-spread} 245 Q200 170 ${200+spread} 245 L200 330Z" fill="${w2}" opacity=".9"/>`;
+  return back + greens + stems + leaves + heads + wrapSvg;
+}
+
+// ---------- каталог ----------
+const ITEMS = [
+  {id:"r1", name:"Утро в саду", desc:"Кустовые розы и эвкалипт", price:3900, f:["roses"], pal:"blush", type:"rose", n:13, wrap:"kraft", tag:"Хит"},
+  {id:"r2", name:"Сто причин", desc:"Красные розы, 25 штук", price:6500, f:["roses","mono"], pal:"berry", type:"rose", n:25, wrap:"white"},
+  {id:"s1", name:"Летний луг", desc:"Ромашки, маттиола, зелень", price:2900, f:["season"], pal:"white", type:"daisy", n:15, wrap:"kraft", tag:"Сезон"},
+  {id:"s2", name:"Пионы", desc:"Ароматные пионы, 9 штук", price:5200, f:["season","mono"], pal:"blush", type:"peony", n:9, wrap:"white", tag:"Новинка"},
+  {id:"b1", name:"Шляпная коробка", desc:"Розы и пионы в коробке", price:5900, f:["box","roses"], pal:"blush", type:"mix", n:17, wrap:"box"},
+  {id:"b2", name:"Яркое настроение", desc:"Микс сезонных цветов", price:3400, f:["season","box"], pal:"bright", type:"mix", n:15, wrap:"box"},
+];
+
+const rub = n => n.toLocaleString("ru-RU")+" ₽";
+const grid = document.getElementById("grid");
+grid.innerHTML = ITEMS.map((it,i)=>`
+  <article class="item rv" data-f="${it.f.join(" ")}">
+    <div class="pic" style="background:${i%2?'#f1e6dc':'#eef0e8'}">${it.tag?`<span class="tag">${it.tag}</span>`:""}
+      <svg viewBox="40 80 320 320" aria-hidden="true">${bouquet({pal:it.pal,count:it.n,wrap:it.wrap,type:it.type,seed:i*13+3})}</svg></div>
+    <div class="info"><h3>${it.name}</h3><p>${it.desc}</p>
+      <div class="buy"><span class="price">${rub(it.price)}</span><button class="add" data-id="${it.id}">В корзину</button></div></div>
+  </article>`).join("");
+
+document.querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>{
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===ch));
+  const f=ch.dataset.f;
+  grid.querySelectorAll(".item").forEach(el=>{
+    const show = f==="all" || el.dataset.f.split(" ").includes(f);
+    el.classList.toggle("hide",!show);
+    if(show){ el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  });
+}));
+
+// ---------- конструктор ----------
+const SIZES={S:{n:9,base:2400},M:{n:15,base:3600},L:{n:25,base:5600}};
+const WRAP_PRICE={kraft:0,white:150,box:900};
+const PAL_PRICE={blush:0,bright:0,white:0,berry:300};
+const state={size:"M",pal:"blush",wrap:"kraft",card:"0"};
+document.getElementById("palBtns").innerHTML = Object.entries(PALETTES).map(([k,p])=>
+  `<button aria-pressed="${k===state.pal}" data-v="${k}"><span class="sw">${p.c.slice(0,3).map(c=>`<i style="background:${c}"></i>`).join("")}</span>${p.name}${PAL_PRICE[k]?` +${PAL_PRICE[k]} ₽`:""}</button>`).join("");
+const customPrice=()=>SIZES[state.size].base+WRAP_PRICE[state.wrap]+PAL_PRICE[state.pal]+(state.card==="1"?200:0);
+let shownSum=0;
+function animateSum(to){
+  const el=document.getElementById("sum"), from=shownSum, t0=performance.now();
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const step=t=>{ const k=reduce?1:Math.min(1,(t-t0)/400); const v=Math.round(from+(to-from)*(1-Math.pow(1-k,3))); el.textContent=rub(v); if(k<1) requestAnimationFrame(step); else shownSum=to; };
+  requestAnimationFrame(step);
+}
+function renderCustom(){
+  const g=document.getElementById("custom");
+  g.innerHTML=bouquet({pal:state.pal,count:SIZES[state.size].n,wrap:state.wrap,seed:42});
+  const svg=g.closest("svg"); svg.classList.remove("pop"); void svg.getBBox; void svg.offsetWidth; svg.classList.add("pop");
+  document.getElementById("sizeLabel").textContent=`${state.size} · ${SIZES[state.size].n} цветов`;
+  animateSum(customPrice());
+}
+document.querySelectorAll(".seg").forEach(seg=>seg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  state[seg.dataset.k]=b.dataset.v; renderCustom();
+}));
+renderCustom();
+document.getElementById("heroBouquet").innerHTML=bouquet({pal:"blush",count:19,wrap:"kraft",seed:11});
+
+// ---------- время доставки ----------
+const slotsEl=document.getElementById("slots"), hour=new Date().getHours();
+for(let h=10;h<=21;h++){
+  const b=document.createElement("button"); b.className="slot"; b.textContent=`${h}:00–${h+1}:00`;
+  b.disabled = h < hour+2; b.setAttribute("aria-pressed","false");
+  b.onclick=()=>{ slotsEl.querySelectorAll(".slot").forEach(s=>s.setAttribute("aria-pressed",s===b)); document.getElementById("addr").value=`Доставка сегодня ${b.textContent}, адрес: `; };
+  slotsEl.append(b);
+}
+if(![...slotsEl.children].some(b=>!b.disabled)) slotsEl.insertAdjacentHTML("beforeend",'<span style="color:var(--muted);font-size:14px;align-self:center">На сегодня всё занято — доставим завтра с 10:00</span>');
+
+// ---------- корзина ----------
+const cart=[];
+const cartBtn=document.getElementById("cartBtn");
+function addToCart(item){
+  const ex=cart.find(c=>c.id===item.id); ex?ex.q++:cart.push({...item,q:1});
+  renderCart(); cartBtn.classList.remove("bump"); void cartBtn.offsetWidth; cartBtn.classList.add("bump");
+}
+function renderCart(){
+  document.getElementById("cartCount").textContent=cart.reduce((s,c)=>s+c.q,0);
+  const total=cart.reduce((s,c)=>s+c.q*c.price,0);
+  document.getElementById("cartSum").textContent=rub(total);
+  document.getElementById("lines").innerHTML = cart.length ? cart.map((c,i)=>`
+    <div class="line"><span class="mini"><svg viewBox="40 80 320 320">${c.svg}</svg></span>
+      <div><b>${c.name}</b><small>${rub(c.price)}</small></div>
+      <div class="qty"><button data-i="${i}" data-d="-1" aria-label="Меньше">−</button><span>${c.q}</span><button data-i="${i}" data-d="1" aria-label="Больше">+</button></div></div>`).join("")
+    : '<p class="empty">Здесь пока пусто.<br>Выберите букет — он появится тут.</p>';
+}
+document.getElementById("lines").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-i]"); if(!b) return;
+  const c=cart[b.dataset.i]; c.q+=Number(b.dataset.d); if(c.q<=0) cart.splice(b.dataset.i,1); renderCart();
+});
+grid.addEventListener("click",e=>{
+  const b=e.target.closest(".add"); if(!b) return;
+  const it=ITEMS.find(x=>x.id===b.dataset.id), i=ITEMS.indexOf(it);
+  addToCart({id:it.id,name:it.name,price:it.price,svg:bouquet({pal:it.pal,count:it.n,wrap:it.wrap,type:it.type,seed:i*13+3})});
+  b.classList.add("done"); b.textContent="Добавлено ✓"; setTimeout(()=>{b.classList.remove("done");b.textContent="В корзину"},1400);
+});
+document.getElementById("addCustom").addEventListener("click",()=>{
+  const p=PALETTES[state.pal].name.toLowerCase();
+  addToCart({id:`c-${state.size}-${state.pal}-${state.wrap}-${state.card}`,name:`Свой букет ${state.size}, ${p}`,price:customPrice(),svg:bouquet({pal:state.pal,count:SIZES[state.size].n,wrap:state.wrap,seed:42})});
+  openCart(true);
+});
+const body=document.body, drawer=document.getElementById("drawer");
+function openCart(v){ body.classList.toggle("open",v); drawer.setAttribute("aria-hidden",!v); if(v) document.getElementById("closeCart").focus(); }
+cartBtn.onclick=()=>openCart(true);
+document.getElementById("closeCart").onclick=()=>openCart(false);
+document.getElementById("scrim").onclick=()=>openCart(false);
+addEventListener("keydown",e=>{ if(e.key==="Escape") openCart(false); });
+document.getElementById("order").onclick=()=>{
+  if(!cart.length){ openCart(false); location.hash="catalog"; return; }
+  const text="Здравствуйте! Хочу заказать:\n"+cart.map(c=>`• ${c.name} × ${c.q} — ${rub(c.price*c.q)}`).join("\n")+
+    `\nИтого: ${rub(cart.reduce((s,c)=>s+c.q*c.price,0))}\n${document.getElementById("addr").value}`;
+  window.open("https://t.me/share/url?url="+encodeURIComponent(location.href)+"&text="+encodeURIComponent(text),"_blank");
+};
+renderCart();
+
+// ---------- шапка и появление при прокрутке ----------
+const hdr=document.getElementById("top");
+addEventListener("scroll",()=>hdr.classList.toggle("scrolled",scrollY>8),{passive:true});
+if("IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches){
+  document.documentElement.classList.add("rv-on");
+  const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); setTimeout(()=>e.target.style.transitionDelay="",1000); } }),{rootMargin:"0px 0px -6% 0px"});
+  document.querySelectorAll(".rv").forEach((el,i)=>{ el.style.transitionDelay=(el.classList.contains("item")?(i%3)*70:0)+"ms"; io.observe(el); });
+}
+</script>
+</body>
+</html>
