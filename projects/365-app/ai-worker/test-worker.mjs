@@ -28,7 +28,7 @@ globalThis.fetch = async (url, opts) => {
   const body = opts?.body ? JSON.parse(opts.body) : {};
   if (String(url).includes("generativelanguage")) {
     sent.push({ method: "gemini", body });
-    const isAudio = JSON.stringify(body).includes("inlineData");
+    const isAudio = /"mimeType":"audio\//.test(JSON.stringify(body));
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: isAudio ? voiceText : geminiReply }] } }] }));
   }
   if (String(url).includes("/file/bot")) return new Response(new Uint8Array([1, 2, 3, 4]));
@@ -395,5 +395,22 @@ assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в �
   const link2 = o2.find((m) => m.method === "sendMessage")?.body.text.match(/health\?t=([0-9a-f]+)/);
   assert.notEqual(link2[1], link[1]);
   assert.equal((await call("?t=" + link[1], { steps: 1 })).status, 401, "старая ссылка больше не работает");
+}
+// Фото еды: ИИ считает КБЖУ, блюда уходят в очередь для «Питания»; не еда — подсказка; из приложения — /food-photo.
+{
+  geminiReply = JSON.stringify({ food: true, items: [{ name: "Плов", grams: 350, kcal: 520, p: 18, f: 22, c: 60 }, { name: "Лепёшка", grams: 80, kcal: 210, p: 7, f: 2, c: 42 }] });
+  const before = db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 1").get().c;
+  const o = await tg({ message: { message_id: ++mid, date: Math.floor(Date.now() / 1000), chat: { id: 1, type: "private" }, from: { id: 1, first_name: "A" }, photo: [{ file_id: "s", width: 90 }, { file_id: "b", width: 1280 }], caption: "обед" } });
+  assert.match(lastText(o), /Плов ~350 г — 520 ккал[\s\S]*Итого ≈ 730 ккал/);
+  const rows = db.prepare("SELECT cmd FROM inbox WHERE user_id = 1 ORDER BY id DESC LIMIT 2").all().map((r) => JSON.parse(Buffer.from(r.cmd.slice(5).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()));
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 1").get().c, before + 2);
+  assert.deepEqual(rows.map((r) => r.n).sort(), ["Лепёшка", "Плов"]);
+  geminiReply = JSON.stringify({ food: false });
+  const o2 = await tg({ message: { message_id: ++mid, date: Math.floor(Date.now() / 1000), chat: { id: 1, type: "private" }, from: { id: 1, first_name: "A" }, photo: [{ file_id: "c" }] } });
+  assert.match(lastText(o2), /Не вижу еды/);
+  geminiReply = JSON.stringify({ food: true, items: [{ name: "Салат", grams: 200, kcal: 150, p: 3, f: 10, c: 9 }] });
+  const r = await app("/food-photo", { initData: initData(1), image: "AAAA", mime: "image/jpeg" });
+  assert.equal(r.status, 200); assert.equal(r.json.items[0].n, "Салат"); assert.equal(r.json.items[0].k, 150);
+  assert.equal((await app("/food-photo", { initData: initData(1) })).status, 400);
 }
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));

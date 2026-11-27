@@ -7,6 +7,7 @@
 import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard, boardText, myChallenge, finishChallenges } from "./features.js";
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
+import { analyzeFood, foodCmd, foodText } from "./food.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -121,6 +122,17 @@ export default {
       const docs = {};
       for (const r of rows) { try { docs[r.key] = { at: r.at, v: JSON.parse(r.v) }; } catch {} }
       return reply(200, { docs });
+    }
+
+    // Фото еды из приложения (кнопка камеры во вкладке «Питание»): ИИ оценивает КБЖУ, приложение само записывает.
+    if (path === "/food-photo") {
+      const img = String(body.image || "");
+      if (!img || img.length > 8_000_000) return reply(400, { error: "Фото слишком большое или пустое" });
+      if (!isAdmin(env, user.id) && !(await takeAiQuota(user.id, env)).ok) return reply(429, { error: `На сегодня бесплатные разборы ИИ закончились (${FREE_AI(env)} в день). Безлимит — с подпиской Plus` });
+      await track(env, user, "food_photo");
+      const r = await analyzeFood(env, askGemini, img, String(body.mime || "image/jpeg"), String(body.caption || "").slice(0, 200));
+      if (r === null) return reply(502, { error: "ИИ сейчас недоступен. Попробуйте через минуту" });
+      return reply(200, r);
     }
 
     // Статус подписки для приложения и ссылка на оплату прямо из приложения.
@@ -477,6 +489,7 @@ async function saveEntries(env, userId, entries, ts) {
 
 async function handleMessage(message, env) {
   if (message?.successful_payment) return handlePayment(message, env);
+  if (message?.from && (message.photo || /^image\//.test(message.document?.mime_type || ""))) return handleFoodPhoto(message, env);
   if (!message?.from || !(message.text || message.voice || message.audio)) return;
   const chatId = message.chat.id, userId = message.from.id;
   let text = (message.text || "").trim();
@@ -746,6 +759,8 @@ function helpText() {
     "",
     "📅 Ставлю дела в календарь и напоминаю за 15 минут: «завтра в 12:00 поликлиника»",
     "",
+    "📸 Пришлите фото еды — посчитаю калории и БЖУ и запишу в «Питание»",
+    "",
     "☀️ Каждое утро спрашиваю, как вы поспали — ответ одной кнопкой",
     "",
     "🏃 Челленджи с друзьями: кто пройдёт больше шагов за неделю — нажмите «Челлендж» внизу",
@@ -849,4 +864,37 @@ export async function healthImport(env, request) {
   await env.DB.batch(cmds.map((c) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, c, ts)));
   if (body.quiet !== true && body.quiet !== "1") await telegram(env, "sendMessage", { chat_id: userId, text: "❤️ Из «Здоровья» iPhone записал:\n" + lines.join("\n") }).catch(() => {});
   return [200, { ok: true, saved: lines }];
+}
+
+// ---- фото еды в чате: ИИ считает КБЖУ и записывает в «Питание» ----
+async function handleFoodPhoto(message, env) {
+  const chatId = message.chat.id, userId = message.from.id;
+  await track(env, message.from, "food_photo");
+  if (!env.DB) return sendMessage(env, chatId, "Пока недоступно.");
+  if (!isAdmin(env, userId)) {
+    const q = await takeAiQuota(userId, env);
+    if (!q.ok) return telegram(env, "sendMessage", { chat_id: chatId, text: limitText(env), reply_markup: plusButton });
+  }
+  await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  const media = message.photo ? message.photo[message.photo.length - 1] : message.document;
+  let b64 = null;
+  try {
+    const f = await (await telegram(env, "getFile", { file_id: media.file_id })).json();
+    const res = f.result?.file_path ? await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${f.result.file_path}`) : null;
+    if (res?.ok) {
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.length <= 8 * 1024 * 1024) {
+        let bin = "";
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        b64 = btoa(bin);
+      }
+    }
+  } catch (e) { console.log("food photo", String(e)); }
+  if (!b64) return sendMessage(env, chatId, "Не получилось открыть фото. Пришлите его ещё раз, пожалуйста.");
+  const r = await analyzeFood(env, askGemini, b64, message.document?.mime_type || "image/jpeg", (message.caption || "").slice(0, 200));
+  if (r === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Пришлите фото через минуту.");
+  if (!r.food) return sendMessage(env, chatId, "Не вижу еды на фото 🤔 Сфотографируйте тарелку сверху, при хорошем свете. Можно подписать, что это, например «плов, половина тарелки».");
+  const ts = Date.now();
+  await env.DB.batch(r.items.map((it) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, foodCmd(it), ts)));
+  return sendMessage(env, chatId, foodText(r.items), true);
 }
