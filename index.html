@@ -183,6 +183,15 @@ textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 label.btn.busy{opacity:.6;pointer-events:none}
 .j-wrap{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.ny-wrap{display:flex;flex-direction:column;gap:10px;max-width:760px}
+.ny-top{gap:4px}.ny-top b{font-size:16px;line-height:1.4}.ny-top span{font-size:12px;color:var(--fg2)}
+.ny{padding:0;gap:0;overflow:hidden}
+.ny-h{display:flex;align-items:center;gap:12px;width:100%;padding:16px 18px;text-align:left}
+.ny-e{font-size:24px;width:32px;text-align:center}.ny-t{flex:1;font-size:16px;font-weight:600}.ny-c{color:var(--fg2)}
+.ny-b{padding:0 18px 16px 62px;display:flex;flex-direction:column;gap:10px}
+.ny-l{font-size:13px;font-weight:600;color:var(--accent)}
+.ny-b ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
+.ny-add{gap:8px}
 .card.j-date{display:flex;flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:6px 10px}
 .j-date .j-d{font-size:22px;font-weight:650;letter-spacing:-.01em}
 .j-h{display:flex;align-items:baseline;flex:1 1 220px;min-width:0;font-size:18px;color:var(--fg2)}
@@ -624,7 +633,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="bb905395";
+const BUILD="af778d8c";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
@@ -867,7 +876,7 @@ function ring(frac,val,sub,color="var(--accent)"){
 /* ---------- navigation ---------- */
 const VIEWS=[
   ["overview","Главная","home"],["calendar","Календарь","cal"],["journal","Дневник","book"],["notes","Заметки","note"],
-  ["tasks","Задачи","tasks"],["habits","Привычки","habit"],["health","Здоровье","health"],["money","Финансы","money"],
+  ["niyyah","Намерение","moon"],["habits","Привычки","habit"],["health","Здоровье","health"],["money","Финансы","money"],
   ["assistant","Ассистент","ai"],["prefs","Настройки","set"]].filter(v=>!(STANDALONE&&v[0]==="assistant"));
 const ui={seen:{},evEdit:null,view:"overview",jDay:null,bodyTab:"food",calSel:today(),calWeek:null,noteId:null,noteEditing:false,noteQ:"",armed:null,chatId:null,busy:false,taskTagFilter:""};
 function pruneNotes(keep){const n0=S.notes.length;S.notes=S.notes.filter(n=>n.id===keep||(n.title||"").trim()||(n.body||"").trim());if(S.notes.length!==n0)persist("notes")}
@@ -903,7 +912,7 @@ function renderChrome(){
 let lastView=null;
 function render(enter){
   renderChrome();
-  const fn={overview:vOverview,journal:vJournal,tasks:vTasks,calendar:vCalendar,habits:vHabits,health:vHealth,money:vMoney,notes:vNotes,assistant:vAssistant,prefs:vPrefs}[ui.view];
+  const fn={overview:vOverview,journal:vJournal,niyyah:vNiyyah,tasks:vTasks,calendar:vCalendar,habits:vHabits,health:vHealth,money:vMoney,notes:vNotes,assistant:vAssistant,prefs:vPrefs}[ui.view];
   const y=window.scrollY,cs=$("#weekb")?.scrollTop;
   const ae=document.activeElement;let fk=null,fsel=null;
   if(ae&&ae!==document.body&&$("#view").contains(ae)&&ae.matches("input,textarea,select")){fk=ae.id?"#"+ae.id:(ae.name&&ae.form?.dataset.f?`form[data-f="${ae.form.dataset.f}"]${ae.form.dataset.bucket?`[data-bucket="${ae.form.dataset.bucket}"]`:""} [name="${ae.name}"]`:null);try{fsel=ae.selectionStart}catch{}}
@@ -1362,6 +1371,26 @@ function vMoney(){
   <div class="card"><div class="card-h"><h2>Операции</h2><span class="meta">последние 20</span></div>
     <div class="list">${last.map(x=>`<div class="li"><span class="tag-dot" style="background:${x.type==="inc"?"var(--good)":CATS[x.cat]?.[1]}"></span><span class="t">${esc(x.note||CATS[x.cat]?.[0])}<br><span class="meta">${dLabel(x.date)} · ${x.type==="inc"?"доход":CATS[x.cat]?.[0]}${x.acc&&S.money.accounts.find(a=>a.id===x.acc)?` · ${esc(S.money.accounts.find(a=>a.id===x.acc).name)}`:""}</span></span><span class="r" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="btn sm ghost x ${ui.armed===x.id?"armed":""}" data-a="tx-del" data-id="${x.id}" aria-label="Удалить">${ui.armed===x.id?"Удалить?":ic("x","s")}</button></div>`).join("")||`<div class="empty">Операций нет</div>`}</div></div>`;
 }
+/* ---------- намерение (нийят): перед делом напомнить себе, ради чего — чтобы получить награду от Аллаха ---------- */
+const NIYYAH=[
+  ["sleep","Иду спать","🌙",["Сплю, чтобы набраться сил для поклонения Аллаху и полезных дел","Чтобы встать на утренний намаз (фаджр)","Ложусь на правый бок и читаю перед сном: «Бисмика Аллахумма амуту ва ахья» — следую сунне"]],
+  ["work","Иду на работу","💼",["Работаю, чтобы заработать дозволенное (халяль) и обеспечить семью","Чтобы не зависеть от людей и не просить у них","Чтобы помогать нуждающимся и давать садака","Делаю работу честно и хорошо — ради довольства Аллаха"]],
+  ["study","Иду учиться","📚",["Учусь ради довольства Аллаха","Чтобы знаниями приносить пользу людям","Чтобы радовать родителей и быть им благодарным","«Кто встал на путь поиска знания, тому Аллах облегчит путь в Рай» (Муслим, 2699)"]],
+  ["eat","Сажусь есть","🍽",["Ем, чтобы иметь силы для поклонения и дел","Начинаю с «Бисмиллях» и после благодарю Аллаха: «Альхамдулиллях»"]],
+  ["sport","Иду на тренировку","💪",["Укрепляю тело, которое дал мне Аллах","«Сильный верующий лучше и любимее Аллахом, чем слабый» (Муслим, 2664)"]],
+  ["parents","Помогаю родителям","🤲",["Помогаю родителям ради Аллаха","Чтобы порадовать их и заслужить их дуа"]],
+];
+function vNiyyah(){
+  S.meta.niyyah=S.meta.niyyah||{own:[],open:"sleep"};const N=S.meta.niyyah;
+  const all=[...NIYYAH,...(N.own||[]).map(o=>[o.id,o.title,"✨",o.items,true])];
+  return`${head("Намерение","Перед делом вспомни, ради чего — и получи награду от Аллаха")}
+  <div class="ny-wrap">
+    <div class="card ny-top"><b>«Поистине, деяния оцениваются по намерениям»</b><span>аль-Бухари, 1 · Муслим, 1907</span></div>
+    ${all.map(([k,t,e,items,own])=>`<div class="card ny ${N.open===k?"open":""}"><button class="ny-h" data-a="ny-open" data-v="${k}"><span class="ny-e">${e}</span><span class="ny-t">${esc(t)}</span><span class="ny-c">${ic(N.open===k?"x":"right","s")}</span></button>
+      ${N.open===k?`<div class="ny-b"><div class="ny-l">Намерение: чтобы получить награду от Аллаха</div><ul>${items.map(i=>`<li>${esc(i)}</li>`).join("")}</ul>${own?`<button class="btn sm ghost danger" data-a="ny-del" data-v="${k}">Удалить</button>`:""}</div>`:""}</div>`).join("")}
+    <form class="card ny-add" data-f="ny-add"><b>Своё намерение</b><input class="in" name="title" placeholder="Например: иду в мечеть" required autocomplete="off" maxlength="60"><textarea class="in" name="items" rows="3" placeholder="Каждое намерение с новой строки" maxlength="600"></textarea><button class="btn pri" type="submit">${ic("plus","s")}Добавить</button></form>
+  </div>`;
+}
 /* ---------- дневник дня: вопросы задаёт бот вечером, ответы приходят сюда; можно дописать вручную ---------- */
 const JQ=[["vibe","Вайб дня","пунктами: каким был день"],["desc","Описание дня",""],["insight","Инсайт дня",""],
   ["dream","Что я сделал на пути к мечте",""],["drain","Что отодвинуло от мечты и высосало энергию. Как избежать завтра",""],
@@ -1647,6 +1676,8 @@ document.addEventListener("click",e=>{
     case"theme":S.settings.theme=v;applyTheme();commit("settings");break;
     case"j-day":{const cur=ui.jDay||today();ui.jDay=v==="0"?today():iso(addDays(new Date(cur+"T12:00:00"),+v));if(ui.jDay>today())ui.jDay=today();render();break}
     case"j-open":ui.jDay=v;render();window.scrollTo(0,0);break;
+    case"ny-open":{const N=S.meta.niyyah=S.meta.niyyah||{own:[],open:""};N.open=N.open===v?"":v;persist("meta");render();break}
+    case"ny-del":{const N=S.meta.niyyah;N.own=(N.own||[]).filter(o=>o.id!==v);N.open="";commit("meta");break}
     case"theme-cycle":{const o=["system","light","dark"];S.settings.theme=o[(o.indexOf(S.settings.theme)+1)%3];applyTheme();commit("settings");break}
     case"dark-toggle":{const dark=el.getAttribute("aria-checked")==="true";S.settings.theme=dark?"light":"dark";applyTheme();commit("settings");break}
     case"sys-toggle":S.settings.theme=S.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):"system";applyTheme();commit("settings");break;
@@ -1714,6 +1745,7 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("submit",e=>{
+  if(e.target.dataset.f==="ny-add"){e.preventDefault();const f=e.target,t=f.title.value.trim();if(!t)return;const items=f.items.value.split("\n").map(x=>x.trim()).filter(Boolean);const N=S.meta.niyyah=S.meta.niyyah||{own:[],open:""};const id="own"+rid();(N.own=N.own||[]).push({id,title:t.slice(0,60),items:items.length?items.slice(0,10):["Ради довольства Аллаха"]});N.open=id;commit("meta");toast("Намерение добавлено");return}
   const f=e.target;const k=f.dataset.f;if(!k)return;e.preventDefault();
   const v=n=>(f.elements[n]?.value??"").trim();
   switch(k){
