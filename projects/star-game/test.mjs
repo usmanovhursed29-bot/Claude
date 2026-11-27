@@ -48,6 +48,11 @@ mines = JSON.parse(db.prepare("SELECT mines FROM mines_games WHERE id = ?").get(
 r = await call("mines/open", { gameId: g2, cell: mines[0] }); assert.equal(r.j.boom, true); assert.equal(r.j.coins, c1 - 50);
 assert.equal((await call("mines/cash", { gameId: g2 })).status, 400);
 assert.equal((await call("mines/start", { stake: 9, mines: 3 })).status, 400, "ставка не меньше 10");
+assert.equal((await call("mines/start", { stake: 50, mines: 2 })).status, 400, "мин не меньше 3");
+assert.equal((await call("mines/start", { stake: 50, mines: 25 })).status, 400, "мин не больше 24");
+assert.ok(minesMult(7, 1) > minesMult(6, 1) && minesMult(13, 2) > minesMult(12, 2), "больше мин — больше множитель");
+{ const cc = coins(); r = await call("mines/start", { stake: 50, mines: 13 }); assert.equal(r.status, 200); assert.equal(r.j.game.m, 13); assert.equal(r.j.game.next, minesMult(13, 1));
+  const mx = JSON.parse(db.prepare("SELECT mines FROM mines_games WHERE id = ?").get(r.j.game.id).mines); assert.equal(mx.length, 13); await call("mines/open", { gameId: r.j.game.id, cell: mx[0] }); }
 assert.equal((await call("mines/start", { stake: 12.5, mines: 3 })).status, 400, "ставка целым числом");
 { const cc = coins(); r = await call("mines/start", { stake: 37, mines: 3 }); assert.equal(r.status, 200); assert.equal(r.j.coins, cc - 37); const gx = r.j.game.id;
   const mx = JSON.parse(db.prepare("SELECT mines FROM mines_games WHERE id = ?").get(gx).mines); await call("mines/open", { gameId: gx, cell: mx[0] }); }

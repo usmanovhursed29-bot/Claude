@@ -69,6 +69,7 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .t-cosmos{--tb:#0d1b3d;--tc:#1d3a7a;--tg:#3d1f73}
 .t-lucky{--tb:#0f3a33;--tc:#1f6b5d;--tg:#7a5a12}
 .panel{margin:10px -14px 0;padding:10px 14px 4px;background:var(--bg2);border-radius:22px;display:flex;flex-direction:column;gap:10px}
+#mSeg{display:block;padding:8px 12px 2px}
 .seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:var(--bg);border:1px solid var(--line)}
 .seg button{flex:1;height:44px;border-radius:12px;color:var(--soft);font-weight:800;font-size:14px}
 .seg button.on{background:#343a63;color:var(--ink)}
@@ -332,16 +333,15 @@ function paintMines(keepInput) {
     else if (shown) { if (shown.mines.includes(i)) { cls += " bomb" + (i === shown.boom ? "" : " dim"); in_ = BOMB; } else { cls += " gem dim"; in_ = GEM; } }
     return `<button class="${cls}" data-c="${i}" ${!g || opened.includes(i) ? "tabindex=-1" : ""}>${in_}</button>`; }).join("");
   $("mMult").textContent = fmtX(g ? g.mult : 1); $("mNext").textContent = fmtX(g ? g.next : demoMult(M.m, 1)); $("mCount").textContent = g ? g.m : M.m;
-  const st = me.stakes || [50, 100, 250, 500], mn = me.mines || [3, 5, 10, 24];
-  if (!keepInput) $("mStakes").innerHTML = stakeBox("mIn", !!g);
-  $("mSeg").innerHTML = mn.map((v) => `<button data-m="${v}" class="${v === M.m ? "on" : ""}" ${g ? "disabled" : ""}>${v} мин</button>`).join("");
+  if (!keepInput || keepInput === "mines") $("mStakes").innerHTML = stakeBox("mIn", !!g);
+  if (!keepInput || keepInput === "stake") $("mSeg").innerHTML = `<div class="info"><span>Мин <b id="mmN">${M.m}</b></span><span>Шанс 1-й клетки <b id="mmP">${Math.round(100 * (25 - M.m) / 25)}%</b></span><span>Множитель <b id="mmX">${fmtX(demoMult(M.m, 1))}</b></span></div><input class="range" id="mRange" type="range" min="3" max="24" value="${M.m}" ${g ? "disabled" : ""} aria-label="Сколько мин">`;
   const go = $("mGo");
   if (g && g.opened.length) { go.disabled = M.busy; go.innerHTML = `Забрать ${fmt(Math.floor(g.stake * g.mult))} 🪙<small>${fmtX(g.mult)}</small>`; }
   else if (g) { go.disabled = true; go.innerHTML = "Открой клетку"; }
   else { go.disabled = M.busy || me.coins < STAKE; go.innerHTML = me.coins < STAKE ? `Нужно ${STAKE} монет` : `Начать игру · ${STAKE} 🪙`; }
 }
-bindStake($("mStakes"), paintMines);
-$("mSeg").addEventListener("click", (e) => { const v = +e.target.dataset.m; if (v && !M.game) { M.m = v; M.shown = null; paintMines(); haptic("light"); } });
+bindStake($("mStakes"), (k) => paintMines(k ? "stake" : undefined));
+$("mSeg").addEventListener("input", (e) => { if (e.target.id !== "mRange" || M.game) return; M.m = +e.target.value; M.shown = null; $("mmN").textContent = M.m; $("mmP").textContent = Math.round(100 * (25 - M.m) / 25) + "%"; $("mmX").textContent = fmtX(demoMult(M.m, 1)); paintMines("mines"); });
 // демо без Telegram: та же логика прямо в браузере
 const DEMO = { mines: null };
 async function mStart() {

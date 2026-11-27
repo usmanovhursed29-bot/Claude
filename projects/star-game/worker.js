@@ -9,7 +9,8 @@ const START_COINS = 500;           // монет новичку
 export const STAKES = [50, 100, 250, 500];  // быстрые кнопки в интерфейсе
 export const MIN_STAKE = 10, MAX_STAKE = 1000000;
 export const okStake = (x) => Number.isInteger(x) && x >= MIN_STAKE && x <= MAX_STAKE;
-export const MINES = [3, 5, 10, 24];
+export const MIN_MINES = 3, MAX_MINES = 24;
+export const okMines = (m) => Number.isInteger(m) && m >= MIN_MINES && m <= MAX_MINES;
 const EDGE = 0.97;                 // множитель «Мин» = 0.97 × честный шанс
 export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
 const THEMES = ["classic", "neon", "gold", "cosmos", "lucky"];
@@ -63,7 +64,7 @@ async function player(env, u, now = Date.now()) {
 }
 const themesOf = (p) => { try { const t = JSON.parse(p.skins || "[]").filter((x) => THEMES.includes(x)); return t.includes("classic") ? t : ["classic", ...t]; } catch { return ["classic"]; } };
 const view = (p) => ({ id: p.id, name: p.name, username: p.username, played: p.played || 0, wins: p.wins || 0, since: p.created, coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
-  themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, minStake: MIN_STAKE, mines: MINES, wheel: WHEEL,
+  themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, minStake: MIN_STAKE, minMines: MIN_MINES, maxMines: MAX_MINES, wheel: WHEEL,
   shop: Object.entries(SHOP).map(([id, s]) => ({ id, ...s })), coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })) });
 const fresh = async (env, id) => view(await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(id).first());
 async function stat(env, id, won) { await env.DB.prepare("UPDATE players SET played = played + 1, wins = wins + ? WHERE id = ?").bind(won ? 1 : 0, id).run(); }
@@ -130,7 +131,8 @@ async function apiRoute(path, body, env, now = Date.now()) {
 
   if (path === "mines/start") {
     const stake = Number(body.stake), m = Number(body.mines);
-    if (!okStake(stake) || !MINES.includes(m)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
+    if (!okMines(m)) return json(400, { error: `Мин от ${MIN_MINES} до ${MAX_MINES}` });
     if (await game()) return json(400, { error: "Сначала закончите текущую игру" });
     if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
     const id = crypto.randomUUID();
