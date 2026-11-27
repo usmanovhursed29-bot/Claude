@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Звёздный рейс</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Ночное небо, золото звёзд, бирюза щита. Игра — на весь экран, интерфейс крупный, под большой палец. */
+:root{--sky:#0b1226;--sky2:#152245;--panel:rgba(20,32,64,.86);--line:rgba(255,255,255,.12);--ink:#f5f1e6;--soft:#a9b4cf;--gold:#ffc94a;--gold2:#ff9f1c;--teal:#53e0c8;--red:#ff5d6c;
+  --disp:"Unbounded","Arial Black",sans-serif;--body:"Manrope",system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--sky);color:var(--ink);font:500 16px/1.4 var(--body);overflow:hidden;user-select:none;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center}
+.scr[hidden]{display:none}
+h1{font:800 clamp(30px,9vw,44px)/1.05 var(--disp);margin:0;letter-spacing:-.01em}
+h1 b{color:var(--gold)}
+h2{font:700 24px/1.1 var(--disp);margin:0}
+.sub{color:var(--soft);max-width:22rem;margin:0}
+.btn{appearance:none;border:0;border-radius:18px;min-height:56px;padding:0 26px;font:800 18px var(--body);color:#2a1700;background:linear-gradient(180deg,var(--gold),var(--gold2));box-shadow:0 10px 30px -10px rgba(255,170,40,.7);cursor:pointer;width:min(320px,100%)}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn[disabled]{opacity:.45}
+.row{display:flex;gap:10px;width:min(320px,100%)}
+.row .btn{flex:1;min-width:0;padding:0 10px;font-size:16px}
+.stat{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+.chip b{color:var(--gold)}
+.hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 0;pointer-events:none;font:800 20px var(--disp)}
+.hud[hidden]{display:none}
+.hearts{letter-spacing:4px;color:var(--red);font-family:var(--body)}
+.list{width:min(360px,100%);display:flex;flex-direction:column;gap:10px;max-height:58vh;overflow:auto}
+.item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;text-align:left}
+.item .t{flex:1;min-width:0}.item .t b{display:block;font-size:16px}.item .t span{color:var(--soft);font-size:13px}
+.item button{appearance:none;border:0;border-radius:12px;min-height:44px;padding:0 14px;font:800 15px var(--body);background:var(--gold);color:#2a1700;white-space:nowrap}
+.item button.on{background:var(--teal);color:#06302a}
+.item button.own{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.sw{width:40px;height:40px;flex:none}
+.top li{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--panel);border-radius:12px;border:1px solid var(--line)}
+.top{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:min(360px,100%);max-height:56vh;overflow:auto;counter-reset:n}
+.top li span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top li span:first-child::before{counter-increment:n;content:counter(n)". ";color:var(--gold);font-weight:800}
+.top li.me{box-shadow:inset 0 0 0 2px var(--gold)}
+.big{font:800 64px/1 var(--disp);color:var(--gold)}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:12px 18px;border-radius:14px;font-weight:700;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+.fine{color:var(--soft);font-size:12px;max-width:22rem;margin:0}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hud" id="hud" hidden><span id="hScore">0</span><span class="hearts" id="hLives">♥♥♥</span></div>
+
+<section class="scr" id="sMenu">
+  <h1>Звёздный<br><b>рейс</b></h1>
+  <p class="sub">Веди ракету пальцем, собирай звёзды и уворачивайся от астероидов. Чем дальше, тем быстрее.</p>
+  <div class="stat"><span class="chip">Рекорд <b id="mBest">0</b></span><span class="chip">Запусков <b id="mRuns">—</b></span></div>
+  <button class="btn" id="bPlay">Полетели</button>
+  <div class="row"><button class="btn ghost" id="bShop">Магазин ⭐</button><button class="btn ghost" id="bTop">Рейтинг</button></div>
+  <p class="fine" id="mNote">5 бесплатных запусков каждый день.</p>
+</section>
+
+<section class="scr" id="sOver" hidden>
+  <h2 id="oTitle">Полёт окончен</h2>
+  <div class="big" id="oScore">0</div>
+  <p class="sub" id="oText"></p>
+  <button class="btn" id="bAgain">Ещё раз</button>
+  <div class="row"><button class="btn ghost" id="bMenu">Меню</button><button class="btn ghost" id="bTop2">Рейтинг</button></div>
+</section>
+
+<section class="scr" id="sShop" hidden>
+  <h2>Магазин</h2>
+  <p class="sub">Покупки за звёзды Telegram. Звёзды тратятся на запуски и ракеты, выиграть их в игре нельзя.</p>
+  <div class="list" id="shopList"></div>
+  <button class="btn ghost" id="bBack1">Назад</button>
+</section>
+
+<section class="scr" id="sTop" hidden>
+  <h2>Рейтинг недели</h2>
+  <p class="sub">Лучший полёт каждого игрока с понедельника.</p>
+  <ul class="top" id="topList"></ul>
+  <button class="btn ghost" id="bBack2">Назад</button>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+const INIT = tg && tg.initData;
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b1226"); tg.setBackgroundColor("#0b1226"); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {} }
+const API = location.origin + "/api/";
+const $ = (id) => document.getElementById(id);
+const haptic = (t) => { try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(t); } catch (e) {} };
+
+const SKINS = {
+  classic: { name: "Классика", body: "#f3f0ea", wing: "#ff5d6c", win: "#53e0c8", flame: "#ffb02e" },
+  neon: { name: "Неон", body: "#1b1f3a", wing: "#7a5cff", win: "#53e0c8", flame: "#53e0c8" },
+  gold: { name: "Золотая", body: "#ffd768", wing: "#ff9f1c", win: "#2a1700", flame: "#fff1b0" },
+  comet: { name: "Комета", body: "#cfe8ff", wing: "#3a86ff", win: "#ffffff", flame: "#8ecbff" },
+};
+let me = { runs: null, best: 0, skins: ["classic"], skin: "classic", shop: [] };
+const demo = !INIT;
+
+async function api(path, body) {
+  const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: INIT, ...body }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "Сервер недоступен");
+  return d;
+}
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
+function show(id) { for (const s of ["sMenu", "sOver", "sShop", "sTop"]) $(s).hidden = s !== id; $("hud").hidden = !!id; }
+function paintMenu() { $("mBest").textContent = me.best; $("mRuns").textContent = me.runs == null ? "—" : me.runs; $("mNote").textContent = demo ? "Демо в браузере. Рейтинг и магазин работают внутри Telegram." : me.runs > 0 ? "5 бесплатных запусков каждый день." : "Запуски на сегодня закончились. Завтра будут новые или купи в магазине."; }
+async function load() { if (demo) { me.runs = 99; me.best = +(localStorage.getItem("sr_best") || 0); } else { try { Object.assign(me, await api("me")); } catch (e) { toast(e.message); } } paintMenu(); }
+
+// ---------- игра ----------
+const cv = $("cv"), cx = cv.getContext("2d");
+let W, H, DPR;
+function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+addEventListener("resize", resize); resize();
+const sky = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9 }));
+let G = null, runId = null;
+function newGame() { return { t: 0, x: W / 2, tx: W / 2, y: H * .78, lives: 3, score: 0, speed: 210, objs: [], parts: [], spawn: 0, shield: 0, hurt: 0, over: false }; }
+function spawn(g) {
+  const r = Math.random(), x = 30 + Math.random() * (W - 60);
+  const rockP = Math.min(.55, .3 + g.t / 120);
+  if (r < rockP) g.objs.push({ k: "rock", x, y: -40, r: 16 + Math.random() * 18, rot: Math.random() * 6, vr: (Math.random() - .5) * 3, vx: (Math.random() - .5) * 40 });
+  else if (r < rockP + .04) g.objs.push({ k: "shield", x, y: -30, r: 16 });
+  else if (r < rockP + .1) g.objs.push({ k: "big", x, y: -30, r: 18 });
+  else g.objs.push({ k: "star", x, y: -20, r: 12 });
+}
+function burst(g, x, y, col, n) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 180; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, l: .6, c: col }); } }
+function step(dt) {
+  const g = G; g.t += dt; g.speed = 210 + g.t * 9; g.x += (g.tx - g.x) * Math.min(1, dt * 14);
+  g.spawn -= dt; if (g.spawn <= 0) { spawn(g); g.spawn = Math.max(.22, .62 - g.t / 90); }
+  if (g.shield > 0) g.shield -= dt; if (g.hurt > 0) g.hurt -= dt;
+  for (const o of g.objs) { o.y += g.speed * dt * (o.k === "rock" ? 1.05 : .9); if (o.vx) o.x += o.vx * dt; if (o.rot != null) o.rot += o.vr * dt;
+    const dx = o.x - g.x, dy = o.y - g.y, hit = Math.hypot(dx, dy) < o.r + 18;
+    if (hit && !o.dead) {
+      if (o.k === "star") { g.score += 1; o.dead = 1; burst(g, o.x, o.y, "#ffc94a", 8); haptic("light"); }
+      else if (o.k === "big") { g.score += 5; o.dead = 1; burst(g, o.x, o.y, "#fff1b0", 16); haptic("medium"); }
+      else if (o.k === "shield") { g.shield = 6; o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 14); haptic("medium"); }
+      else if (g.shield > 0) { o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 18); }
+      else if (g.hurt <= 0) { g.lives--; g.hurt = 1.2; o.dead = 1; burst(g, o.x, o.y, "#ff5d6c", 22); haptic("heavy"); if (g.lives <= 0) g.over = true; }
+    } }
+  g.objs = g.objs.filter((o) => !o.dead && o.y < H + 60);
+  for (const p of g.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.l -= dt; }
+  g.parts = g.parts.filter((p) => p.l > 0);
+  $("hScore").textContent = g.score; $("hLives").textContent = "♥".repeat(Math.max(0, g.lives)) + "♡".repeat(3 - Math.max(0, g.lives));
+}
+function starPath(x, y, r, n = 5, k = .45) { cx.beginPath(); for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, rr = i % 2 ? r * k : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath(); }
+function drawRocket(x, y, skin, t, ghost) {
+  const s = SKINS[skin] || SKINS.classic; cx.save(); cx.translate(x, y); if (ghost) cx.globalAlpha = .5;
+  const f = 14 + Math.sin(t * 40) * 5; const fl = cx.createLinearGradient(0, 18, 0, 18 + f + 14); fl.addColorStop(0, s.flame); fl.addColorStop(1, "rgba(255,120,0,0)");
+  cx.fillStyle = fl; cx.beginPath(); cx.moveTo(-8, 18); cx.quadraticCurveTo(0, 18 + f + 16, 8, 18); cx.fill();
+  cx.fillStyle = s.wing; cx.beginPath(); cx.moveTo(-12, 8); cx.lineTo(-24, 24); cx.lineTo(-10, 20); cx.fill(); cx.beginPath(); cx.moveTo(12, 8); cx.lineTo(24, 24); cx.lineTo(10, 20); cx.fill();
+  cx.fillStyle = s.body; cx.beginPath(); cx.moveTo(0, -30); cx.bezierCurveTo(16, -16, 14, 10, 10, 22); cx.lineTo(-10, 22); cx.bezierCurveTo(-14, 10, -16, -16, 0, -30); cx.fill();
+  cx.fillStyle = s.wing; cx.beginPath(); cx.moveTo(0, -30); cx.bezierCurveTo(8, -24, 11, -18, 12, -14); cx.lineTo(-12, -14); cx.bezierCurveTo(-11, -18, -8, -24, 0, -30); cx.fill();
+  cx.fillStyle = s.win; cx.beginPath(); cx.arc(0, -2, 6.5, 0, 6.28); cx.fill(); cx.strokeStyle = "rgba(0,0,0,.25)"; cx.lineWidth = 2; cx.stroke();
+  cx.restore();
+}
+function draw(t) {
+  const g = G; const bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#152245"); bg.addColorStop(1, "#0b1226"); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
+  const sp = g ? g.speed : 60;
+  for (const s of sky) { s.y += (sp * s.z * .0009) * (1 / 60); if (s.y > 1) { s.y = 0; s.x = Math.random(); } cx.fillStyle = `rgba(255,255,255,${.25 + s.z * .5})`; cx.fillRect(s.x * W, s.y * H, s.z * 2, s.z * 2 + (g ? s.z * 4 : 0)); }
+  if (!g) { drawRocket(W / 2, H * .82 + Math.sin(t * 2) * 6, me.skin, t); return; }
+  for (const o of g.objs) {
+    if (o.k === "rock") { cx.save(); cx.translate(o.x, o.y); cx.rotate(o.rot); cx.fillStyle = "#6b5a7a"; cx.beginPath(); for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28, rr = o.r * (.82 + ((i * 37) % 7) / 30); cx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } cx.closePath(); cx.fill(); cx.fillStyle = "#54465f"; cx.beginPath(); cx.arc(o.r * .25, -o.r * .2, o.r * .22, 0, 6.28); cx.arc(-o.r * .3, o.r * .3, o.r * .15, 0, 6.28); cx.fill(); cx.restore(); }
+    else if (o.k === "shield") { cx.strokeStyle = "#53e0c8"; cx.lineWidth = 3; cx.fillStyle = "rgba(83,224,200,.18)"; cx.beginPath(); cx.arc(o.x, o.y, o.r, 0, 6.28); cx.fill(); cx.stroke(); cx.fillStyle = "#53e0c8"; cx.font = "800 15px Manrope"; cx.textAlign = "center"; cx.fillText("S", o.x, o.y + 5); }
+    else { const big = o.k === "big"; cx.save(); cx.shadowColor = "#ffc94a"; cx.shadowBlur = big ? 22 : 12; cx.fillStyle = big ? "#fff1b0" : "#ffc94a"; starPath(o.x, o.y, o.r + Math.sin(t * 6 + o.x) * 1.5); cx.fill(); cx.restore(); }
+  }
+  for (const p of g.parts) { cx.globalAlpha = Math.max(0, p.l / .6); cx.fillStyle = p.c; cx.fillRect(p.x - 2, p.y - 2, 4, 4); } cx.globalAlpha = 1;
+  drawRocket(g.x, g.y, me.skin, t, g.hurt > 0 && Math.floor(t * 12) % 2);
+  if (g.shield > 0) { cx.strokeStyle = `rgba(83,224,200,${.5 + .3 * Math.sin(t * 10)})`; cx.lineWidth = 3; cx.beginPath(); cx.arc(g.x, g.y - 2, 36, 0, 6.28); cx.stroke(); }
+}
+let last = performance.now();
+function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (G && !G.over) step(dt); draw(now / 1000); if (G && G.over && !G.ended) { G.ended = true; finish(); } requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+const move = (e) => { if (!G) return; const p = e.touches ? e.touches[0] : e; G.tx = Math.max(24, Math.min(W - 24, p.clientX)); };
+addEventListener("pointermove", move); addEventListener("pointerdown", move); addEventListener("touchmove", (e) => { move(e); e.preventDefault(); }, { passive: false });
+
+async function play() {
+  if (!demo && !(me.runs > 0)) { toast("Запуски закончились. Загляни в магазин ⭐"); show("sShop"); renderShop(); return; }
+  try { if (!demo) { const d = await api("run"); runId = d.runId; me.runs = d.runs; } } catch (e) { toast(e.message); return; }
+  G = newGame(); show(null); haptic("medium");
+}
+async function finish() {
+  const g = G, sc = g.score;
+  let best = me.best, record = sc > me.best;
+  if (demo) { if (record) localStorage.setItem("sr_best", sc); me.best = Math.max(me.best, sc); }
+  else { try { const d = await api("finish", { runId, score: sc }); me.best = d.best; me.runs = d.runs; record = d.record; } catch (e) { toast(e.message); } }
+  $("oScore").textContent = sc; $("oTitle").textContent = record ? "Новый рекорд!" : "Полёт окончен";
+  $("oText").textContent = record ? "Ты побил свой лучший результат." : `Рекорд: ${me.best}. Осталось запусков: ${demo ? "∞" : me.runs}.`;
+  setTimeout(() => { G = null; show("sOver"); paintMenu(); }, 650); if (record) haptic("heavy");
+}
+function renderShop() {
+  const L = $("shopList"); const items = me.shop.length ? me.shop : [
+    { id: "runs5", title: "+5 запусков", stars: 5 }, { id: "runs20", title: "+20 запусков", stars: 15 },
+    { id: "skin_neon", title: "Ракета «Неон»", stars: 25, skin: "neon" }, { id: "skin_comet", title: "Ракета «Комета»", stars: 35, skin: "comet" }, { id: "skin_gold", title: "Ракета «Золотая»", stars: 50, skin: "gold" }];
+  const owned = (s) => me.skins.includes(s);
+  L.innerHTML = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...items].map((it) => {
+    const sw = it.skin ? `<canvas class="sw" data-skin="${it.skin}" width="80" height="80"></canvas>` : `<svg class="sw" viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc94a"/></svg>`;
+    let btn;
+    if (it.skin && owned(it.skin)) btn = me.skin === it.skin ? `<button class="on" disabled>Выбрана</button>` : `<button class="own" data-use="${it.skin}">Выбрать</button>`;
+    else btn = `<button data-buy="${it.id}">${it.stars} ⭐</button>`;
+    return `<div class="item">${sw}<div class="t"><b>${it.title}</b><span>${it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span></div>${btn}</div>`;
+  }).join("");
+  L.querySelectorAll("canvas.sw").forEach((c) => { const g = c.getContext("2d"); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 80, 80); g.translate(40, 44); g.scale(1.15, 1.15); drawRocketCtx(g, c.dataset.skin); });
+}
+function drawRocketCtx(g, skin) { const s = SKINS[skin] || SKINS.classic;
+  g.fillStyle = s.wing; g.beginPath(); g.moveTo(-12, 8); g.lineTo(-24, 24); g.lineTo(-10, 20); g.fill(); g.beginPath(); g.moveTo(12, 8); g.lineTo(24, 24); g.lineTo(10, 20); g.fill();
+  g.fillStyle = s.body; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(16, -16, 14, 10, 10, 22); g.lineTo(-10, 22); g.bezierCurveTo(-14, 10, -16, -16, 0, -30); g.fill();
+  g.fillStyle = s.wing; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(8, -24, 11, -18, 12, -14); g.lineTo(-12, -14); g.bezierCurveTo(-11, -18, -8, -24, 0, -30); g.fill();
+  g.fillStyle = s.win; g.beginPath(); g.arc(0, -2, 6.5, 0, 6.28); g.fill(); }
+$("shopList").addEventListener("click", async (e) => {
+  const use = e.target.dataset.use, buy = e.target.dataset.buy;
+  if (use) { me.skin = use; if (!demo) api("skin", { skin: use }).catch(() => {}); renderShop(); haptic("light"); return; }
+  if (!buy) return;
+  if (demo) { toast("Покупки работают внутри Telegram"); return; }
+  try { const { link } = await api("buy", { item: buy }); tg.openInvoice(link, async (st) => { if (st === "paid") { toast("Оплачено! Спасибо ⭐"); setTimeout(async () => { Object.assign(me, await api("me")); renderShop(); paintMenu(); }, 1200); } else if (st === "failed") toast("Оплата не прошла"); }); }
+  catch (err) { toast(err.message); }
+});
+async function openTop() {
+  show("sTop"); const L = $("topList"); L.innerHTML = `<li><span>Загружаю…</span></li>`;
+  if (demo) { L.innerHTML = `<li><span>Рейтинг работает внутри Telegram</span></li>`; return; }
+  try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r) => `<li class="${r.me ? "me" : ""}"><span>${r.name.replace(/[<>&]/g, "")}</span><b>${r.score}</b></li>`).join("") : `<li><span>На этой неделе ещё никто не летал. Будь первым!</span></li>`; }
+  catch (e) { L.innerHTML = `<li><span>${e.message}</span></li>`; }
+}
+$("bPlay").onclick = play; $("bAgain").onclick = play;
+$("bMenu").onclick = () => { show("sMenu"); paintMenu(); };
+$("bShop").onclick = () => { show("sShop"); renderShop(); };
+$("bTop").onclick = openTop; $("bTop2").onclick = openTop;
+$("bBack1").onclick = $("bBack2").onclick = () => { show("sMenu"); paintMenu(); };
+load();
+</script>
+</body>
+</html>
