@@ -85,6 +85,22 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .stakes button{width:58px;height:58px;border-radius:50%;font:900 16px var(--disp);background:radial-gradient(circle,#4b55a8 55%,#2d3470 56%);box-shadow:inset 0 0 0 4px rgba(255,255,255,.15),0 6px 14px -6px rgba(0,0,0,.6)}
 .stakes button.on{background:radial-gradient(circle,#7a5cff 55%,#4b36b8 56%);box-shadow:inset 0 0 0 4px #ffc83d}
 .stakes button[disabled]{opacity:.35}
+.back{display:inline-flex;align-items:center;height:38px;padding:0 14px;border-radius:999px;background:var(--card);color:var(--soft);font-weight:800;margin:2px 0 6px}
+.prof{display:flex;align-items:center;gap:14px;margin:6px 2px 16px}
+.pava{width:72px;height:72px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font:900 30px var(--disp);overflow:hidden;flex:none}
+.pava img{width:100%;height:100%;object-fit:cover}
+.pnm{min-width:0}.pnm b{display:block;font:900 22px var(--disp);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pnm span{color:var(--soft)}
+.pbal{border-radius:22px;padding:18px 20px;background:radial-gradient(120% 120% at 80% 20%,#6a4bff,#2b2a8a);display:flex;align-items:baseline;gap:10px}
+.pbal b{font:900 38px var(--disp);color:var(--gold)}.pbal span{color:#d8dcff}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.pstats div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 10px;text-align:center;min-width:0}
+.pstats b{display:block;font:900 19px var(--disp)}.pstats span{font-size:12px;color:var(--soft)}
+.pthemes{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.pthemes button{flex:none;width:78px;border-radius:16px;background:var(--card);border:2px solid var(--line);padding:8px;font-size:12px;color:var(--soft)}
+.pthemes button.on{border-color:var(--gold);color:var(--ink)}
+.pthemes svg{width:58px;height:58px;display:block;margin:0 auto 4px}
+.pid{margin-top:16px;padding:12px 14px;border-radius:14px;background:var(--card);display:flex;align-items:center;gap:8px;font-size:14px;color:var(--soft)}
+.pid b{color:var(--ink);user-select:text}.pid button{margin-left:auto;height:34px;padding:0 12px;border-radius:10px;background:#343a63;color:var(--ink);font-weight:800;font-size:13px}
 .sbox{display:flex;align-items:center;gap:6px;height:56px;padding:0 6px 0 14px;border-radius:16px;background:var(--bg);border:1px solid var(--line);margin-bottom:4px}
 .sbox span{font-size:20px}
 .sbox input{flex:1;min-width:0;height:100%;border:0;background:transparent;color:var(--ink);font:800 21px var(--body);outline:none}
@@ -159,7 +175,7 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
     <button class="pill" data-open="mines">Играть <span>›</span></button>
   </div>
   <div class="live" id="live"><span class="lbl">ТОП</span></div>
-  <h2 class="sec">Игры</h2>
+  <h2 class="sec">Все игры</h2>
   <div class="games">
     <button class="game" data-open="mines"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2346b8"/><stop offset="1" stop-color="#5a2fc4"/></linearGradient></defs><rect width="300" height="400" fill="url(#g1)"/><g opacity=".35" fill="#fff"><rect x="20" y="250" width="50" height="50" rx="10"/><rect x="80" y="250" width="50" height="50" rx="10"/><rect x="170" y="250" width="50" height="50" rx="10"/><rect x="230" y="250" width="50" height="50" rx="10"/><rect x="20" y="310" width="50" height="50" rx="10"/><rect x="230" y="310" width="50" height="50" rx="10"/></g><g transform="translate(150 170)"><path d="M0-90l55 36-55 140-55-140z" fill="#7fd6ff"/><path d="M0-90l55 36H-55z" fill="#c9f1ff"/><path d="M-55-54L0 86V-54z" fill="#4fb6ec"/><path d="M55-54L0 86V-54z" fill="#2f8fd1"/></g><g transform="translate(240 90)"><circle r="26" fill="#1b1f33"/><path d="M14-20l12-12" stroke="#ffc83d" stroke-width="5"/><circle cx="28" cy="-34" r="5" fill="#ff5d6c"/></g></svg><span class="bd"><i></i><span id="gBest">новая</span></span><span class="nm">Мины</span></button>
     <button class="game" data-play="crash"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b1d8a"/><stop offset="1" stop-color="#d1458f"/></linearGradient></defs><rect width="300" height="400" fill="url(#g5)"/><path d="M20 330 Q150 320 260 90" stroke="#ffc83d" stroke-width="10" fill="none" stroke-linecap="round"/><g transform="translate(250 100) rotate(40)"><path d="M0-40c18 14 16 44 12 58h-24c-4-14-6-44 12-58z" fill="#f3f0ea"/><path d="M0-40c9 7 14 14 15 22h-30c1-8 6-15 15-22z" fill="#ff5d6c"/><circle cy="-4" r="7" fill="#53e0c8"/></g><text x="40" y="120" font-family="Unbounded,Arial Black" font-weight="900" font-size="52" fill="#fff">×2,4</text></svg><span class="bd"><i></i><span>успей забрать</span></span><span class="nm">Ракетка</span></button>
@@ -167,12 +183,11 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
     <button class="game" data-play="dice"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127a6a"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g7)"/><g transform="translate(150 185) rotate(-12)"><rect x="-80" y="-80" width="160" height="160" rx="34" fill="#fff"/><g fill="#1b1f33"><circle cx="-40" cy="-40" r="15"/><circle cx="40" cy="-40" r="15"/><circle r="15"/><circle cx="-40" cy="40" r="15"/><circle cx="40" cy="40" r="15"/></g></g></svg><span class="bd"><i></i><span>до ×48</span></span><span class="nm">Кубик</span></button>
     <button class="game" data-play="chest"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g8" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a2fb8"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g8)"/><g transform="translate(150 200)"><rect x="-95" y="-20" width="190" height="100" rx="12" fill="#8a4b1f"/><path d="M-95-20c0-60 190-60 190 0z" fill="#a85f2a"/><rect x="-95" y="-24" width="190" height="14" fill="#ffc83d"/><rect x="-16" y="-30" width="32" height="40" rx="6" fill="#ffc83d"/><circle cy="-8" r="6" fill="#7a4a00"/></g><g fill="#7fd6ff"><path d="M60 90l10 16-10 16-10-16z"/><path d="M240 110l7 12-7 12-7-12z"/></g></svg><span class="bd"><i></i><span>1 из 3 · ×2,91</span></span><span class="nm">Сундуки</span></button>
     <button class="game" data-tab="pWheel"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><radialGradient id="g2" cx=".5" cy=".3"><stop offset="0" stop-color="#ff8a3d"/><stop offset="1" stop-color="#b8233f"/></radialGradient></defs><rect width="300" height="400" fill="url(#g2)"/><g transform="translate(150 185)"><circle r="104" fill="#ffd36e"/><path d="M0 0L0-94A94 94 0 0 1 66-66z" fill="#5a6bff"/><path d="M0 0L66-66A94 94 0 0 1 94 0z" fill="#8b5cf6"/><path d="M0 0L94 0A94 94 0 0 1 66 66z" fill="#3fd47a"/><path d="M0 0L66 66A94 94 0 0 1 0 94z" fill="#ff5d6c"/><path d="M0 0L0 94A94 94 0 0 1-66 66z" fill="#5a6bff"/><path d="M0 0L-66 66A94 94 0 0 1-94 0z" fill="#8b5cf6"/><path d="M0 0L-94 0A94 94 0 0 1-66-66z" fill="#3fd47a"/><path d="M0 0L-66-66A94 94 0 0 1 0-94z" fill="#ff5d6c"/><circle r="22" fill="#ffd36e"/><path d="M0-118l14 26h-28z" fill="#fff"/></g></svg><span class="bd"><i></i><span id="gSpin">крутить</span></span><span class="nm">Колесо</span></button>
-    <button class="game" data-tab="pTop"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a5bd8"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g3)"/><g transform="translate(150 175)"><path d="M-60-60h120v30c0 50-30 80-60 80s-60-30-60-80z" fill="#ffc83d"/><path d="M-60-45h-26c0 40 20 55 36 55M60-45h26c0 40-20 55-36 55" stroke="#ffc83d" stroke-width="12" fill="none"/><rect x="-14" y="48" width="28" height="34" fill="#e6a417"/><rect x="-44" y="80" width="88" height="22" rx="6" fill="#ffc83d"/><path d="M0-40l9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3z" fill="#fff6d0"/></g></svg><span class="bd"><i></i><span>неделя</span></span><span class="nm">Рейтинг</span></button>
-    <button class="game" data-tab="pBonus"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a2fc4"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g4)"/><g transform="translate(150 190)"><rect x="-80" y="-20" width="160" height="100" rx="10" fill="#7c4dff"/><rect x="-90" y="-50" width="180" height="40" rx="10" fill="#9a73ff"/><rect x="-14" y="-50" width="28" height="130" fill="#ffc83d"/><path d="M0-50c-30-50-70-20-40 0M0-50c30-50 70-20 40 0" stroke="#ffc83d" stroke-width="12" fill="none"/></g><g fill="#9ad8ff"><path d="M50 90l8 14-8 14-8-14z"/><path d="M250 300l6 10-6 10-6-10z"/></g></svg><span class="bd"><i></i><span>каждый день</span></span><span class="nm">Бонусы</span></button>
   </div>
 </main>
 
 <main class="page" id="pWheel" hidden>
+  <button class="back" data-tab="pGames">‹ Все игры</button>
   <h2 class="sec">Колесо 50/50</h2>
   <div class="wheel"><canvas id="wc" width="640" height="640"></canvas></div>
   <div class="wres" id="wRes"></div>
@@ -195,6 +210,7 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 </main>
 
 <main class="page" id="pMines" hidden>
+  <button class="back" data-tab="pGames">‹ Все игры</button>
   <div class="board" id="board"></div>
   <div class="mstat"><span>Множитель <b id="mMult">×1,00</b></span><span>Следующая <b id="mNext">—</b></span><span>Мин <b id="mCount">3</b></span></div>
   <section class="panel">
@@ -205,7 +221,29 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
   <p class="note">Играем на игровые монеты. Их дают каждый день, купить или вывести их нельзя.</p>
 </main>
 
+<main class="page" id="pProfile" hidden>
+  <div class="prof">
+    <div class="pava" id="prAva">?</div>
+    <div class="pnm"><b id="prName">Игрок</b><span id="prUser"></span></div>
+  </div>
+  <div class="pbal"><span>Баланс</span><b id="prCoins">0</b><span>монет</span></div>
+  <div class="pstats">
+    <div><b id="prPlayed">0</b><span>игр</span></div>
+    <div><b id="prWins">0</b><span>побед</span></div>
+    <div><b id="prRate">0%</b><span>удачных</span></div>
+    <div><b id="prBest">0</b><span>лучший выигрыш</span></div>
+    <div><b id="prWeek">0</b><span>за неделю</span></div>
+    <div><b id="prDays">1</b><span>дней с нами</span></div>
+  </div>
+  <h2 class="sec" style="font-size:20px">Оформление поля</h2>
+  <div class="pthemes" id="prThemes"></div>
+  <button class="go" id="prShop" style="width:100%;margin-top:12px">Магазин оформления</button>
+  <div class="pid">Твой ID: <b id="prId">—</b> <button id="prCopy">Скопировать</button></div>
+  <p class="note">Монеты игровые: их дают при входе и каждый день, купить или вывести их нельзя.</p>
+</main>
+
 <main class="page" id="pPlay" hidden>
+  <button class="back" data-tab="pGames">‹ Все игры</button>
   <h2 class="sec" id="plTitle">Игра</h2>
   <div class="stage" id="plStage"></div>
   <div class="sub2" id="plSub"></div>
@@ -217,7 +255,7 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
   <p class="note">Играем на игровые монеты. Их дают каждый день, купить или вывести их нельзя.</p>
 </main>
 
-<nav class="tabs" id="tabs"><button class="on" data-tab="pGames">Игры</button><button data-tab="pMines">Мины</button><button data-tab="pWheel">Колесо</button><button data-tab="pTop">Рейтинг</button><button data-tab="pBonus">Бонусы</button></nav>
+<nav class="tabs" id="tabs"><button class="on" data-tab="pGames">Игры</button><button data-tab="pTop">Рейтинг</button><button data-tab="pBonus">Бонусы</button><button data-tab="pProfile">Профиль</button></nav>
 
 <div class="sheet" id="shop" hidden><div class="in">
   <div class="hd"><h3>Магазин</h3><button class="x" id="shopX" aria-label="Закрыть">✕</button></div>
@@ -258,8 +296,8 @@ async function load() {
 }
 
 // ---------- вкладки ----------
-const PAGES = ["pGames", "pMines", "pPlay", "pWheel", "pTop", "pBonus"];
-function go(id) { for (const p of PAGES) $(p).hidden = p !== id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === id)); if (id === "pMines") paintMines(); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
+const PAGES = ["pGames", "pMines", "pPlay", "pWheel", "pTop", "pBonus", "pProfile"];
+function go(id) { for (const p of PAGES) $(p).hidden = p !== id; const tabOf = ["pMines", "pPlay", "pWheel"].includes(id) ? "pGames" : id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tabOf)); if (id === "pProfile") paintProfile(); if (id === "pMines") paintMines(); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
 document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) go("pMines"); const pl = e.target.closest("[data-play]"); if (pl) openPlay(pl.dataset.play); });
 
 // ---------- лента лучших: настоящие рекорды недели ----------
@@ -490,6 +528,24 @@ async function openTop() {
   try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r, i) => `<div class="rw ${r.me ? "me" : ""} ${i === 0 ? "g1" : ""}"><span class="n">${i + 1}</span><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><span class="nm">${esc(r.name)}</span><span class="sc">${fmt(r.score)}</span></div>`).join("") : `<div class="rw"><span class="nm">На этой неделе ещё никто не выиграл. Будь первым!</span></div>`; }
   catch (e) { L.innerHTML = `<div class="rw"><span class="nm">${esc(e.message)}</span></div>`; }
 }
+
+
+// ---------- профиль ----------
+const THEME_N = { classic: "Классика", neon: "Неон", gold: "Золото", cosmos: "Космос", lucky: "Удача" };
+function paintProfile() {
+  const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+  const name = me.name || [u.first_name, u.last_name].filter(Boolean).join(" ") || "Игрок";
+  $("prName").textContent = name; $("prUser").textContent = me.username || u.username ? "@" + (me.username || u.username) : "";
+  $("prAva").innerHTML = u.photo_url ? `<img src="${esc(u.photo_url)}" alt="">` : esc((name[0] || "?").toUpperCase());
+  $("prCoins").textContent = fmt(me.coins); $("prPlayed").textContent = fmt(me.played || 0); $("prWins").textContent = fmt(me.wins || 0);
+  $("prRate").textContent = me.played ? Math.round(100 * me.wins / me.played) + "%" : "—"; $("prBest").textContent = "+" + fmt(me.best || 0); $("prWeek").textContent = "+" + fmt(me.weekBest || 0);
+  $("prDays").textContent = me.since ? Math.max(1, Math.ceil((Date.now() - me.since) / 864e5)) : 1;
+  $("prId").textContent = me.id || u.id || "—";
+  $("prThemes").innerHTML = (me.themes || ["classic"]).map((t) => `<button class="${(me.theme || "classic") === t ? "on" : ""}" data-th="${t}">${themePic(t)}${THEME_N[t] || t}</button>`).join("");
+}
+$("prThemes").addEventListener("click", (e) => { const b = e.target.closest("[data-th]"); if (!b) return; me.theme = b.dataset.th; if (!demo) api("theme", { theme: me.theme }).catch(() => {}); paintProfile(); haptic("light"); });
+$("prShop").onclick = () => openShop();
+$("prCopy").onclick = async () => { const v = $("prId").textContent; try { await navigator.clipboard.writeText(v); toast("ID скопирован"); } catch (e) { const r = document.createRange(); r.selectNodeContents($("prId")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Выдели и скопируй ID"); } };
 
 // ---------- бонусы ----------
 function paintBonus() {

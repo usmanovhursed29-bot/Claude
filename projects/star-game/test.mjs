@@ -115,6 +115,9 @@ r = await call("crash/start", { stake: 100 }, t0); const cid2 = r.j.id;
 r = await call("crash/cash", { id: cid2 }, t0 + 60000); assert.equal(r.j.crashed, true); assert.equal(r.j.status, "lost");
 db.prepare("UPDATE players SET luck = NULL WHERE id = 7").run();
 
+// профиль: игры и победы считаются
+r = await call("me"); assert.ok(r.j.played >= 5); assert.ok(r.j.wins >= 1 && r.j.wins <= r.j.played); assert.equal(r.j.id, 7); assert.equal(r.j.name, "U7");
+
 // новый день — +100 и снова бесплатная прокрутка; рейтинг по лучшему выигрышу недели
 r = await call("me", {}, t1); assert.equal(r.j.freeSpin, true);
 r = await call("top", {}, t0); assert.ok(r.j.top.length >= 1); assert.ok(r.j.top[0].score > 0);

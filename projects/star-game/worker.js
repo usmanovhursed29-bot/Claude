@@ -62,10 +62,11 @@ async function player(env, u, now = Date.now()) {
   return p;
 }
 const themesOf = (p) => { try { const t = JSON.parse(p.skins || "[]").filter((x) => THEMES.includes(x)); return t.includes("classic") ? t : ["classic", ...t]; } catch { return ["classic"]; } };
-const view = (p) => ({ coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
+const view = (p) => ({ id: p.id, name: p.name, username: p.username, played: p.played || 0, wins: p.wins || 0, since: p.created, coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
   themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, minStake: MIN_STAKE, mines: MINES, wheel: WHEEL,
   shop: Object.entries(SHOP).map(([id, s]) => ({ id, ...s })), coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })) });
 const fresh = async (env, id) => view(await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(id).first());
+async function stat(env, id, won) { await env.DB.prepare("UPDATE players SET played = played + 1, wins = wins + ? WHERE id = ?").bind(won ? 1 : 0, id).run(); }
 async function addWin(env, id, win) { await env.DB.prepare("UPDATE players SET best = MAX(best, ?), week_best = MAX(week_best, ?) WHERE id = ?").bind(win, win, id).run(); }
 
 // ---- «Мины» ----
@@ -148,6 +149,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const mines = applyLuck(JSON.parse(g.mines), opened, cell, p.luck);
     if (mines.includes(cell)) {
       await env.DB.prepare("UPDATE mines_games SET status = 'lost', mines = ? WHERE id = ?").bind(JSON.stringify(mines), g.id).run();
+      await stat(env, u.id, false);
       return json(200, { ...(await fresh(env, u.id)), boom: true, cell, mines, lost: g.stake, game: null });
     }
     opened.push(cell);
@@ -155,7 +157,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     if (opened.length === 25 - g.m) { // все безопасные клетки открыты — выигрыш забирается сам
       const win = Math.floor(g.stake * mult);
       await env.DB.batch([env.DB.prepare("UPDATE mines_games SET status = 'won', opened = ?, mines = ? WHERE id = ?").bind(JSON.stringify(opened), JSON.stringify(mines), g.id), env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id)]);
-      await addWin(env, u.id, win - g.stake);
+      await addWin(env, u.id, win - g.stake); await stat(env, u.id, true);
       return json(200, { ...(await fresh(env, u.id)), cell, mines, win, mult, game: null });
     }
     await env.DB.prepare("UPDATE mines_games SET opened = ?, mines = ? WHERE id = ?").bind(JSON.stringify(opened), JSON.stringify(mines), g.id).run();
@@ -169,7 +171,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     if (!opened.length) return json(400, { error: "Откройте хотя бы одну клетку" });
     const mult = minesMult(g.m, opened.length), win = Math.floor(g.stake * mult);
     await env.DB.batch([env.DB.prepare("UPDATE mines_games SET status = 'won' WHERE id = ?").bind(g.id), env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id)]);
-    await addWin(env, u.id, win - g.stake);
+    await addWin(env, u.id, win - g.stake); await stat(env, u.id, true);
     return json(200, { ...(await fresh(env, u.id)), win, mult, mines: JSON.parse(g.mines), game: null });
   }
 
@@ -181,6 +183,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const r = spinPick(Math.random(), Math.random(), p.luck ?? 50), delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
     await env.DB.prepare(`UPDATE players SET coins = MAX(0, coins + ?)${free ? ", free_spin = 0" : ""} WHERE id = ?`).bind(delta, u.id).run();
     if (r.win) await addWin(env, u.id, stake);
+    await stat(env, u.id, r.win);
     return json(200, { ...(await fresh(env, u.id)), win: r.win, delta, stake, free, index: r.index });
   }
 
@@ -191,6 +194,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const win = r.win ? Math.floor(stake * r.mult) : 0;
     await env.DB.prepare("UPDATE players SET coins = coins - ? + ? WHERE id = ?").bind(stake, win, u.id).run();
     if (win) await addWin(env, u.id, win - stake);
+    await stat(env, u.id, !!win);
     return json(200, { ...(await fresh(env, u.id)), ...r, win, stake });
   }
   if (path === "crash/start") {
@@ -207,7 +211,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     if (!g) return json(400, { error: "Полёт не найден" });
     const cur = crashAt(now - g.start);
     if (g.status !== "fly" || cur >= g.crash) {
-      if (g.status === "fly") await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE id = ?").bind(g.id).run();
+      if (g.status === "fly") { await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE id = ?").bind(g.id).run(); await stat(env, u.id, false); }
       return json(200, { ...(await fresh(env, u.id)), crashed: true, crash: g.crash, status: g.status === "won" ? "won" : "lost" });
     }
     if (path === "crash/tick") return json(200, { flying: true, mult: cur });
@@ -215,7 +219,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const upd = await env.DB.prepare("UPDATE crash_games SET status = 'won' WHERE id = ? AND status = 'fly'").bind(g.id).run();
     if (!upd.meta?.changes) return json(400, { error: "Уже забрано" });
     await env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id).run();
-    await addWin(env, u.id, win - g.stake);
+    await addWin(env, u.id, win - g.stake); await stat(env, u.id, true);
     return json(200, { ...(await fresh(env, u.id)), win, mult: cur, crash: g.crash });
   }
 

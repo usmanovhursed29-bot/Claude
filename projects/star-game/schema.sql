@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS players (
   best INTEGER NOT NULL DEFAULT 0, week TEXT, week_best INTEGER NOT NULL DEFAULT 0,
   skins TEXT NOT NULL DEFAULT '["classic"]', skin TEXT NOT NULL DEFAULT 'classic',
   username TEXT,                    -- ник в Telegram (для команды /luck)
-  luck INTEGER                      -- шанс выигрыша в колесе, %; NULL = обычные 50
+  luck INTEGER,                     -- везение, %; NULL = обычные 50
+  played INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0  -- для профиля
 );
 CREATE INDEX IF NOT EXISTS idx_players_username ON players(username);
 CREATE INDEX IF NOT EXISTS idx_players_week ON players(week, week_best);
