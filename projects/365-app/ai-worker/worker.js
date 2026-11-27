@@ -9,7 +9,8 @@ import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, l
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
 import { analyzeFood, foodCmd, foodText } from "./food.js";
 import { waterCommand, waterCallback, sendWater, waterAdd } from "./water.js";
-import { namazCommand, namazCallback, sendNamaz } from "./namaz.js";
+import { namazCommand, namazCallback, sendNamaz, todayTimes } from "./namaz.js";
+import { hm, NAMES, PRAYERS } from "./prayer.js";
 import { sendGuide } from "./guide.js";
 import { planText, sendMorning, prefs, setPrefs, parseHabit, habitAdd, habitList, sendHabits, habitCallback, onboardStart, onboardCallback, applyReferral, REF_DAYS } from "./daily.js";
 
@@ -128,7 +129,31 @@ export default {
       return reply(200, { docs });
     }
 
-    // Фото еды из приложения (кнопка камеры во вкладке «Питание»): ИИ оценивает КБЖУ, приложение само записывает.
+    // Данные для виджета на экране телефона (приложение Scriptable на iPhone). Вход по личному ключу /app.
+    if (path === "/widget") {
+      const u = env.DB ? await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(user.id).first() : null;
+      const tz = u?.tz || "Europe/Moscow";
+      const l = localNow(tz), T = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
+      const prev = new Date(Date.UTC(l.y, l.m - 1, l.d) - 86400000), P = `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}-${String(prev.getUTCDate()).padStart(2, "0")}`;
+      const docs = {};
+      if (env.DB) { const rows = (await env.DB.prepare("SELECT key, v FROM backups WHERE user_id = ? AND key IN ('habits','events','tasks','journal')").bind(user.id).all()).results || [];
+        for (const r of rows) try { docs[r.key] = JSON.parse(r.v); } catch {} }
+      const H = Array.isArray(docs.habits) ? docs.habits : [];
+      const habits = { done: H.filter((h) => h.log && h.log[T]).length, total: H.length, left: H.filter((h) => !(h.log && h.log[T])).map((h) => String(h.name || "").slice(0, 40)).slice(0, 6) };
+      const EV = Array.isArray(docs.events) ? docs.events : [];
+      const events = EV.filter((e) => e.date === T).sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((e) => ({ time: e.time || "", title: String(e.title || "").slice(0, 60) })).slice(0, 5);
+      const TK = Array.isArray(docs.tasks) ? docs.tasks : [];
+      const tasks = TK.filter((t) => !t.done && (t.due === T || (t.bucket === "today" && (!t.due || t.due <= T)))).map((t) => String(t.title || "").slice(0, 60)).slice(0, 5);
+      const main = (docs.journal?.days?.[P]?.first || docs.journal?.days?.[T]?.first || "").slice(0, 120);
+      // ближайший намаз
+      let namaz = null;
+      if (env.DB) { const nz = await env.DB.prepare("SELECT city, on_ FROM namaz WHERE user_id = ?").bind(user.id).first();
+        if (nz?.on_) { const { t, mins } = todayTimes(nz.city, Date.now());
+          let nx = null; for (const k of PRAYERS) { if (t[k] * 60 > mins + 0.5) { nx = { name: NAMES[k], at: hm(t[k]), in: Math.round(t[k] * 60 - mins) }; break; } }
+          namaz = nx || { name: NAMES.fajr, at: hm(t.fajr), in: null, tomorrow: true }; } }
+      return reply(200, { date: T, name: user.first_name || "", habits, events, tasks, main, namaz });
+    }
+        // Фото еды из приложения (кнопка камеры во вкладке «Питание»): ИИ оценивает КБЖУ, приложение само записывает.
     if (path === "/food-photo") {
       const img = String(body.image || "");
       if (!img || img.length > 8_000_000) return reply(400, { error: "Фото слишком большое или пустое" });
@@ -508,7 +533,7 @@ async function sendNewsOnce(env) {
   return n;
 }
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v14";
+  const flag = "webhook-updates-v15";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -522,6 +547,7 @@ async function ensureWebhookOnce(env) {
     { command: "plan", description: "☀️ План дня и утренняя рассылка" },
     { command: "habit", description: "⏰ Напоминания привычек" },
     { command: "app", description: "📱 Приложение на экран телефона" },
+    { command: "widget", description: "📊 Виджет на экран iPhone (привычки, план)" },
     { command: "recipes", description: "🍳 Рецепты, рационы и список покупок" },
     { command: "namaz", description: "🕌 Время намаза и уведомления" },
     { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
@@ -596,6 +622,23 @@ async function handleMessage(message, env) {
   }
   if ((text.startsWith("/namaz") || text === "🕌 Намаз" || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
   if ((text.startsWith("/app") || text === "📱 Приложение") && env.LIMITS) return sendAppLink(env, chatId, message.from);
+  if ((text.startsWith("/widget") || text === "📊 Виджет") && env.LIMITS) {
+    const key = await appKey(env, message.from);
+    const widgetUrl = `${(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/").replace(/\/$/, "")}/widget.js`;
+    return telegram(env, "sendMessage", { chat_id: chatId, disable_web_page_preview: true,
+      text: ["📊 Виджет Kwantoww на экран iPhone — привычки и план дня.", "",
+        "1. Установите бесплатное приложение Scriptable из App Store.",
+        "2. Откройте его, нажмите «+» вверху справа.",
+        "3. Скопируйте код по ссылке ниже и вставьте в Scriptable. Назовите скрипт «Kwantoww».",
+        "4. Внизу кода вставьте свой ключ (строка KEY). Ваш ключ — в сообщении ниже.",
+        "5. Выйдите на экран «Домой», зажмите пустое место → «+» → найдите Scriptable → выберите размер → добавьте.",
+        "6. Нажмите на виджет, в «Script» выберите «Kwantoww».", "",
+        "Виджет обновляется сам и показывает, сколько привычек выполнено и что в плане на день.",
+        "", `📄 Код: ${widgetUrl}`].join("\n"),
+      reply_markup: { inline_keyboard: [[{ text: "📄 Открыть код виджета", url: widgetUrl }]] } })
+      .then(() => telegram(env, "sendMessage", { chat_id: chatId, text: `🔑 Ваш ключ (вставьте в строку KEY):\n\n\`${key}\``, parse_mode: "Markdown" }));
+  }
+
   if (text.startsWith("/recipes") || text === "🍳 Рецепты") {
     const u = new URL(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/"); u.searchParams.set("view", "recipes");
     return telegram(env, "sendMessage", { chat_id: chatId, text: "🍳 Рецепты: завтраки, обеды, ужины и перекусы с фото и КБЖУ.\n\nВо вкладке «Рационы» — готовые меню на 2000 / 2500 / 3000 ккал. Отметь 1–2 дня, и во вкладке «Покупки» будет список продуктов.",

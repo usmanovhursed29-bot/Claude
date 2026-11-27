@@ -476,3 +476,23 @@ console.log("Сервер: все проверки пройдены ✅\n\n" + l
   assert.equal((await app("/restore", { initData: "key:" + key })).status, 401, "после сброса старый ключ не работает");
   console.log("ok app key login");
 }
+
+// /widget: привычки и план дня для Scriptable, вход по ключу
+{
+  const id = initData(77);
+  const o = await say(77, "/widget");
+  const kk = o.map((m) => (m.body?.text || "").match(/[a-f0-9]{40}/)).find(Boolean)[0];
+  assert.equal((await app("/widget", { initData: "key:" + "f".repeat(40) })).status, 401, "чужой ключ не пускает");
+  const day = (await app("/widget", { initData: "key:" + kk })).json.date; // дата по часовому поясу сервера
+  await app("/backup", { initData: id, docs: {
+    habits: { at: Date.now() + 1e6, v: [ { name: "Зарядка", log: {} }, { name: "Чтение", log: { [day]: true } } ] },
+    events: { at: Date.now() + 1e6, v: [ { title: "Врач", date: day, time: "15:00" } ] },
+    tasks:  { at: Date.now() + 1e6, v: [ { title: "Купить хлеб", bucket: "today", done: false } ] },
+  } });
+  const r = (await app("/widget", { initData: "key:" + kk })).json;
+  assert.equal(r.habits.total, 2); assert.equal(r.habits.done, 1);
+  assert.deepEqual(r.habits.left, ["Зарядка"]);
+  assert.equal(r.events[0].title, "Врач"); assert.equal(r.events[0].time, "15:00");
+  assert.equal(r.tasks[0], "Купить хлеб");
+  console.log("ok widget endpoint");
+}
