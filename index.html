@@ -624,7 +624,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="5c790f1a";
+const BUILD="bb905395";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
@@ -1830,6 +1830,11 @@ function runCommand(cmd,day,srcId){
     if(!e||!/^\d{4}-\d{2}-\d{2}$/.test(e.d)||!/^\d{2}:\d{2}$/.test(e.h))return null;
     const id=srcId?"c"+srcId:rid();if(S.events.some(x=>x.id===id))return null;
     S.events.push({id,title:String(e.t||"Событие").slice(0,120),date:e.d,time:e.h,dur:60,tag:"personal"});persist("events");return`Событие: ${e.t}, ${e.d.slice(8)}.${e.d.slice(5,7)} в ${e.h}`}
+  if(cmd.startsWith("habit_")){/* «✅ Сделал» на напоминании привычки: отметить привычку с этим названием (или создать её) */
+    let n="";try{n=new TextDecoder().decode(Uint8Array.from(atob(cmd.slice(6).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))).trim()}catch{return null}if(!n)return null;
+    const T=day||today();let h=S.habits.find(x=>(x.name||"").trim().toLowerCase()===n.toLowerCase());
+    if(!h){h={id:rid(),name:n.slice(0,60),color:S.habits.length%6,log:{},created:T};S.habits.push(h)}
+    h.log=h.log||{};h.log[T]=true;persist("habits");return`Привычка: ${h.name} ✓`}
   if(cmd.startsWith("food_")){/* блюдо с фото из чата: {n,g,k,p,f,c} */
     let it;try{it=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(cmd.slice(5).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))))}catch{return null}
     if(!it||!(+it.k>0))return null;const T=day||today();const id=srcId?"f"+srcId:rid();const L=S.food.meals[T]=S.food.meals[T]||[];if(L.some(m=>m.id===id))return null;
