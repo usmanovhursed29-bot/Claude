@@ -411,6 +411,14 @@ assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в �
   geminiReply = JSON.stringify({ food: false });
   const o2 = await tg({ message: { message_id: ++mid, date: Math.floor(Date.now() / 1000), chat: { id: 1, type: "private" }, from: { id: 1, first_name: "A" }, photo: [{ file_id: "c" }] } });
   assert.match(lastText(o2), /Не вижу еды/);
+  // фото с вопросом (не про еду) — ИИ отвечает про картинку, в «Питание» ничего не пишет
+  geminiReply = "Это фикус. Поливай раз в неделю.";
+  const before2 = db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 1").get().c;
+  const oq = await tg({ message: { message_id: ++mid, date: Math.floor(Date.now() / 1000), chat: { id: 1, type: "private" }, from: { id: 1, first_name: "A" }, photo: [{ file_id: "p" }], caption: "что это за растение?" } });
+  assert.match(lastText(oq), /фикус/);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 1").get().c, before2, "вопрос про фото не создаёт записей еды");
+  const vis = sent.filter((m) => m.method === "gemini").at(-1);
+  assert.ok(JSON.stringify(vis.body).includes("inlineData"), "в ИИ ушло изображение");
   geminiReply = JSON.stringify({ food: true, items: [{ name: "Салат", grams: 200, kcal: 150, p: 3, f: 10, c: 9 }] });
   const r = await app("/food-photo", { initData: initData(1), image: "AAAA", mime: "image/jpeg" });
   assert.equal(r.status, 200); assert.equal(r.json.items[0].n, "Салат"); assert.equal(r.json.items[0].k, 150);

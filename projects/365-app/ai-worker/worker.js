@@ -533,7 +533,7 @@ async function sendNewsOnce(env) {
   return n;
 }
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v15";
+  const flag = "webhook-updates-v16";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -576,7 +576,7 @@ async function saveEntries(env, userId, entries, ts) {
 
 async function handleMessage(message, env) {
   if (message?.successful_payment) return handlePayment(message, env);
-  if (message?.from && (message.photo || /^image\//.test(message.document?.mime_type || ""))) return handleFoodPhoto(message, env);
+  if (message?.from && (message.photo || /^image\//.test(message.document?.mime_type || ""))) return handlePhoto(message, env);
   if (!message?.from || !(message.text || message.voice || message.audio)) return;
   const chatId = message.chat.id, userId = message.from.id;
   let text = (message.text || "").trim();
@@ -913,7 +913,7 @@ function helpText() {
     "",
     "📅 Ставлю дела в календарь и напоминаю за 15 минут: «завтра в 12:00 поликлиника»",
     "",
-    "📸 Пришлите фото еды — посчитаю калории и БЖУ и запишу в «Питание»",
+    "📸 Пришлите фото: без подписи или с «сколько калорий» — посчитаю КБЖУ и запишу в «Питание»; с любым вопросом в подписи («что это?», «как починить?») — отвечу про то, что на фото",
     "",
     "💧 Напоминаю пить воду равномерно весь день — /water",
     "",
@@ -1070,6 +1070,46 @@ export async function healthImport(env, request) {
 }
 
 // ---- фото еды в чате: ИИ считает КБЖУ и записывает в «Питание» ----
+// Скачать фото из Telegram в base64 (до 8 МБ).
+async function photoB64(env, media, mime) {
+  try {
+    const f = await (await telegram(env, "getFile", { file_id: media.file_id })).json();
+    const res = f.result?.file_path ? await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${f.result.file_path}`) : null;
+    if (!res?.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length > 8 * 1024 * 1024) return null;
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  } catch (e) { console.log("photo", String(e)); return null; }
+}
+
+// Подпись к фото выглядит как «запиши эту еду»? Тогда считаем КБЖУ, иначе — обычный вопрос про фото.
+const FOOD_INTENT = /ккал|калор|бжу|кбжу|съел|поел|скушал|запиш|обед|завтрак|ужин|перекус|еда|еду|блюд|тарелк|порц|грамм|сколько.*(кал|бел|жир|угле)/i;
+
+async function handlePhoto(message, env) {
+  const chatId = message.chat.id, userId = message.from.id;
+  const caption = (message.caption || "").trim();
+  const mime = message.document?.mime_type || "image/jpeg";
+  const media = message.photo ? message.photo[message.photo.length - 1] : message.document;
+  // Еда: нет подписи (старое поведение) или подпись про калории/«запиши».
+  if (!caption || FOOD_INTENT.test(caption)) return handleFoodPhoto(message, env, media, mime, caption);
+  // Иначе — вопрос про фото к ИИ.
+  if (!isAdmin(env, userId)) {
+    const q = await takeAiQuota(userId, env);
+    if (!q.ok) return telegram(env, "sendMessage", { chat_id: chatId, text: env.AI_LIMITS !== "on" ? "Сегодня вы задали очень много вопросов. Продолжим завтра." : limitText(env), reply_markup: env.AI_LIMITS !== "on" ? undefined : plusButton });
+  }
+  await track(env, message.from, "photo_ask");
+  await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
+  const b64 = await photoB64(env, media, mime);
+  if (!b64) return sendMessage(env, chatId, "Не получилось открыть фото. Пришлите его ещё раз, пожалуйста.");
+  const context = env.LIMITS ? await env.LIMITS.get(`ctx:${userId}`) : null;
+  const system = `${CHAT_PROMPT} ${RULES}${await stylePrompt(env, userId)}\nПользователь прислал фото и спрашивает про него. Посмотри на фото и ответь по делу.${context ? `\n\nДанные пользователя из приложения:\n${context}` : ""}`;
+  const answer = await askGemini(env, system, [{ role: "user", parts: [{ inlineData: { mimeType: mime, data: b64 } }, { text: caption.slice(0, 1000) }] }], { maxTokens: 500 });
+  if (answer === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Пришлите фото через минуту.");
+  return sendMessage(env, chatId, answer || "Не понял, что на фото. Опишите словами, что спросить.");
+}
+
 async function handleFoodPhoto(message, env) {
   const chatId = message.chat.id, userId = message.from.id;
   await track(env, message.from, "food_photo");
@@ -1080,23 +1120,11 @@ async function handleFoodPhoto(message, env) {
   }
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const media = message.photo ? message.photo[message.photo.length - 1] : message.document;
-  let b64 = null;
-  try {
-    const f = await (await telegram(env, "getFile", { file_id: media.file_id })).json();
-    const res = f.result?.file_path ? await fetch(`https://api.telegram.org/file/bot${env.BOT_TOKEN}/${f.result.file_path}`) : null;
-    if (res?.ok) {
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      if (bytes.length <= 8 * 1024 * 1024) {
-        let bin = "";
-        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        b64 = btoa(bin);
-      }
-    }
-  } catch (e) { console.log("food photo", String(e)); }
+  const b64 = await photoB64(env, media, message.document?.mime_type || "image/jpeg");
   if (!b64) return sendMessage(env, chatId, "Не получилось открыть фото. Пришлите его ещё раз, пожалуйста.");
   const r = await analyzeFood(env, askGemini, b64, message.document?.mime_type || "image/jpeg", (message.caption || "").slice(0, 200));
   if (r === null) return sendMessage(env, chatId, "ИИ сейчас недоступен. Пришлите фото через минуту.");
-  if (!r.food) return sendMessage(env, chatId, "Не вижу еды на фото 🤔 Сфотографируйте тарелку сверху, при хорошем свете. Можно подписать, что это, например «плов, половина тарелки».");
+  if (!r.food) return sendMessage(env, chatId, "Не вижу еды на фото 🤔 Если это была еда — сфотографируйте тарелку сверху при хорошем свете. А если хотите просто спросить про фото — пришлите его с вопросом в подписи, например «что это?».");
   const ts = Date.now();
   await env.DB.batch(r.items.map((it) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, foodCmd(it), ts)));
   return sendMessage(env, chatId, foodText(r.items), true);
