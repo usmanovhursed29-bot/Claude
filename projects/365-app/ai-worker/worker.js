@@ -840,7 +840,10 @@ export async function healthImport(env, request) {
   if (water !== null && water > 0 && water < 20000) { cmds.push(`watert_${Math.round(water)}`); lines.push(`💧 ${Math.round(water)} мл воды`); }
   if (sleep !== null && sleep > 0 && sleep <= 16) { const h = Math.round(sleep * 10) / 10; cmds.push(`sleep_${String(h).replace(".", "-")}`); lines.push(`😴 сон ${h} ч`); }
   if (weight !== null && weight >= 30 && weight <= 300) { const w = Math.round(weight * 10) / 10; cmds.push(`weight_${String(w).replace(".", "-")}`); lines.push(`⚖️ вес ${w} кг`); }
-  if (!cmds.length) return [400, { error: "Нет данных: пришлите steps, water, sleep или weight" }];
+  if (!cmds.length) {
+    const got = Object.entries(body).filter(([k]) => k !== "t").map(([k, v]) => `${k}=${JSON.stringify(v).slice(0, 40)}`).join(", ");
+    return [400, { error: "Нет данных: пришлите steps, water, sleep или weight", "пришло": got || `ничего (метод ${request.method})` }];
+  }
   const ts = /^\d{4}-\d{2}-\d{2}$/.test(body.date || "") ? Date.parse(body.date + "T12:00:00Z") : Date.now();
   const userId = Number(uid);
   await env.DB.batch(cmds.map((c) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, c, ts)));
