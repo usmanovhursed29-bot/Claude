@@ -19,7 +19,7 @@ const kv = new Map();
 const LIMITS = { get: async (k) => kv.get(k) ?? null, put: async (k, v) => void kv.set(k, v), delete: async (k) => void kv.delete(k) };
 
 const TOKEN = "123:test";
-const env = { DB, LIMITS, BOT_TOKEN: TOKEN, GEMINI_KEY: "g", GEMINI_MODEL: "m1", DAILY_LIMIT: "20", ALLOWED_ORIGIN: "*", APP_URL: "https://app", ADMIN_IDS: "1" };
+const env = { DB, LIMITS, BOT_TOKEN: TOKEN, GEMINI_KEY: "g", GEMINI_MODEL: "m1", DAILY_LIMIT: "20", ALLOWED_ORIGIN: "*", APP_URL: "https://app", ADMIN_IDS: "1", AI_LIMITS: "on" };
 
 const sent = [];
 let geminiReply = "[]";
@@ -306,7 +306,7 @@ out = await tap(55, "pay:info");
 const inv = out.find((m) => m.method === "createInvoiceLink").body;
 assert.deepEqual([inv.currency, inv.prices[0].amount, inv.subscription_period, inv.payload], ["XTR", 150, 2592000, "plus:55"]);
 const offer = out.filter((m) => m.method === "sendMessage").at(-1).body;
-assert.match(offer.text, /150 звёзд в месяц[\s\S]*Безлимитные вопросы ИИ/);
+assert.match(offer.text, /150 звёзд в месяц[\s\S]*Характер ИИ[\s\S]*вопросы ИИ без ограничений/);
 assert.equal(offer.reply_markup.inline_keyboard[0][0].url, "https://t.me/$plus-invoice");
 out = await tg({ pre_checkout_query: { id: "pc1", from: { id: 55 }, currency: "XTR", total_amount: 150, invoice_payload: "plus:55" } });
 assert.equal(out.find((m) => m.method === "answerPreCheckoutQuery").body.ok, true);
@@ -429,3 +429,14 @@ assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в �
   o = await say(1, "/admin"); assert.match(lastText(o), /Вернулись через неделю[\s\S]*пришли по приглашениям: 1[\s\S]*привычки у 1/);
 }
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));
+
+// по умолчанию (без AI_LIMITS) вопросы ИИ без ограничений
+{
+  const saved = env.AI_LIMITS; delete env.AI_LIMITS;
+  for (let i = 0; i < 6; i++) {
+    const r = await say(777, `вопрос номер ${i} про сон?`);
+    assert.ok(!r.some((m) => /закончились|последний бесплатный/.test(m.body?.text || "")), "без лимита");
+  }
+  env.AI_LIMITS = saved;
+  console.log("ok unlimited AI by default");
+}

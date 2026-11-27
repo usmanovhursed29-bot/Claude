@@ -486,12 +486,12 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v12";
+  const flag = "webhook-updates-v13";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
   const cmds = [
-    { command: "plus", description: "⭐ Подписка Plus: безлимитный ИИ и бонусы" },
+    { command: "plus", description: "⭐ Подписка Plus: характер ИИ и бонусы" },
     { command: "insights", description: "📈 Мои итоги и закономерности" },
     { command: "challenge", description: "🏃 Челлендж шагов с друзьями" },
     { command: "top", description: "🏆 Таблица челленджа" },
@@ -568,7 +568,7 @@ async function handleMessage(message, env) {
   if (text.startsWith("/invite") || text === "🎁 Пригласить друга") {
     const link = `https://t.me/${await botUsername(env)}?start=ref_${userId}`;
     const n = env.DB ? (await env.DB.prepare("SELECT COUNT(*) c FROM referrals WHERE inviter = ?").bind(userId).first())?.c || 0 : 0;
-    return telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Пригласи друга — вы оба получите ${REF_DAYS} дней Kwantoww Plus (безлимитный ИИ и бонусы).\n\nТвоя ссылка:\n${link}\n\nУже пришло по ссылке: ${n}`,
+    return telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Пригласи друга — вы оба получите ${REF_DAYS} дней Kwantoww Plus (характер ИИ на выбор и закономерности недели).\n\nТвоя ссылка:\n${link}\n\nУже пришло по ссылке: ${n}`,
       reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
   }
   if ((text.startsWith("/namaz") || text === "🕌 Намаз" || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
@@ -707,8 +707,10 @@ async function isPlus(env, userId) {
   return (u?.premium_until || 0) > Date.now();
 }
 // Вопросы ИИ (чат, «Спросить ИИ», советы): бесплатно 3 в день, с подпиской без ограничений.
+// Сейчас вопросы ИИ без ограничений для всех. Вернуть лимиты: переменная AI_LIMITS = "on".
 async function takeAiQuota(userId, env) {
   const plus = await isPlus(env, userId);
+  if (env.AI_LIMITS !== "on") return { ok: true, plus, left: null };
   const key = `ai:${userId}:${new Date().toISOString().slice(0, 10)}`;
   const used = Number(await env.LIMITS.get(key)) || 0;
   if (used >= (plus ? PLUS_AI(env) : FREE_AI(env))) return { ok: false, plus };
@@ -730,7 +732,7 @@ async function sendPlusInfo(env, chatId, userId) {
   if (!url) return sendMessage(env, chatId, "Оплата временно недоступна. Попробуйте позже.");
   return telegram(env, "sendMessage", {
     chat_id: chatId,
-    text: `⭐ Kwantoww Plus — ${PLUS_STARS(env)} звёзд в месяц (около 200 ₽)\n\nЧто входит:\n• ♾ Безлимитные вопросы ИИ в чате и в приложении (бесплатно — ${FREE_AI(env)} в день)\n• 🎭 Характер ИИ на выбор: друг, строгий тренер или с юмором\n• 🔍 Закономерности в отчёте недели: как сон влияет на шаги, настроение и расходы\n• ⭐ Звезда рядом с именем в челленджах\n\nВсё остальное бесплатно для всех: записи из чата и голосом, напоминания, утренний вопрос про сон, /insights, челленджи.\n\nОплата звёздами Telegram, подписка продлевается сама через 30 дней. Отменить можно в любой момент: Настройки Telegram → Telegram Stars → Подписки.`,
+    text: `⭐ Kwantoww Plus — ${PLUS_STARS(env)} звёзд в месяц (около 200 ₽)\n\nЧто входит:\n• 🎭 Характер ИИ на выбор: друг, строгий тренер или с юмором\n• 🔍 Закономерности в отчёте недели: как сон влияет на шаги, настроение и расходы\n• ⭐ Звезда рядом с именем в челленджах\n\nВсё остальное бесплатно для всех: вопросы ИИ без ограничений, записи из чата и голосом, напоминания, утренний вопрос про сон, /insights, челленджи.\n\nОплата звёздами Telegram, подписка продлевается сама через 30 дней. Отменить можно в любой момент: Настройки Telegram → Telegram Stars → Подписки.`,
     reply_markup: { inline_keyboard: [[{ text: `Оформить за ${PLUS_STARS(env)} ⭐`, url, style: "success" }]] },
   });
 }
@@ -738,7 +740,7 @@ async function sendPlusInfo(env, chatId, userId) {
 async function invoiceLink(env, userId) {
   const link = await (await telegram(env, "createInvoiceLink", {
     title: "Kwantoww Plus",
-    description: "Безлимитные вопросы ИИ, характер ИИ на выбор, закономерности в отчёте недели. 30 дней, продлевается сама.",
+    description: "Характер ИИ на выбор, закономерности в отчёте недели. 30 дней, продлевается сама.",
     payload: `plus:${userId}`, currency: "XTR",
     prices: [{ label: "Kwantoww Plus, 30 дней", amount: PLUS_STARS(env) }],
     subscription_period: 2592000,
@@ -776,6 +778,7 @@ async function handlePayment(message, env) {
 }
 
 async function takeQuota(userId, env) {
+  if (env.AI_LIMITS !== "on") return true;
   const key = `${userId}:${new Date().toISOString().slice(0, 10)}`;
   const used = Number(await env.LIMITS.get(key)) || 0;
   if (used >= Number(env.DAILY_LIMIT)) return false;
@@ -853,12 +856,12 @@ function helpText() {
     "",
     "📈 Показываю ваши итоги: нажмите «Мои итоги» внизу",
     "",
-    "🤖 Отвечаю на вопросы про здоровье, деньги и привычки — 3 вопроса ИИ в день",
+    "🤖 Отвечаю на вопросы про здоровье, деньги и привычки — без ограничений",
     "",
     "👇 Все функции — кнопками внизу чата. Если кнопок не видно, нажмите значок ⌘ (четыре квадрата) справа от поля ввода. Команды — в «Меню» слева.",
     "",
     "———",
-    "⭐ Хотите больше? В подписке Plus — безлимитные вопросы ИИ, характер ИИ на выбор и закономерности в отчёте недели.",
+    "⭐ Хотите больше? В подписке Plus — характер ИИ на выбор и закономерности в отчёте недели.",
   ].join("\n");
 }
 
