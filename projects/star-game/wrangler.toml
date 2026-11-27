@@ -1,0 +1,20 @@
+name = "star-race"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+GAME_URL = "https://star-race.usmanovhursed747.workers.dev/"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "star-race"
+database_id = "509f4c8f-f53b-4920-9c87-604a486e589f"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "0f53f2fda6aa4b708070dddfe534c224"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true

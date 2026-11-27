@@ -13,7 +13,8 @@
   --disp:"Unbounded","Arial Black",sans-serif;--body:"Manrope",system-ui,sans-serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--sky);color:var(--ink);font:500 16px/1.4 var(--body);overflow:hidden;user-select:none;touch-action:none}
-canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
+.sw{display:block}
 .scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center}
 .scr[hidden]{display:none}
 h1{font:800 clamp(30px,9vw,44px)/1.05 var(--disp);margin:0;letter-spacing:-.01em}
@@ -48,6 +49,10 @@ h2{font:700 24px/1.1 var(--disp);margin:0}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:12px 18px;border-radius:14px;font-weight:700;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.show{opacity:1}
 .fine{color:var(--soft);font-size:12px;max-width:22rem;margin:0}
+.wheel{position:relative;width:min(300px,76vw);aspect-ratio:1}
+.wheel canvas{position:static;width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.8,.12,1)}
+.wheel::after{content:"";position:absolute;left:50%;top:-6px;transform:translateX(-50%);border:14px solid transparent;border-top:24px solid var(--gold);filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.coin{color:var(--gold)}
 </style>
 </head>
 <body>
@@ -57,9 +62,10 @@ h2{font:700 24px/1.1 var(--disp);margin:0}
 <section class="scr" id="sMenu">
   <h1>Звёздный<br><b>рейс</b></h1>
   <p class="sub">Веди ракету пальцем, собирай звёзды и уворачивайся от астероидов. Чем дальше, тем быстрее.</p>
-  <div class="stat"><span class="chip">Рекорд <b id="mBest">0</b></span><span class="chip">Запусков <b id="mRuns">—</b></span></div>
+  <div class="stat"><span class="chip">Рекорд <b id="mBest">0</b></span><span class="chip">Запусков <b id="mRuns">—</b></span><span class="chip">Монеты <b id="mCoins">0</b></span></div>
   <button class="btn" id="bPlay">Полетели</button>
-  <div class="row"><button class="btn ghost" id="bShop">Магазин ⭐</button><button class="btn ghost" id="bTop">Рейтинг</button></div>
+  <div class="row"><button class="btn ghost" id="bShop">Магазин ⭐</button><button class="btn ghost" id="bWheel">Колесо 🎡</button></div>
+  <button class="btn ghost" id="bTop">Рейтинг недели</button>
   <p class="fine" id="mNote">5 бесплатных запусков каждый день.</p>
 </section>
 
@@ -85,6 +91,15 @@ h2{font:700 24px/1.1 var(--disp);margin:0}
   <button class="btn ghost" id="bBack2">Назад</button>
 </section>
 
+<section class="scr" id="sWheel" hidden>
+  <h2>Колесо удачи</h2>
+  <p class="sub" id="wText">Крути за монеты из полётов. Призы: монеты, запуски, щит и редкая ракета.</p>
+  <div class="wheel"><canvas id="wc" width="600" height="600"></canvas></div>
+  <button class="btn" id="bSpin">Крутить</button>
+  <p class="fine">Монеты нельзя купить или вывести. Колесо крутится только на них.</p>
+  <button class="btn ghost" id="bBack3">Назад</button>
+</section>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -100,8 +115,9 @@ const SKINS = {
   neon: { name: "Неон", body: "#1b1f3a", wing: "#7a5cff", win: "#53e0c8", flame: "#53e0c8" },
   gold: { name: "Золотая", body: "#ffd768", wing: "#ff9f1c", win: "#2a1700", flame: "#fff1b0" },
   comet: { name: "Комета", body: "#cfe8ff", wing: "#3a86ff", win: "#ffffff", flame: "#8ecbff" },
+  lucky: { name: "Удача", body: "#53e0c8", wing: "#ffc94a", win: "#0b1226", flame: "#ff5d6c" },
 };
-let me = { runs: null, best: 0, skins: ["classic"], skin: "classic", shop: [] };
+let me = { runs: null, best: 0, coins: 0, freeSpin: false, shield: 0, spinCost: 50, skins: ["classic"], skin: "classic", shop: [], wheel: [] };
 const demo = !INIT;
 
 async function api(path, body) {
@@ -111,9 +127,9 @@ async function api(path, body) {
   return d;
 }
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
-function show(id) { for (const s of ["sMenu", "sOver", "sShop", "sTop"]) $(s).hidden = s !== id; $("hud").hidden = !!id; }
-function paintMenu() { $("mBest").textContent = me.best; $("mRuns").textContent = me.runs == null ? "—" : me.runs; $("mNote").textContent = demo ? "Демо в браузере. Рейтинг и магазин работают внутри Telegram." : me.runs > 0 ? "5 бесплатных запусков каждый день." : "Запуски на сегодня закончились. Завтра будут новые или купи в магазине."; }
-async function load() { if (demo) { me.runs = 99; me.best = +(localStorage.getItem("sr_best") || 0); } else { try { Object.assign(me, await api("me")); } catch (e) { toast(e.message); } } paintMenu(); }
+function show(id) { for (const s of ["sMenu", "sOver", "sShop", "sTop", "sWheel"]) $(s).hidden = s !== id; $("hud").hidden = !!id; }
+function paintMenu() { $("mCoins").textContent = me.coins; $("bWheel").textContent = me.freeSpin ? "Колесо 🎁" : "Колесо 🎡"; $("mBest").textContent = me.best; $("mRuns").textContent = me.runs == null ? "—" : me.runs; $("mNote").textContent = demo ? "Демо в браузере. Рейтинг и магазин работают внутри Telegram." : me.runs > 0 ? "5 бесплатных запусков каждый день." : "Запуски на сегодня закончились. Завтра будут новые или купи в магазине."; }
+async function load() { if (demo) { me.runs = 99; me.best = +(localStorage.getItem("sr_best") || 0); me.coins = 120; me.freeSpin = true; } else { try { Object.assign(me, await api("me")); if (me.daily) toast(`Ежедневный бонус: +${me.dailyCoins} монет и бесплатная прокрутка 🎁`); } catch (e) { toast(e.message); } } paintMenu(); }
 
 // ---------- игра ----------
 const cv = $("cv"), cx = cv.getContext("2d");
@@ -165,7 +181,7 @@ function draw(t) {
   const g = G; const bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#152245"); bg.addColorStop(1, "#0b1226"); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
   const sp = g ? g.speed : 60;
   for (const s of sky) { s.y += (sp * s.z * .0009) * (1 / 60); if (s.y > 1) { s.y = 0; s.x = Math.random(); } cx.fillStyle = `rgba(255,255,255,${.25 + s.z * .5})`; cx.fillRect(s.x * W, s.y * H, s.z * 2, s.z * 2 + (g ? s.z * 4 : 0)); }
-  if (!g) { drawRocket(W / 2, H * .82 + Math.sin(t * 2) * 6, me.skin, t); return; }
+  if (!g) return;
   for (const o of g.objs) {
     if (o.k === "rock") { cx.save(); cx.translate(o.x, o.y); cx.rotate(o.rot); cx.fillStyle = "#6b5a7a"; cx.beginPath(); for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28, rr = o.r * (.82 + ((i * 37) % 7) / 30); cx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } cx.closePath(); cx.fill(); cx.fillStyle = "#54465f"; cx.beginPath(); cx.arc(o.r * .25, -o.r * .2, o.r * .22, 0, 6.28); cx.arc(-o.r * .3, o.r * .3, o.r * .15, 0, 6.28); cx.fill(); cx.restore(); }
     else if (o.k === "shield") { cx.strokeStyle = "#53e0c8"; cx.lineWidth = 3; cx.fillStyle = "rgba(83,224,200,.18)"; cx.beginPath(); cx.arc(o.x, o.y, o.r, 0, 6.28); cx.fill(); cx.stroke(); cx.fillStyle = "#53e0c8"; cx.font = "800 15px Manrope"; cx.textAlign = "center"; cx.fillText("S", o.x, o.y + 5); }
@@ -183,16 +199,19 @@ addEventListener("pointermove", move); addEventListener("pointerdown", move); ad
 
 async function play() {
   if (!demo && !(me.runs > 0)) { toast("Запуски закончились. Загляни в магазин ⭐"); show("sShop"); renderShop(); return; }
-  try { if (!demo) { const d = await api("run"); runId = d.runId; me.runs = d.runs; } } catch (e) { toast(e.message); return; }
-  G = newGame(); show(null); haptic("medium");
+  let shield = 0;
+  try { if (!demo) { const d = await api("run"); runId = d.runId; me.runs = d.runs; shield = d.shield; } } catch (e) { toast(e.message); return; }
+  G = newGame(); if (shield) { G.shield = 8; toast("Щит из колеса включён 🛡"); } show(null); haptic("medium");
 }
 async function finish() {
   const g = G, sc = g.score;
   let best = me.best, record = sc > me.best;
   if (demo) { if (record) localStorage.setItem("sr_best", sc); me.best = Math.max(me.best, sc); }
-  else { try { const d = await api("finish", { runId, score: sc }); me.best = d.best; me.runs = d.runs; record = d.record; } catch (e) { toast(e.message); } }
+  let earned = sc;
+  if (demo) me.coins += sc;
+  else { try { const d = await api("finish", { runId, score: sc }); Object.assign(me, d); record = d.record; earned = d.earned; } catch (e) { toast(e.message); } }
   $("oScore").textContent = sc; $("oTitle").textContent = record ? "Новый рекорд!" : "Полёт окончен";
-  $("oText").textContent = record ? "Ты побил свой лучший результат." : `Рекорд: ${me.best}. Осталось запусков: ${demo ? "∞" : me.runs}.`;
+  $("oText").textContent = (record ? "Ты побил свой лучший результат. " : `Рекорд: ${me.best}. `) + `+${earned} монет. Запусков: ${demo ? "∞" : me.runs}.`;
   setTimeout(() => { G = null; show("sOver"); paintMenu(); }, 650); if (record) haptic("heavy");
 }
 function renderShop() {
@@ -231,8 +250,33 @@ async function openTop() {
 $("bPlay").onclick = play; $("bAgain").onclick = play;
 $("bMenu").onclick = () => { show("sMenu"); paintMenu(); };
 $("bShop").onclick = () => { show("sShop"); renderShop(); };
+$("bWheel").onclick = openWheel; $("bBack3").onclick = () => { show("sMenu"); paintMenu(); }; $("bSpin").onclick = spin;
 $("bTop").onclick = openTop; $("bTop2").onclick = openTop;
 $("bBack1").onclick = $("bBack2").onclick = () => { show("sMenu"); paintMenu(); };
+// ---------- колесо удачи (только монеты и игровые призы) ----------
+const DEMO_WHEEL = ["10 монет", "30 монет", "80 монет", "200 монет", "+1 запуск", "+3 запуска", "Щит на старт", "Ракета «Удача»"];
+const WCOL = ["#1f3b73", "#2a4f94", "#1f3b73", "#c98a1a", "#16595a", "#1f7a72", "#2a4f94", "#7a3fb0"];
+let wAngle = 0, spinning = false;
+function drawWheel() {
+  const c = $("wc"), g = c.getContext("2d"), labels = me.wheel.length ? me.wheel.map((w) => w.label) : DEMO_WHEEL, n = labels.length, R = 290;
+  g.clearRect(0, 0, 600, 600); g.save(); g.translate(300, 300);
+  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + i * 2 * Math.PI / n - Math.PI / n, a1 = a0 + 2 * Math.PI / n;
+    g.fillStyle = WCOL[i % WCOL.length]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 3; g.stroke();
+    g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = "#f5f1e6"; g.font = "800 26px Manrope, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(labels[i], R - 22, 0); g.restore(); }
+  g.fillStyle = "#ffc94a"; g.beginPath(); g.arc(0, 0, 42, 0, 6.28); g.fill(); g.fillStyle = "#0b1226"; starPathG(g, 0, 0, 24); g.fill(); g.restore();
+}
+function starPathG(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
+function paintWheel() { $("bSpin").textContent = me.freeSpin ? "Крутить бесплатно 🎁" : `Крутить за ${me.spinCost} монет`; $("bSpin").disabled = spinning || (!me.freeSpin && me.coins < me.spinCost); $("wText").textContent = `Монеты: ${me.coins}. Призы: монеты, запуски, щит и редкая ракета.`; }
+function openWheel() { show("sWheel"); drawWheel(); paintWheel(); }
+async function spin() {
+  if (spinning) return; spinning = true; paintWheel(); haptic("medium");
+  let res;
+  try { if (demo) { const i = Math.floor(Math.random() * 8); res = { index: i, prize: { label: DEMO_WHEEL[i] } }; if (me.freeSpin) me.freeSpin = false; else me.coins -= me.spinCost; } else res = await api("spin"); }
+  catch (e) { toast(e.message); spinning = false; paintWheel(); return; }
+  const n = (me.wheel.length || 8), seg = 360 / n, target = 360 * 5 + (360 - res.index * seg) + (Math.random() - .5) * seg * .6;
+  wAngle = wAngle - (wAngle % 360) + target; $("wc").style.transform = `rotate(${wAngle}deg)`;
+  setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintMenu(); haptic("heavy"); toast("Приз: " + res.prize.label); }, 4300);
+}
 load();
 </script>
 </body>
