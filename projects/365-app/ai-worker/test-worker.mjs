@@ -74,8 +74,9 @@ assert.equal(welcome.length, 3, "привет, что умеет бот, зна�
 assert.match(welcome[1].body.text, /^🆓 Бот бесплатный[\s\S]*Челленджи с друзьями[\s\S]*⭐ Хотите больше\? В подписке Plus/);
 assert.match(welcome[2].body.text, /1\/3/);
 assert.equal((await say(42, "/start")).filter((m) => m.method === "sendMessage").length, 2, "знакомство только один раз");
-assert.equal(welcome[0].body.reply_markup.keyboard[1][1].text, "⭐ Подписка Plus");
-assert.equal(welcome[0].body.reply_markup.keyboard[1][1].style, "success");
+assert.equal(welcome[0].body.reply_markup.keyboard[3][1].text, "⭐ Подписка Plus");
+assert.equal(welcome[0].body.reply_markup.keyboard[3][1].style, "success");
+assert.equal(welcome[0].body.reply_markup.keyboard[0][0].text, "🍳 Рецепты");
 const wkb = welcome[1].body.reply_markup.inline_keyboard;
 assert.deepEqual([wkb[0][0].style, wkb[1][0].callback_data, wkb[1][0].style], ["primary", "pay:info", "success"]);
 

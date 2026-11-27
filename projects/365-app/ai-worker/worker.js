@@ -486,7 +486,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v11";
+  const flag = "webhook-updates-v12";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -504,7 +504,8 @@ async function ensureWebhookOnce(env) {
     { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
     { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
-    { command: "start", description: "❓ Что умеет бот" },
+    { command: "help", description: "❓ Все команды и что умеет бот" },
+    { command: "start", description: "👋 Начать заново" },
     { command: "paysupport", description: "Вопросы по оплате" },
   ];
   await telegram(env, "setMyCommands", { commands: cmds });
@@ -570,7 +571,7 @@ async function handleMessage(message, env) {
     return telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Пригласи друга — вы оба получите ${REF_DAYS} дней Kwantoww Plus (безлимитный ИИ и бонусы).\n\nТвоя ссылка:\n${link}\n\nУже пришло по ссылке: ${n}`,
       reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
   }
-  if ((text.startsWith("/namaz") || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
+  if ((text.startsWith("/namaz") || text === "🕌 Намаз" || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
   if (text.startsWith("/recipes") || text === "🍳 Рецепты") {
     const u = new URL(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/"); u.searchParams.set("view", "recipes");
     return telegram(env, "sendMessage", { chat_id: chatId, text: "🍳 Рецепты: завтраки, обеды, ужины и перекусы с фото и КБЖУ.\n\nВо вкладке «Рационы» — готовые меню на 2000 / 2500 / 3000 ккал. Отметь 1–2 дня, и во вкладке «Покупки» будет список продуктов.",
@@ -582,7 +583,7 @@ async function handleMessage(message, env) {
     await telegram(env, "sendMessage", { chat_id: chatId, text: await planText(env, userId, d) });
     return telegram(env, "sendMessage", { chat_id: chatId, text: await planSettingsText(env, userId), reply_markup: await planKb(env, userId) });
   }
-  if ((text.startsWith("/habit") || /^напоминай\s+.+\s+в\s+\d{1,2}[:.]\d{2}\s*$/i.test(text)) && env.DB) {
+  if ((text.startsWith("/habit") || text === "⏰ Привычки" || /^напоминай\s+.+\s+в\s+\d{1,2}[:.]\d{2}\s*$/i.test(text)) && env.DB) {
     const tg2 = (m, p) => telegram(env, m, p), h = parseHabit(text);
     return h ? habitAdd(env, tg2, chatId, userId, h) : habitList(env, tg2, chatId, userId);
   }
@@ -608,7 +609,7 @@ async function handleMessage(message, env) {
   }
   if (text.startsWith("/plus") || text.startsWith("/premium") || /купить подписку|подписка plus/i.test(text)) return sendPlusInfo(env, chatId, userId);
   if (text === "📈 Мои итоги") return sendMessage(env, chatId, env.DB ? await insights(env, userId) : "Пока недоступно.");
-  if (text === "❓ Помощь") return sendMessage(env, chatId, helpText(), "plus");
+  if (text === "❓ Помощь" || text === "❓ Все команды" || text.startsWith("/help")) return sendMessage(env, chatId, helpText(), "plus");
   if (text === "🏃 Челлендж") {
     const my = env.DB ? await myChallenge(env, userId) : null;
     if (my) return sendMessage(env, chatId, boardText(await leaderboard(env, my.code), "🏃 Ваш челлендж шагов") + "\n\nНовый челлендж с другими друзьями: /challenge");
@@ -844,11 +845,17 @@ function helpText() {
     "",
     "🏃 Челленджи с друзьями: кто пройдёт больше шагов за неделю — нажмите «Челлендж» внизу",
     "",
+    "🍳 Рецепты с фото, рационы на 2000–3000 ккал и список покупок — /recipes",
+    "",
+    "🕌 Время намаза и уведомления с аятом или хадисом — /namaz",
+    "",
     "📬 Каждое воскресенье вечером присылаю отчёт недели",
     "",
     "📈 Показываю ваши итоги: нажмите «Мои итоги» внизу",
     "",
     "🤖 Отвечаю на вопросы про здоровье, деньги и привычки — 3 вопроса ИИ в день",
+    "",
+    "👇 Все функции — кнопками внизу чата. Если кнопок не видно, нажмите значок ⌘ (четыре квадрата) справа от поля ввода. Команды — в «Меню» слева.",
     "",
     "———",
     "⭐ Хотите больше? В подписке Plus — безлимитные вопросы ИИ, характер ИИ на выбор и закономерности в отчёте недели.",
@@ -857,7 +864,12 @@ function helpText() {
 
 // Постоянные кнопки внизу чата: подписку и главное видно без команд.
 const MAIN_KB = {
-  keyboard: [[{ text: "🏃 Челлендж" }, { text: "📈 Мои итоги" }], [{ text: "❓ Помощь" }, { text: "⭐ Подписка Plus", style: "success" }]],
+  keyboard: [
+    [{ text: "🍳 Рецепты" }, { text: "💧 Вода" }, { text: "🕌 Намаз" }],
+    [{ text: "☀️ План дня" }, { text: "⏰ Привычки" }, { text: "📈 Мои итоги" }],
+    [{ text: "🏃 Челлендж" }, { text: "🎁 Пригласить друга" }],
+    [{ text: "❓ Все команды" }, { text: "⭐ Подписка Plus", style: "success" }],
+  ],
   resize_keyboard: true,
   is_persistent: true,
 };
