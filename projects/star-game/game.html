@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Звёздный рейс</title>
+<title>StarRace</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800;900&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
@@ -54,10 +54,21 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .tabs button.on{background:#373c66;color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.08)}
 .tabs[hidden]{display:none}
 @media(max-width:370px){.tabs button{font-size:14px}}
-#cv{position:fixed;left:0;right:0;top:0;display:block;touch-action:none}
-#cv[hidden]{display:none}
-.panel{position:fixed;left:0;right:0;bottom:0;z-index:25;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 86px);background:var(--bg2);border-radius:22px 22px 0 0;display:flex;flex-direction:column;gap:10px}
-.panel[hidden]{display:none}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:min(290px,78vw);margin:6px auto 0;padding:10px;border-radius:22px;background:var(--tb,#20264a)}
+.cell{aspect-ratio:1;border-radius:14px;background:var(--tc,#343c6e);box-shadow:inset 0 -5px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.08);display:grid;place-items:center;transition:transform .15s}
+.cell:active{transform:scale(.94)}
+.cell svg{width:62%;height:62%}
+.cell.gem{background:var(--tg,#24406e);animation:pop .3s}
+.cell.bomb{background:#5a2333;animation:pop .3s}
+.cell.dim{opacity:.45}
+@keyframes pop{0%{transform:scale(.7)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+.mstat{display:flex;justify-content:space-between;width:min(340px,100%);margin:10px auto 0;font-size:14px;color:var(--soft)}
+.mstat b{color:var(--ink);font:900 16px var(--disp)}
+.t-neon{--tb:#120f2e;--tc:#2a1f63;--tg:#0f5e57}
+.t-gold{--tb:#3a2a0a;--tc:#6b4c12;--tg:#2e5a2a}
+.t-cosmos{--tb:#0d1b3d;--tc:#1d3a7a;--tg:#3d1f73}
+.t-lucky{--tb:#0f3a33;--tc:#1f6b5d;--tg:#7a5a12}
+.panel{margin:10px -14px 0;padding:10px 14px 4px;background:var(--bg2);border-radius:22px;display:flex;flex-direction:column;gap:10px}
 .seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:var(--bg);border:1px solid var(--line)}
 .seg button{flex:1;height:44px;border-radius:12px;color:var(--soft);font-weight:800;font-size:14px}
 .seg button.on{background:#343a63;color:var(--ink)}
@@ -66,20 +77,12 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .go{height:58px;border-radius:18px;background:var(--grad);font-size:19px;font-weight:800;box-shadow:0 10px 26px -10px rgba(110,90,255,.9)}
 .go[disabled]{background:#2d3352;color:var(--soft);box-shadow:none}
 .go small{display:block;font-size:13px;font-weight:700;opacity:.8}
-.hud{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 66px);z-index:21;display:flex;justify-content:space-between;padding:0 16px;pointer-events:none}
-.hud span{background:rgba(15,18,36,.7);border-radius:12px;padding:6px 12px;font:900 18px var(--disp)}
-.hud .h{color:var(--red);font-family:var(--body);letter-spacing:3px}
-.hud[hidden]{display:none}
-.result{position:fixed;left:50%;top:24%;transform:translate(-50%,-50%);z-index:22;background:rgba(40,46,84,.95);border-radius:18px;padding:14px 26px;text-align:center;border:1px solid var(--line);white-space:nowrap}
-.result[hidden]{display:none}
-.result b{display:block;font:900 26px var(--disp)}
-.result span{color:var(--soft);font-size:14px}
 .wheel{position:relative;width:min(270px,68vw);aspect-ratio:1;margin:8px auto 18px}
 .wheel canvas{width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.8,.12,1)}
 .wheel::after{content:"";position:absolute;left:50%;top:-8px;transform:translateX(-50%);border:15px solid transparent;border-top:26px solid var(--gold);filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
 .note{color:var(--soft);font-size:13px;text-align:center;margin:10px 4px}
-.stakes{display:flex;gap:8px;justify-content:center;margin:0 0 12px}
-.stakes button{width:64px;height:64px;border-radius:50%;font:900 16px var(--disp);background:radial-gradient(circle,#4b55a8 55%,#2d3470 56%);box-shadow:inset 0 0 0 4px rgba(255,255,255,.15),0 6px 14px -6px rgba(0,0,0,.6)}
+.stakes{display:flex;gap:8px;justify-content:center;margin:0 0 8px}
+.stakes button{width:58px;height:58px;border-radius:50%;font:900 16px var(--disp);background:radial-gradient(circle,#4b55a8 55%,#2d3470 56%);box-shadow:inset 0 0 0 4px rgba(255,255,255,.15),0 6px 14px -6px rgba(0,0,0,.6)}
 .stakes button.on{background:radial-gradient(circle,#7a5cff 55%,#4b36b8 56%);box-shadow:inset 0 0 0 4px #ffc83d}
 .stakes button[disabled]{opacity:.35}
 .wres{text-align:center;font:900 22px var(--disp);min-height:30px;margin:-6px 0 8px}
@@ -118,24 +121,21 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 <header class="top">
   <span class="logo">Star<b>Race</b></span>
   <span class="bal" title="Монеты"><i></i><span id="tCoins">0</span></span>
-  <span class="chipb" title="Полёты">🚀 <span id="tRuns">—</span></span>
-  <button class="pay" id="tPay">Пополнить</button>
+  <span class="chipb" title="Лучший выигрыш недели">🏆 <span id="tBest">0</span></span>
+  <button class="pay" id="tPay">Магазин</button>
   <span class="ava" id="tAva">?</span>
 </header>
 
 <main class="page" id="pGames">
   <div class="banner">
-    <svg class="art" viewBox="0 0 200 200" aria-hidden="true"><defs><radialGradient id="pl" cx=".35" cy=".35"><stop offset="0" stop-color="#ffb3f0"/><stop offset="1" stop-color="#9b4dff"/></radialGradient></defs>
-      <circle cx="150" cy="150" r="42" fill="url(#pl)"/><ellipse cx="150" cy="150" rx="66" ry="14" fill="none" stroke="#ffd36e" stroke-width="5" transform="rotate(-18 150 150)"/>
-      <g transform="translate(80 90) rotate(35)"><path d="M0-58c26 20 24 62 18 84h-36c-6-22-8-64 18-84z" fill="#f3f0ea"/><path d="M0-58c13 10 19 20 21 30h-42c2-10 8-20 21-30z" fill="#ff5d6c"/><circle cy="-6" r="11" fill="#53e0c8" stroke="#2a2f55" stroke-width="3"/><path d="M-18 14l-18 26 18-6zM18 14l18 26-18-6z" fill="#ff5d6c"/><path d="M-12 26q12 40 24 0z" fill="#ffc83d"/></g>
-      <g fill="#fff"><circle cx="30" cy="40" r="3"/><circle cx="180" cy="30" r="2"/><circle cx="40" cy="170" r="2.5"/></g></svg>
-    <div><h3>Звёздный рейс</h3><p>Веди ракету, собирай звёзды и бей рекорд недели</p></div>
-    <button class="pill" data-open="race">Играть <span>›</span></button>
+    <svg class="art" viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(110 100)"><path d="M0-70l40 26 0 0-40 104-40-104z" fill="#7fd6ff"/><path d="M0-70l40 26H-40z" fill="#c9f1ff"/><path d="M-40-44L0 60 0-44z" fill="#4fb6ec"/><path d="M40-44L0 60V-44z" fill="#2f8fd1"/></g><g fill="#fff"><circle cx="30" cy="40" r="3"/><circle cx="180" cy="30" r="2"/><circle cx="40" cy="170" r="2.5"/></g><path d="M170 150l5 10 11 2-8 7 2 11-10-5-10 5 2-11-8-7 11-2z" fill="#ffc83d"/></svg>
+    <div><h3>Мины</h3><p>Открывай клетки, собирай кристаллы, множитель растёт. Успей забрать!</p></div>
+    <button class="pill" data-open="mines">Играть <span>›</span></button>
   </div>
   <div class="live" id="live"><span class="lbl">ТОП</span></div>
   <h2 class="sec">Игры</h2>
   <div class="games">
-    <button class="game" data-open="race"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1f7a"/><stop offset="1" stop-color="#8b3fd1"/></linearGradient></defs><rect width="300" height="400" fill="url(#g1)"/><g fill="#fff" opacity=".8"><circle cx="40" cy="60" r="2"/><circle cx="250" cy="40" r="3"/><circle cx="220" cy="140" r="2"/><circle cx="60" cy="220" r="2"/></g><path d="M0 330q75-40 150 0t150 0v70H0z" fill="#b067ff" opacity=".5"/><circle cx="245" cy="240" r="26" fill="#ffb3f0" opacity=".9"/><g transform="translate(140 190) rotate(30)"><path d="M0-90c40 30 36 96 28 130h-56c-8-34-12-100 28-130z" fill="#f3f0ea"/><path d="M0-90c20 15 30 30 32 46h-64c2-16 12-31 32-46z" fill="#ff5d6c"/><circle cy="-10" r="17" fill="#53e0c8" stroke="#2a2f55" stroke-width="5"/><path d="M-28 20l-28 40 28-9zM28 20l28 40-28-9z" fill="#ff5d6c"/><path d="M-18 40q18 70 36 0z" fill="#ffc83d"/></g></svg><span class="bd"><i></i><span id="gBest">новая</span></span><span class="nm">Ракета</span></button>
+    <button class="game" data-open="mines"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2346b8"/><stop offset="1" stop-color="#5a2fc4"/></linearGradient></defs><rect width="300" height="400" fill="url(#g1)"/><g opacity=".35" fill="#fff"><rect x="20" y="250" width="50" height="50" rx="10"/><rect x="80" y="250" width="50" height="50" rx="10"/><rect x="170" y="250" width="50" height="50" rx="10"/><rect x="230" y="250" width="50" height="50" rx="10"/><rect x="20" y="310" width="50" height="50" rx="10"/><rect x="230" y="310" width="50" height="50" rx="10"/></g><g transform="translate(150 170)"><path d="M0-90l55 36-55 140-55-140z" fill="#7fd6ff"/><path d="M0-90l55 36H-55z" fill="#c9f1ff"/><path d="M-55-54L0 86V-54z" fill="#4fb6ec"/><path d="M55-54L0 86V-54z" fill="#2f8fd1"/></g><g transform="translate(240 90)"><circle r="26" fill="#1b1f33"/><path d="M14-20l12-12" stroke="#ffc83d" stroke-width="5"/><circle cx="28" cy="-34" r="5" fill="#ff5d6c"/></g></svg><span class="bd"><i></i><span id="gBest">новая</span></span><span class="nm">Мины</span></button>
     <button class="game" data-tab="pWheel"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><radialGradient id="g2" cx=".5" cy=".3"><stop offset="0" stop-color="#ff8a3d"/><stop offset="1" stop-color="#b8233f"/></radialGradient></defs><rect width="300" height="400" fill="url(#g2)"/><g transform="translate(150 185)"><circle r="104" fill="#ffd36e"/><path d="M0 0L0-94A94 94 0 0 1 66-66z" fill="#5a6bff"/><path d="M0 0L66-66A94 94 0 0 1 94 0z" fill="#8b5cf6"/><path d="M0 0L94 0A94 94 0 0 1 66 66z" fill="#3fd47a"/><path d="M0 0L66 66A94 94 0 0 1 0 94z" fill="#ff5d6c"/><path d="M0 0L0 94A94 94 0 0 1-66 66z" fill="#5a6bff"/><path d="M0 0L-66 66A94 94 0 0 1-94 0z" fill="#8b5cf6"/><path d="M0 0L-94 0A94 94 0 0 1-66-66z" fill="#3fd47a"/><path d="M0 0L-66-66A94 94 0 0 1 0-94z" fill="#ff5d6c"/><circle r="22" fill="#ffd36e"/><path d="M0-118l14 26h-28z" fill="#fff"/></g></svg><span class="bd"><i></i><span id="gSpin">крутить</span></span><span class="nm">Колесо</span></button>
     <button class="game" data-tab="pTop"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a5bd8"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g3)"/><g transform="translate(150 175)"><path d="M-60-60h120v30c0 50-30 80-60 80s-60-30-60-80z" fill="#ffc83d"/><path d="M-60-45h-26c0 40 20 55 36 55M60-45h26c0 40-20 55-36 55" stroke="#ffc83d" stroke-width="12" fill="none"/><rect x="-14" y="48" width="28" height="34" fill="#e6a417"/><rect x="-44" y="80" width="88" height="22" rx="6" fill="#ffc83d"/><path d="M0-40l9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3z" fill="#fff6d0"/></g></svg><span class="bd"><i></i><span>неделя</span></span><span class="nm">Рейтинг</span></button>
     <button class="game" data-tab="pBonus"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a2fc4"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g4)"/><g transform="translate(150 190)"><rect x="-80" y="-20" width="160" height="100" rx="10" fill="#7c4dff"/><rect x="-90" y="-50" width="180" height="40" rx="10" fill="#9a73ff"/><rect x="-14" y="-50" width="28" height="130" fill="#ffc83d"/><path d="M0-50c-30-50-70-20-40 0M0-50c30-50 70-20 40 0" stroke="#ffc83d" stroke-width="12" fill="none"/></g><g fill="#9ad8ff"><path d="M50 90l8 14-8 14-8-14z"/><path d="M250 300l6 10-6 10-6-10z"/></g></svg><span class="bd"><i></i><span>каждый день</span></span><span class="nm">Бонусы</span></button>
@@ -155,30 +155,32 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 <main class="page" id="pTop" hidden>
   <h2 class="sec">Рейтинг недели</h2>
   <div class="rows" id="topList"></div>
-  <p class="note">Лучший полёт каждого игрока с понедельника.</p>
+  <p class="note">Самый большой выигрыш каждого игрока с понедельника.</p>
 </main>
 
 <main class="page" id="pBonus" hidden>
-  <div class="banner" style="min-height:160px"><span class="timer"><i></i><span id="bTimer">Новые бонусы скоро</span></span><div><h3 style="max-width:100%">Каждый день</h3><p style="max-width:100%">5 бесплатных полётов, монеты и прокрутка колеса</p></div></div>
+  <div class="banner" style="min-height:160px"><span class="timer"><i></i><span id="bTimer">Новые бонусы скоро</span></span><div><h3 style="max-width:100%">Каждый день</h3><p style="max-width:100%">100 монет и бесплатная прокрутка колеса</p></div></div>
   <h2 class="sec">Бонусы</h2>
   <div class="bon" id="bonList"></div>
 </main>
 
-<canvas id="cv" hidden></canvas>
-<div class="hud" id="hud" hidden><span id="hScore">0</span><span class="h" id="hLives">♥♥♥</span></div>
-<div class="result" id="result" hidden><b id="rTitle">+0</b><span id="rText"></span></div>
-<section class="panel" id="panel" hidden>
-  <div class="seg" id="diff"><button data-d="0">Лёгкая</button><button data-d="1" class="on">Средняя</button><button data-d="2">Тяжёлая</button><button data-d="3">Хардкор</button></div>
-  <div class="box">🪙 <span id="pMult">×1,5 монет</span><span class="r" id="pShield"></span></div>
-  <button class="go" id="bStart">Начать игру</button>
-</section>
+<main class="page" id="pMines" hidden>
+  <div class="board" id="board"></div>
+  <div class="mstat"><span>Множитель <b id="mMult">×1,00</b></span><span>Следующая <b id="mNext">—</b></span><span>Мин <b id="mCount">3</b></span></div>
+  <section class="panel">
+    <button class="go" id="mGo">Начать игру</button>
+    <div class="stakes" id="mStakes"></div>
+    <div class="seg" id="mSeg"></div>
+  </section>
+  <p class="note">Играем на игровые монеты. Их дают каждый день, купить или вывести их нельзя.</p>
+</main>
 
-<nav class="tabs" id="tabs"><button class="on" data-tab="pGames">Игры</button><button data-tab="pWheel">Колесо</button><button data-tab="pTop">Рейтинг</button><button data-tab="pBonus">Бонусы</button></nav>
+<nav class="tabs" id="tabs"><button class="on" data-tab="pGames">Игры</button><button data-tab="pMines">Мины</button><button data-tab="pWheel">Колесо</button><button data-tab="pTop">Рейтинг</button><button data-tab="pBonus">Бонусы</button></nav>
 
 <div class="sheet" id="shop" hidden><div class="in">
-  <div class="hd"><h3>Пополнить</h3><button class="x" id="shopX" aria-label="Закрыть">✕</button></div>
+  <div class="hd"><h3>Магазин</h3><button class="x" id="shopX" aria-label="Закрыть">✕</button></div>
   <div class="shopg" id="shopList"></div>
-  <p class="note">Полёты и ракеты — за звёзды Telegram. Щит и «Удача» — за монеты. Звёзды в игре выиграть нельзя.</p>
+  <p class="note">Оформление поля за звёзды Telegram. На выигрыш оно не влияет, монеты за звёзды не продаются.</p>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -193,16 +195,7 @@ const haptic = (t) => { try { tg && tg.HapticFeedback && tg.HapticFeedback.impac
 const fmt = (n) => Math.round(n).toLocaleString("ru-RU");
 const esc = (s) => String(s).replace(/[<>&"]/g, "");
 const demo = !INIT;
-const DIFF = [{ sp: .8, m: 1 }, { sp: 1, m: 1.5 }, { sp: 1.25, m: 2 }, { sp: 1.55, m: 3 }];
-let diff = 1;
-const SKINS = {
-  classic: { body: "#f3f0ea", wing: "#ff5d6c", win: "#53e0c8", flame: "#ffb02e" },
-  neon: { body: "#1b1f3a", wing: "#7a5cff", win: "#53e0c8", flame: "#53e0c8" },
-  gold: { body: "#ffd768", wing: "#ff9f1c", win: "#2a1700", flame: "#fff1b0" },
-  comet: { body: "#cfe8ff", wing: "#3a86ff", win: "#ffffff", flame: "#8ecbff" },
-  lucky: { body: "#53e0c8", wing: "#ffc83d", win: "#0b1226", flame: "#ff5d6c" },
-};
-let me = { runs: null, best: 0, coins: 0, freeSpin: false, shield: 0, spinCost: 50, dailyCoins: 30, skins: ["classic"], skin: "classic", shop: [], wheel: [] };
+let me = { best: 0, weekBest: 0, coins: 0, freeSpin: false, dailyCoins: 100, themes: ["classic"], theme: "classic", shop: [], coinShop: [], wheel: [] };
 
 async function api(path, body) {
   const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: INIT, ...body }) });
@@ -212,20 +205,20 @@ async function api(path, body) {
 }
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
 function paintTop() {
-  $("tCoins").textContent = fmt(me.coins); $("tRuns").textContent = me.runs == null ? "—" : demo ? "∞" : me.runs;
+  $("tCoins").textContent = fmt(me.coins); $("tBest").textContent = fmt(me.weekBest || 0);
   const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user; $("tAva").textContent = (u && u.first_name ? u.first_name[0] : "Я").toUpperCase();
-  $("gBest").textContent = me.best ? `рекорд ${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : "50 на 50";
+  $("gBest").textContent = me.best ? `лучший +${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : "50 на 50";
 }
 async function load() {
-  if (demo) { let b = 0, c = 120; try { b = +(localStorage.getItem("sr_best") || 0); c = +(localStorage.getItem("sr_coins") || 120); } catch (e) {} me.runs = 99; me.best = b; me.coins = c; me.freeSpin = true; }
-  else { try { Object.assign(me, await api("me")); if (me.daily) toast(`Ежедневный бонус: +${me.dailyCoins} монет и бесплатная прокрутка 🎁`); } catch (e) { toast(e.message); } }
+  if (demo) { let c = 600; try { c = +(localStorage.getItem("sr_coins") || 600); } catch (e) {} me.coins = c; me.freeSpin = true; me.dailyCoins = 100; }
+  else { try { Object.assign(me, await api("me")); if (me.game) M.game = me.game; if (me.daily) toast(`Ежедневный бонус: +${me.dailyCoins} монет и бесплатная прокрутка 🎁`); } catch (e) { toast(e.message); } }
   paintTop(); loadLive();
 }
 
 // ---------- вкладки ----------
-const PAGES = ["pGames", "pWheel", "pTop", "pBonus"];
-function go(id) { for (const p of PAGES) $(p).hidden = p !== id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === id)); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
-document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { closeGame(); go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) openGame(); });
+const PAGES = ["pGames", "pMines", "pWheel", "pTop", "pBonus"];
+function go(id) { for (const p of PAGES) $(p).hidden = p !== id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === id)); if (id === "pMines") paintMines(); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) go("pMines"); });
 
 // ---------- лента лучших: настоящие рекорды недели ----------
 const AVC = ["#ff8a3d", "#5a6bff", "#3fd47a", "#ff5d6c", "#8b5cf6", "#ffc83d"];
@@ -235,112 +228,88 @@ async function loadLive() {
   $("live").innerHTML = `<span class="lbl">ТОП</span>` + (rows.length ? rows.map((r, i) => `<div class="w"><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><div><span>${esc(r.name)}</span><b>${fmt(r.score)}</b></div></div>`).join("") : `<div class="w"><div><span>${demo ? "Рейтинг виден в Telegram" : "На этой неделе пока пусто"}</span><b>Стань первым!</b></div></div>`);
 }
 
-// ---------- игровой движок ----------
-const cv = $("cv"), cx = cv.getContext("2d");
-let W = innerWidth, H = innerHeight, DPR = 1;
-function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; const pb = $("panel").hidden ? 0 : $("panel").offsetHeight - 20; H = innerHeight - pb; cv.width = W * DPR; cv.height = H * DPR; cv.style.height = H + "px"; cx.setTransform(DPR, 0, 0, DPR, 0, 0); }
-addEventListener("resize", resize);
-const sky = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9 }));
-let G = null, runId = null, inGame = false;
-function newGame() { const d = DIFF[diff]; return { t: 0, x: W / 2, tx: W / 2, y: H * .8, lives: 3, score: 0, mul: d.sp, speed: 210 * d.sp, objs: [], parts: [], spawn: 0, shield: 0, hurt: 0, over: false }; }
-function spawn(g) {
-  const r = Math.random(), x = 30 + Math.random() * (W - 60), rockP = Math.min(.58, (.28 + g.t / 120) * (.85 + g.mul * .15));
-  if (r < rockP) g.objs.push({ k: "rock", x, y: -40, r: 16 + Math.random() * 18, rot: Math.random() * 6, vr: (Math.random() - .5) * 3, vx: (Math.random() - .5) * 40 * g.mul });
-  else if (r < rockP + .04) g.objs.push({ k: "shield", x, y: -30, r: 16 });
-  else if (r < rockP + .1) g.objs.push({ k: "big", x, y: -30, r: 18 });
-  else g.objs.push({ k: "star", x, y: -20, r: 12 });
+// ---------- «Мины» ----------
+const GEM = `<svg viewBox="0 0 40 40"><path d="M20 4l12 8-12 24L8 12z" fill="#7fd6ff"/><path d="M20 4l12 8H8z" fill="#c9f1ff"/><path d="M8 12l12 24V12z" fill="#4fb6ec"/><path d="M32 12L20 36V12z" fill="#2f8fd1"/></svg>`;
+const BOMB = `<svg viewBox="0 0 40 40"><circle cx="18" cy="23" r="13" fill="#1b1f33"/><circle cx="13" cy="18" r="3.5" fill="#fff" opacity=".35"/><path d="M26 12l5-5" stroke="#ffc83d" stroke-width="3"/><circle cx="33" cy="5" r="3" fill="#ff5d6c"/></svg>`;
+let M = { stake: 100, m: 3, game: null, shown: null, busy: false };
+const fmtX = (x) => "×" + x.toFixed(2).replace(".", ",");
+function demoMult(m, k) { let r = 1; for (let i = 0; i < k; i++) r = r * (25 - i) / (25 - m - i); return k ? Math.floor(.97 * r * 100) / 100 : 1; }
+function paintMines() {
+  const g = M.game, B = $("board"); B.className = "board t-" + (me.theme || "classic");
+  const shown = M.shown, opened = g ? g.opened : (shown && shown.opened) || [];
+  B.innerHTML = [...Array(25).keys()].map((i) => { let cls = "cell", in_ = "";
+    if (opened.includes(i)) { cls += " gem"; in_ = GEM; }
+    else if (shown) { if (shown.mines.includes(i)) { cls += " bomb" + (i === shown.boom ? "" : " dim"); in_ = BOMB; } else { cls += " gem dim"; in_ = GEM; } }
+    return `<button class="${cls}" data-c="${i}" ${!g || opened.includes(i) ? "tabindex=-1" : ""}>${in_}</button>`; }).join("");
+  $("mMult").textContent = fmtX(g ? g.mult : 1); $("mNext").textContent = fmtX(g ? g.next : demoMult(M.m, 1)); $("mCount").textContent = g ? g.m : M.m;
+  const st = me.stakes || [50, 100, 250, 500], mn = me.mines || [3, 5, 10, 24];
+  $("mStakes").innerHTML = st.map((v) => `<button data-s="${v}" class="${v === M.stake ? "on" : ""}" ${g || me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
+  $("mSeg").innerHTML = mn.map((v) => `<button data-m="${v}" class="${v === M.m ? "on" : ""}" ${g ? "disabled" : ""}>${v} мин</button>`).join("");
+  const go = $("mGo");
+  if (g && g.opened.length) { go.disabled = M.busy; go.innerHTML = `Забрать ${fmt(Math.floor(g.stake * g.mult))} 🪙<small>${fmtX(g.mult)}</small>`; }
+  else if (g) { go.disabled = true; go.innerHTML = "Открой клетку"; }
+  else { go.disabled = M.busy || me.coins < M.stake; go.innerHTML = me.coins < M.stake ? `Нужно ${M.stake} монет` : `Начать игру · ${M.stake} 🪙`; }
 }
-function burst(g, x, y, col, n) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 180; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, l: .6, c: col }); } }
-function step(dt) {
-  const g = G; g.t += dt; g.speed = (210 + g.t * 9) * g.mul; g.x += (g.tx - g.x) * Math.min(1, dt * 14);
-  g.spawn -= dt; if (g.spawn <= 0) { spawn(g); g.spawn = Math.max(.2, (.62 - g.t / 90) / Math.sqrt(g.mul)); }
-  if (g.shield > 0) g.shield -= dt; if (g.hurt > 0) g.hurt -= dt;
-  for (const o of g.objs) { o.y += g.speed * dt * (o.k === "rock" ? 1.05 : .9); if (o.vx) o.x += o.vx * dt; if (o.rot != null) o.rot += o.vr * dt;
-    if (!o.dead && Math.hypot(o.x - g.x, o.y - g.y) < o.r + 18) {
-      if (o.k === "star") { g.score += 1; o.dead = 1; burst(g, o.x, o.y, "#ffc83d", 8); haptic("light"); }
-      else if (o.k === "big") { g.score += 5; o.dead = 1; burst(g, o.x, o.y, "#fff1b0", 16); haptic("medium"); }
-      else if (o.k === "shield") { g.shield = 6; o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 14); haptic("medium"); }
-      else if (g.shield > 0) { o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 18); }
-      else if (g.hurt <= 0) { g.lives--; g.hurt = 1.2; o.dead = 1; burst(g, o.x, o.y, "#ff5d6c", 22); haptic("heavy"); if (g.lives <= 0) g.over = true; } } }
-  g.objs = g.objs.filter((o) => !o.dead && o.y < H + 60);
-  for (const p of g.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.l -= dt; } g.parts = g.parts.filter((p) => p.l > 0);
-  $("hScore").textContent = g.score; $("hLives").textContent = "♥".repeat(Math.max(0, g.lives)) + "♡".repeat(3 - Math.max(0, g.lives));
+$("mStakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (v && !M.game) { M.stake = v; M.shown = null; paintMines(); haptic("light"); } });
+$("mSeg").addEventListener("click", (e) => { const v = +e.target.dataset.m; if (v && !M.game) { M.m = v; M.shown = null; paintMines(); haptic("light"); } });
+// демо без Telegram: та же логика прямо в браузере
+const DEMO = { mines: null };
+async function mStart() {
+  M.busy = true; M.shown = null;
+  try { if (demo) { if (me.coins < M.stake) throw new Error("Мало монет"); me.coins -= M.stake; const a = [...Array(25).keys()].sort(() => Math.random() - .5); DEMO.mines = a.slice(0, M.m); M.game = { id: "demo", stake: M.stake, m: M.m, opened: [], mult: 1, next: demoMult(M.m, 1) }; }
+        else { const d = await api("mines/start", { stake: M.stake, mines: M.m }); Object.assign(me, d); M.game = d.game; } haptic("medium"); }
+  catch (e) { toast(e.message); }
+  M.busy = false; paintMines(); paintTop();
 }
+async function mOpen(cell) {
+  if (!M.game || M.busy || M.game.opened.includes(cell)) return; M.busy = true; let d;
+  try { if (demo) { const g = M.game; if (DEMO.mines.includes(cell)) d = { boom: true, cell, mines: DEMO.mines, coins: me.coins }; else { const op = [...g.opened, cell], mult = demoMult(g.m, op.length);
+          if (op.length === 25 - g.m) { const win = Math.floor(g.stake * mult); me.coins += win; d = { win, mult, mines: DEMO.mines, coins: me.coins, cell }; } else d = { safe: true, game: { ...g, opened: op, mult, next: demoMult(g.m, op.length + 1) } }; } }
+        else d = await api("mines/open", { gameId: M.game.id, cell }); }
+  catch (e) { toast(e.message); M.busy = false; return; }
+  M.busy = false;
+  if (d.boom) { if (!demo) Object.assign(me, d); M.shown = { mines: d.mines, boom: cell, opened: M.game.opened }; M.game = null; haptic("heavy"); toast(`💥 Мина! −${fmt(M.stake)} монет`); }
+  else if (d.win) { if (!demo) Object.assign(me, d); M.shown = { mines: d.mines, boom: -1, opened: [...M.game.opened, cell] }; M.game = null; toast(`🏆 Все кристаллы! +${fmt(d.win)} монет`); haptic("heavy"); }
+  else { M.game = d.game; haptic("light"); }
+  paintMines(); paintTop();
+}
+async function mCash() {
+  if (!M.game || !M.game.opened.length || M.busy) return; M.busy = true; let d;
+  try { if (demo) { const win = Math.floor(M.game.stake * M.game.mult); me.coins += win; d = { win, mines: DEMO.mines }; } else { d = await api("mines/cash", { gameId: M.game.id }); Object.assign(me, d); } }
+  catch (e) { toast(e.message); M.busy = false; return; }
+  M.busy = false; M.shown = { mines: d.mines, boom: -1, opened: M.game.opened }; M.game = null; paintMines();
+  toast(`💎 +${fmt(d.win)} монет`); haptic("heavy"); paintTop();
+  try { demo && localStorage.setItem("sr_coins", me.coins); } catch (e) {}
+}
+$("board").addEventListener("click", (e) => { const c = e.target.closest(".cell"); if (c) mOpen(+c.dataset.c); });
+$("mGo").onclick = () => (M.game ? mCash() : mStart());
 function starPath(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
-function rocket(g, skin, t, flame) { const s = SKINS[skin] || SKINS.classic;
-  if (flame) { const f = 14 + Math.sin(t * 40) * 5, fl = g.createLinearGradient(0, 18, 0, 18 + f + 14); fl.addColorStop(0, s.flame); fl.addColorStop(1, "rgba(255,120,0,0)"); g.fillStyle = fl; g.beginPath(); g.moveTo(-8, 18); g.quadraticCurveTo(0, 18 + f + 16, 8, 18); g.fill(); }
-  g.fillStyle = s.wing; g.beginPath(); g.moveTo(-12, 8); g.lineTo(-24, 24); g.lineTo(-10, 20); g.fill(); g.beginPath(); g.moveTo(12, 8); g.lineTo(24, 24); g.lineTo(10, 20); g.fill();
-  g.fillStyle = s.body; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(16, -16, 14, 10, 10, 22); g.lineTo(-10, 22); g.bezierCurveTo(-14, 10, -16, -16, 0, -30); g.fill();
-  g.fillStyle = s.wing; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(8, -24, 11, -18, 12, -14); g.lineTo(-12, -14); g.bezierCurveTo(-11, -18, -8, -24, 0, -30); g.fill();
-  g.fillStyle = s.win; g.beginPath(); g.arc(0, -2, 6.5, 0, 6.28); g.fill(); }
-function draw(t) {
-  if (!inGame) return;
-  const g = G, bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#232a52"); bg.addColorStop(1, "#181c2e"); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
-  const sp = g ? g.speed : 50;
-  for (const s of sky) { s.y += sp * s.z * .0009 / 60; if (s.y > 1) { s.y = 0; s.x = Math.random(); } cx.fillStyle = `rgba(255,255,255,${.25 + s.z * .5})`; cx.fillRect(s.x * W, s.y * H, s.z * 2, s.z * 2 + (g ? s.z * 4 : 0)); }
-  if (!g) { cx.save(); cx.translate(W / 2, H * .62 + Math.sin(t * 2) * 6); cx.scale(1.6, 1.6); rocket(cx, me.skin, t, true); cx.restore(); return; }
-  for (const o of g.objs) {
-    if (o.k === "rock") { cx.save(); cx.translate(o.x, o.y); cx.rotate(o.rot); cx.fillStyle = "#6b5a8a"; cx.beginPath(); for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28, rr = o.r * (.82 + ((i * 37) % 7) / 30); cx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } cx.closePath(); cx.fill(); cx.fillStyle = "#54466f"; cx.beginPath(); cx.arc(o.r * .25, -o.r * .2, o.r * .22, 0, 6.28); cx.arc(-o.r * .3, o.r * .3, o.r * .15, 0, 6.28); cx.fill(); cx.restore(); }
-    else if (o.k === "shield") { cx.strokeStyle = "#53e0c8"; cx.lineWidth = 3; cx.fillStyle = "rgba(83,224,200,.18)"; cx.beginPath(); cx.arc(o.x, o.y, o.r, 0, 6.28); cx.fill(); cx.stroke(); cx.fillStyle = "#53e0c8"; cx.font = "800 15px Manrope"; cx.textAlign = "center"; cx.fillText("S", o.x, o.y + 5); }
-    else { const big = o.k === "big"; cx.save(); cx.shadowColor = "#ffc83d"; cx.shadowBlur = big ? 22 : 12; cx.fillStyle = big ? "#fff1b0" : "#ffc83d"; starPath(cx, o.x, o.y, o.r + Math.sin(t * 6 + o.x) * 1.5); cx.fill(); cx.restore(); } }
-  for (const p of g.parts) { cx.globalAlpha = Math.max(0, p.l / .6); cx.fillStyle = p.c; cx.fillRect(p.x - 2, p.y - 2, 4, 4); } cx.globalAlpha = 1;
-  if (!(g.hurt > 0 && Math.floor(t * 12) % 2)) { cx.save(); cx.translate(g.x, g.y); rocket(cx, me.skin, t, true); cx.restore(); }
-  if (g.shield > 0) { cx.strokeStyle = `rgba(83,224,200,${.5 + .3 * Math.sin(t * 10)})`; cx.lineWidth = 3; cx.beginPath(); cx.arc(g.x, g.y - 2, 36, 0, 6.28); cx.stroke(); }
-}
-let last = performance.now();
-function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (G && !G.over) step(dt); draw(now / 1000); if (G && G.over && !G.ended) { G.ended = true; finish(); } requestAnimationFrame(loop); }
-requestAnimationFrame(loop);
-const move = (e) => { if (!G) return; const p = e.touches ? e.touches[0] : e; G.tx = Math.max(24, Math.min(W - 24, p.clientX)); };
-cv.addEventListener("pointermove", move); cv.addEventListener("pointerdown", move); cv.addEventListener("touchmove", (e) => { move(e); e.preventDefault(); }, { passive: false });
 
-function paintPanel() { const d = DIFF[diff]; $("pMult").textContent = `×${String(d.m).replace(".", ",")} монет за звезду`; $("pShield").textContent = me.shield ? `🛡 щит ×${me.shield}` : "";
-  document.querySelectorAll("#diff button").forEach((b) => b.classList.toggle("on", +b.dataset.d === diff));
-  const can = demo || me.runs > 0; $("bStart").innerHTML = can ? "Начать игру" : `Полёты закончились<small>нажми, чтобы пополнить</small>`; }
-function openGame() { inGame = true; G = null; for (const p of PAGES) $(p).hidden = true; cv.hidden = false; $("panel").hidden = false; $("result").hidden = true; paintPanel(); resize(); haptic("light"); }
-function closeGame() { if (!inGame) return; inGame = false; G = null; cv.hidden = true; $("panel").hidden = true; $("hud").hidden = true; $("result").hidden = true; $("tabs").hidden = false; }
-$("diff").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || G) return; diff = +b.dataset.d; paintPanel(); haptic("light"); });
-$("bStart").onclick = async () => {
-  if (!demo && !(me.runs > 0)) { openShop(); return; }
-  let shield = 0;
-  try { if (!demo) { const d = await api("run", { diff }); runId = d.runId; me.runs = d.runs; shield = d.shield; if (shield) me.shield--; } } catch (e) { toast(e.message); return; }
-  $("panel").hidden = true; $("tabs").hidden = true; $("result").hidden = true; resize(); G = newGame(); if (shield) { G.shield = 8; toast("Щит из колеса включён 🛡"); } $("hud").hidden = false; paintTop(); haptic("medium");
-};
-async function finish() {
-  const sc = G.score; let record = sc > me.best, earned = Math.round(sc * DIFF[diff].m);
-  if (demo) { me.coins += earned; me.best = Math.max(me.best, sc); try { localStorage.setItem("sr_best", me.best); localStorage.setItem("sr_coins", me.coins); } catch (e) {} }
-  else { try { const d = await api("finish", { runId, score: sc }); Object.assign(me, d); record = d.record; earned = d.earned; } catch (e) { toast(e.message); } }
-  $("rTitle").textContent = record && sc > 0 ? `Рекорд: ${fmt(sc)}!` : `${fmt(sc)} ★`; $("rText").textContent = `+${fmt(earned)} монет`;
-  setTimeout(() => { G = null; $("hud").hidden = true; $("result").hidden = false; $("panel").hidden = false; $("tabs").hidden = false; resize(); paintPanel(); paintTop(); loadLive(); }, 600);
-  haptic(record ? "heavy" : "medium");
-}
-
-// ---------- магазин ----------
-const SHOP_DEF = [{ id: "runs5", title: "+5 полётов", stars: 5 }, { id: "runs20", title: "+20 полётов", stars: 15 }, { id: "skin_neon", title: "Ракета «Неон»", stars: 25, skin: "neon" }, { id: "skin_comet", title: "Ракета «Комета»", stars: 35, skin: "comet" }, { id: "skin_gold", title: "Ракета «Золотая»", stars: 50, skin: "gold" }];
+// ---------- магазин: только оформление ----------
+const THEME_C = { classic: ["#20264a", "#343c6e"], neon: ["#120f2e", "#2a1f63"], gold: ["#3a2a0a", "#6b4c12"], cosmos: ["#0d1b3d", "#1d3a7a"], lucky: ["#0f3a33", "#1f6b5d"] };
+const SHOP_DEF = [{ id: "theme_neon", title: "Поле «Неон»", stars: 25, theme: "neon" }, { id: "theme_cosmos", title: "Поле «Космос»", stars: 35, theme: "cosmos" }, { id: "theme_gold", title: "Поле «Золото»", stars: 50, theme: "gold" }];
 function openShop() { $("shop").hidden = false; renderShop(); }
+const themePic = (t) => { const [b, c] = THEME_C[t] || THEME_C.classic; return `<svg viewBox="0 0 60 60"><rect width="60" height="60" rx="10" fill="${b}"/>${[0, 1, 2].map((y) => [0, 1, 2].map((x) => `<rect x="${5 + x * 17.5}" y="${5 + y * 17.5}" width="15" height="15" rx="4" fill="${(x + y) % 3 === 1 ? "#4fb6ec" : c}"/>`).join("")).join("")}</svg>`; };
 function renderShop() {
-  const shop = (me.shop.length ? me.shop : SHOP_DEF).map((x) => ({ ...x, title: x.title.replace("запусков", "полётов") }));
-  const items = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...shop, { id: "shield", title: "Щит на старт", coins: 100 }, { id: "skin_lucky", title: "Ракета «Удача»", coins: 1000, skin: "lucky" }];
+  const items = [{ id: "classic", title: "Поле «Классика»", stars: 0, theme: "classic" }, ...(me.shop && me.shop.length ? me.shop : SHOP_DEF), ...(me.coinShop && me.coinShop.length ? me.coinShop : [{ id: "theme_lucky", title: "Поле «Удача»", coins: 2000, theme: "lucky" }])];
+  const own = (t) => (me.themes || ["classic"]).includes(t);
   $("shopList").innerHTML = items.map((it) => {
-    const own = it.skin && me.skins.includes(it.skin);
-    const pic = it.id === "shield" ? `<svg viewBox="0 0 60 60"><path d="M30 6l20 8v14c0 13-9 22-20 26-11-4-20-13-20-26V14z" fill="#53e0c8"/><path d="M22 30l6 6 11-12" stroke="#0f3a33" stroke-width="5" fill="none" stroke-linecap="round"/></svg>` : it.skin ? `<canvas data-skin="${it.skin}" width="140" height="140"></canvas>` : `<svg viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc83d"/></svg>`;
     let btn;
-    if (own) btn = me.skin === it.skin ? `<button class="on" disabled>Выбрана</button>` : `<button class="own" data-use="${it.skin}">Выбрать</button>`;
+    if (own(it.theme)) btn = (me.theme || "classic") === it.theme ? `<button class="on" disabled>Выбрано</button>` : `<button class="own" data-use="${it.theme}">Выбрать</button>`;
     else if (it.coins) btn = `<button class="own" data-coin="${it.id}" ${me.coins < it.coins ? "disabled" : ""}>${fmt(it.coins)} 🪙</button>`;
     else btn = `<button data-buy="${it.id}">${it.stars} ⭐</button>`;
-    return `<div class="si"><div class="pic">${pic}</div><h4>${it.title}</h4><span>${it.id === "shield" ? `За монеты · есть: ${me.shield || 0}` : it.coins ? "Только за монеты" : it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span>${btn}</div>`;
+    return `<div class="si"><div class="pic">${themePic(it.theme)}</div><h4>${it.title}</h4><span>${it.coins ? "За монеты" : it.stars ? "Оформление поля" : "Обычное"}</span>${btn}</div>`;
   }).join("");
-  $("shopList").querySelectorAll("canvas").forEach((c) => { const g = c.getContext("2d"); g.translate(70, 76); g.scale(1.6, 1.6); rocket(g, c.dataset.skin, 0, false); });
 }
 $("tPay").onclick = openShop; $("shopX").onclick = () => { $("shop").hidden = true; };
 $("shop").addEventListener("click", async (e) => {
   if (e.target === $("shop")) { $("shop").hidden = true; return; }
-  const use = e.target.dataset.use, buy = e.target.dataset.buy;
-  const coin = e.target.dataset.coin;
-  if (coin) { if (demo) { toast("Покупки работают внутри Telegram"); return; } try { Object.assign(me, await api("coinbuy", { item: coin })); toast("Готово!"); renderShop(); paintTop(); if (inGame) paintPanel(); } catch (err) { toast(err.message); } return; }
-  if (use) { me.skin = use; if (!demo) api("skin", { skin: use }).catch(() => {}); renderShop(); haptic("light"); return; }
+  const use = e.target.dataset.use, buy = e.target.dataset.buy, coin = e.target.dataset.coin;
+  if (use) { me.theme = use; if (!demo) api("theme", { theme: use }).catch(() => {}); renderShop(); paintMines(); haptic("light"); return; }
+  if (coin) { if (demo) { toast("Покупки работают внутри Telegram"); return; } try { Object.assign(me, await api("coinbuy", { item: coin })); toast("Готово!"); renderShop(); paintTop(); paintMines(); } catch (err) { toast(err.message); } return; }
   if (!buy) return;
   if (demo) { toast("Покупки работают внутри Telegram"); return; }
-  try { const { link } = await api("buy", { item: buy }); tg.openInvoice(link, (st) => { if (st === "paid") { toast("Оплачено! Спасибо ⭐"); setTimeout(async () => { Object.assign(me, await api("me")); renderShop(); paintTop(); if (inGame) paintPanel(); }, 1200); } else if (st === "failed") toast("Оплата не прошла"); }); }
+  try { const { link } = await api("buy", { item: buy }); tg.openInvoice(link, (st) => { if (st === "paid") { toast("Оплачено! Спасибо ⭐"); setTimeout(async () => { Object.assign(me, await api("me")); renderShop(); paintTop(); paintMines(); }, 1200); } else if (st === "failed") toast("Оплата не прошла"); }); }
   catch (err) { toast(err.message); }
 });
 
@@ -383,7 +352,7 @@ $("bSpin").onclick = () => spin(false); $("bFree").onclick = () => spin(true);
 async function openTop() {
   const L = $("topList"); L.innerHTML = `<div class="rw"><span class="nm">Загружаю…</span></div>`;
   if (demo) { L.innerHTML = `<div class="rw"><span class="nm">Рейтинг работает внутри Telegram</span></div>`; return; }
-  try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r, i) => `<div class="rw ${r.me ? "me" : ""} ${i === 0 ? "g1" : ""}"><span class="n">${i + 1}</span><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><span class="nm">${esc(r.name)}</span><span class="sc">${fmt(r.score)}</span></div>`).join("") : `<div class="rw"><span class="nm">На этой неделе ещё никто не летал. Будь первым!</span></div>`; }
+  try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r, i) => `<div class="rw ${r.me ? "me" : ""} ${i === 0 ? "g1" : ""}"><span class="n">${i + 1}</span><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><span class="nm">${esc(r.name)}</span><span class="sc">${fmt(r.score)}</span></div>`).join("") : `<div class="rw"><span class="nm">На этой неделе ещё никто не выиграл. Будь первым!</span></div>`; }
   catch (e) { L.innerHTML = `<div class="rw"><span class="nm">${esc(e.message)}</span></div>`; }
 }
 
@@ -393,17 +362,16 @@ function paintBonus() {
   $("bTimer").textContent = `Новые бонусы через ${Math.floor(ms / 3600000)} ч ${Math.floor(ms / 60000) % 60} мин`;
   const I = { coin: `<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="24" fill="#ffc83d"/><circle cx="30" cy="30" r="17" fill="#e6a417"/><path d="M30 18l3.5 8 8.5.8-6.4 5.6 1.9 8.4-7.5-4.4-7.5 4.4 1.9-8.4-6.4-5.6 8.5-.8z" fill="#fff3c4"/></svg>`,
     wheel: `<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="25" fill="#ffd36e"/><path d="M30 30V7a23 23 0 0 1 16 7zM30 30l16-16a23 23 0 0 1 7 16zM30 30h23a23 23 0 0 1-7 16zM30 30l16 16a23 23 0 0 1-16 7z" fill="#5a6bff"/><path d="M30 30v23a23 23 0 0 1-16-7zM30 30L14 46a23 23 0 0 1-7-16zM30 30H7a23 23 0 0 1 7-16zM30 30L14 14a23 23 0 0 1 16-7z" fill="#8b5cf6"/><circle cx="30" cy="30" r="6" fill="#ffd36e"/></svg>`,
-    rocket: `<svg viewBox="0 0 60 60"><g transform="translate(30 32) scale(.9)"><path d="M0-26c12 9 11 28 8 38H-8c-3-10-4-29 8-38z" fill="#f3f0ea"/><path d="M0-26c6 4 9 9 10 14h-20c1-5 4-10 10-14z" fill="#ff5d6c"/><circle cy="-3" r="5" fill="#53e0c8"/><path d="M-8 6l-9 12 8-3zM8 6l9 12-8-3z" fill="#ff5d6c"/></g></svg>`,
+    rocket: `<svg viewBox="0 0 60 60"><path d="M18 12h24v8c0 12-6 18-12 18s-12-6-12-18z" fill="#ffc83d"/><rect x="26" y="38" width="8" height="8" fill="#e6a417"/><rect x="18" y="45" width="24" height="6" rx="2" fill="#ffc83d"/></svg>`,
     shield: `<svg viewBox="0 0 60 60"><path d="M30 6l20 8v14c0 13-9 22-20 26-11-4-20-13-20-26V14z" fill="#53e0c8"/><path d="M22 30l6 6 11-12" stroke="#0f3a33" stroke-width="5" fill="none" stroke-linecap="round"/></svg>` };
-  const can = demo || me.runs > 0;
   const C = [
-    { pic: I.rocket, t: "Полёты сегодня", v: demo ? "∞" : `${me.runs ?? 0}`, sub: "5 бесплатных каждый день", b: can ? "Играть" : "Пополнить", act: can ? "play" : "shop" },
-    { pic: I.wheel, t: "Прокрутка 50/50", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
     { pic: I.coin, t: "Монеты за вход", v: `+${me.dailyCoins}`, sub: "начисляются каждый день", b: "Получено", dis: true },
-    { pic: I.shield, t: "Щиты на старт", v: `${me.shield || 0}`, sub: "100 монет за щит", b: me.shield ? "В полёт" : "Купить", act: me.shield ? "play" : "shop" } ];
+    { pic: I.wheel, t: "Прокрутка 50/50", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
+    { pic: GEM.replace('viewBox="0 0 40 40"', 'viewBox="0 0 40 40" width="60" height="60"'), t: "Мины", v: `${fmt(me.coins)}`, sub: "монет на игру", b: "Играть", act: "play" },
+    { pic: I.rocket, t: "Лучший выигрыш", v: `+${fmt(me.weekBest || 0)}`, sub: "на этой неделе", b: "Рейтинг", act: "top" } ];
   $("bonList").innerHTML = C.map((c) => `<div class="bc"><div class="pic">${c.pic}</div><p>${c.t}<br><b>${c.v}</b></p><p style="font-size:12px">${c.sub}</p><button ${c.dis ? "disabled" : ""} data-act="${c.act || ""}">${c.b}</button></div>`).join("");
 }
-$("bonList").addEventListener("click", (e) => { const a = e.target.dataset.act; if (a === "play") openGame(); else if (a === "wheel") go("pWheel"); else if (a === "shop") openShop(); });
+$("bonList").addEventListener("click", (e) => { const a = e.target.dataset.act; if (a === "play") go("pMines"); else if (a === "wheel") go("pWheel"); else if (a === "top") go("pTop"); else if (a === "shop") openShop(); });
 
 load();
 </script>

@@ -1,70 +1,56 @@
-// «Звёздный рейс» — мини-игра в Telegram. Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
-// Звёзды (XTR) покупают только запуски и скины. Монеты — бесплатная игровая валюта (за полёты и каждый день),
-// их нельзя купить и вывести; на них крутится колесо 50/50. Так в игре есть удача, но нет ставок на деньги.
-// Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY), в коде и чате его нет.
+// «StarRace» — мини-игры в Telegram: «Мины» и колесо 50/50. Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
+// Играют только на монеты: их дают каждый день, их нельзя купить за звёзды и нельзя вывести.
+// Звёзды (XTR) покупают только оформление (темы поля). Поэтому ставок на деньги в игре нет.
+// Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY).
 import GAME from "./game.html";
 
-const FREE_RUNS = 5;               // бесплатных запусков в день
-const DAILY_COINS = 30;            // монет за первый вход дня
-const SPIN_COST = 50;              // минимальная ставка в колесе
-const DIFF_MULT = [1, 1.5, 2, 3];   // сложность: Лёгкая, Средняя, Тяжёлая, Хардкор — множитель монет
-const SHOP = {
-  runs5: { title: "+5 запусков", stars: 5, runs: 5 },
-  runs20: { title: "+20 запусков", stars: 15, runs: 20 },
-  skin_neon: { title: "Ракета «Неон»", stars: 25, skin: "neon" },
-  skin_comet: { title: "Ракета «Комета»", stars: 35, skin: "comet" },
-  skin_gold: { title: "Ракета «Золотая»", stars: 50, skin: "gold" },
-};
-// Колесо 50 на 50 на монетах: половина секторов ×2 (ставка возвращается вдвойне), половина 0 (ставка сгорает).
-// Монеты нельзя купить за звёзды и нельзя вывести — это игровая валюта, на кону нет денег.
+const DAILY_COINS = 100;           // монет за первый вход дня
+const START_COINS = 500;           // монет новичку
 export const STAKES = [50, 100, 250, 500];
+export const MINES = [3, 5, 10, 24];
+const EDGE = 0.97;                 // множитель «Мин» = 0.97 × честный шанс
 export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
-// Что раньше выпадало в колесе, теперь покупается за монеты.
-const COIN_SHOP = { shield: { title: "Щит на старт", coins: 100 }, skin_lucky: { title: "Ракета «Удача»", coins: 1000, skin: "lucky" } };
+const THEMES = ["classic", "neon", "gold", "cosmos", "lucky"];
+const SHOP = {                     // за звёзды — только внешний вид
+  theme_neon: { title: "Поле «Неон»", stars: 25, theme: "neon" },
+  theme_cosmos: { title: "Поле «Космос»", stars: 35, theme: "cosmos" },
+  theme_gold: { title: "Поле «Золото»", stars: 50, theme: "gold" },
+};
+const COIN_SHOP = { theme_lucky: { title: "Поле «Удача»", coins: 2000, theme: "lucky" } };
 const AUTH_MAX_AGE = 24 * 3600;
 
 const day = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
-function week(t = Date.now()) { const d = new Date(t); const w = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - w); return d.toISOString().slice(0, 10); }
+function week(t = Date.now()) { const d = new Date(t); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); }
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json; charset=utf-8" } });
 
 async function token(env) { return env.BOT_TOKEN || (await env.KV.get("bot_token")); }
 async function tg(env, method, payload) {
-  const t = await token(env);
-  const r = await fetch(`https://api.telegram.org/bot${t}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const r = await fetch(`https://api.telegram.org/bot${await token(env)}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   return r.json().catch(() => ({}));
 }
-async function hmacHex(key, msg) {
-  const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return new Uint8Array(await crypto.subtle.sign("HMAC", k, msg));
-}
+async function hmac(key, msg) { const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC", k, msg)); }
 export async function telegramUser(initData, botToken, now = Date.now()) {
   if (typeof initData !== "string" || !initData || !botToken) return null;
   const p = new URLSearchParams(initData), hash = p.get("hash");
   if (!hash) return null;
   p.delete("hash");
-  const check = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
-  const enc = new TextEncoder();
-  const secret = await hmacHex(enc.encode("WebAppData"), enc.encode(botToken));
-  const exp = [...(await hmacHex(secret, enc.encode(check)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const enc = new TextEncoder(), check = [...p.entries()].map(([k, v]) => `${k}=${v}`).sort().join("\n");
+  const exp = [...(await hmac(await hmac(enc.encode("WebAppData"), enc.encode(botToken)), enc.encode(check)))].map((b) => b.toString(16).padStart(2, "0")).join("");
   if (exp !== hash) return null;
   const ad = Number(p.get("auth_date"));
   if (!ad || now / 1000 - ad > AUTH_MAX_AGE) return null;
   try { return JSON.parse(p.get("user") || "null"); } catch { return null; }
 }
-async function webhookSecret(t) {
-  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`hook:${t}`));
-  return [...new Uint8Array(d)].slice(0, 24).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+async function webhookSecret(t) { const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`hook:${t}`)); return [...new Uint8Array(d)].slice(0, 24).map((b) => b.toString(16).padStart(2, "0")).join(""); }
 
 // ---- игрок ----
 async function player(env, u, now = Date.now()) {
   const name = String([u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Игрок").slice(0, 40);
   const uname = u.username ? String(u.username).toLowerCase() : null;
-  await env.DB.prepare("INSERT INTO players (id, name, username, created) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, username = COALESCE(excluded.username, players.username)").bind(u.id, name, uname, now).run();
+  await env.DB.prepare("INSERT INTO players (id, name, username, created, coins) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, username = COALESCE(excluded.username, players.username)").bind(u.id, name, uname, now, START_COINS).run();
   const p = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
-  const today = day(now), patch = {};
-  if (p.free_day !== today) { patch.free_day = today; patch.free_used = 0; }
-  if (p.coin_day !== today) { patch.coin_day = today; patch.coins = (p.coins || 0) + DAILY_COINS; patch.free_spin = 1; }
+  const patch = {};
+  if (p.coin_day !== day(now)) { patch.coin_day = day(now); patch.coins = (p.coins || 0) + DAILY_COINS; patch.free_spin = 1; }
   if (p.week !== week(now)) { patch.week = week(now); patch.week_best = 0; }
   if (Object.keys(patch).length) {
     const ks = Object.keys(patch);
@@ -73,96 +59,145 @@ async function player(env, u, now = Date.now()) {
   }
   return p;
 }
-const runsLeft = (p) => Math.max(0, FREE_RUNS - (p.free_used || 0)) + (p.runs_extra || 0);
-const skinsOf = (p) => { try { return JSON.parse(p.skins || '["classic"]'); } catch { return ["classic"]; } };
-const view = (p) => ({ runs: runsLeft(p), best: p.best || 0, weekBest: p.week_best || 0, coins: p.coins || 0, freeSpin: !!p.free_spin, shield: p.shield || 0,
-  skins: skinsOf(p), skin: p.skin || "classic", daily: !!p.daily, dailyCoins: DAILY_COINS, spinCost: SPIN_COST, stakes: STAKES, coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })),
-  shop: Object.entries(SHOP).map(([id, s]) => ({ id, title: s.title, stars: s.stars, skin: s.skin })), wheel: WHEEL });
+const themesOf = (p) => { try { const t = JSON.parse(p.skins || "[]").filter((x) => THEMES.includes(x)); return t.includes("classic") ? t : ["classic", ...t]; } catch { return ["classic"]; } };
+const view = (p) => ({ coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
+  themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, mines: MINES, wheel: WHEEL,
+  shop: Object.entries(SHOP).map(([id, s]) => ({ id, ...s })), coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })) });
+const fresh = async (env, id) => view(await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(id).first());
+async function addWin(env, id, win) { await env.DB.prepare("UPDATE players SET best = MAX(best, ?), week_best = MAX(week_best, ?) WHERE id = ?").bind(win, win, id).run(); }
 
-// Результат прокрутки: выигрыш с вероятностью ровно 1/2 и номер сектора, на котором остановится колесо.
-export function spinPick(rand = Math.random(), rand2 = Math.random(), chance = 50) {
-  const win = rand < chance / 100, idx = WHEEL.map((x, i) => i).filter((i) => (WHEEL[i] === "×2") === win);
-  return { win, index: idx[Math.min(idx.length - 1, Math.floor(rand2 * idx.length))] };
+// ---- «Мины» ----
+function comb(n, k) { let r = 1; for (let i = 0; i < k; i++) r = r * (n - i) / (k - i); return r; }
+export const minesMult = (m, k) => (k <= 0 ? 1 : Math.floor(EDGE * comb(25, k) / comb(25 - m, k) * 100) / 100);
+export function placeMines(m, rand = Math.random) { const a = [...Array(25).keys()]; for (let i = 24; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, m).sort((x, y) => x - y); }
+// Везение: выше 50% мина иногда «переезжает» в другую закрытую клетку, ниже 50% — мина переезжает сюда.
+export function applyLuck(mines, opened, cell, luck, rand = Math.random) {
+  if (luck == null || luck === 50) return mines;
+  const isMine = mines.includes(cell), free = [...Array(25).keys()].filter((c) => c !== cell && !opened.includes(c) && !mines.includes(c));
+  if (isMine && luck > 50 && free.length && rand() < (luck - 50) / 50) return mines.map((x) => (x === cell ? free[Math.floor(rand() * free.length)] : x)).sort((a, b) => a - b);
+  if (!isMine && luck < 50 && rand() < (50 - luck) / 50) { const mv = mines.filter((x) => !opened.includes(x)); if (mv.length) { const out = mv[Math.floor(rand() * mv.length)]; return mines.map((x) => (x === out ? cell : x)).sort((a, b) => a - b); } }
+  return mines;
 }
 
 async function apiRoute(path, body, env, now = Date.now()) {
   const u = await telegramUser(body.initData, await token(env), now);
   if (!u) return json(401, { error: "Откройте игру внутри Telegram" });
   const p = await player(env, u, now);
+  const game = async () => env.DB.prepare("SELECT * FROM mines_games WHERE user_id = ? AND status = 'play' ORDER BY created DESC LIMIT 1").bind(u.id).first();
+  const gview = (g, opened) => ({ id: g.id, stake: g.stake, m: g.m, opened, mult: minesMult(g.m, opened.length), next: minesMult(g.m, opened.length + 1) });
 
-  if (path === "me") return json(200, view(p));
+  if (path === "me") { const g = await game(); return json(200, { ...view(p), game: g ? gview(g, JSON.parse(g.opened)) : null }); }
 
-  if (path === "run") {
-    if (runsLeft(p) <= 0) return json(403, { error: "Запуски на сегодня закончились" });
-    const free = (p.free_used || 0) < FREE_RUNS;
-    await env.DB.prepare(free ? "UPDATE players SET free_used = free_used + 1 WHERE id = ?" : "UPDATE players SET runs_extra = runs_extra - 1 WHERE id = ?").bind(u.id).run();
-    const id = crypto.randomUUID(), shield = (p.shield || 0) > 0 ? 1 : 0;
-    if (shield) await env.DB.prepare("UPDATE players SET shield = shield - 1 WHERE id = ?").bind(u.id).run();
-    const diff = [0, 1, 2, 3].includes(Number(body.diff)) ? Number(body.diff) : 1;
-    await env.DB.prepare("INSERT INTO runs (id, user_id, started, done, diff) VALUES (?, ?, ?, 0, ?)").bind(id, u.id, now, diff).run();
-    return json(200, { runId: id, runs: runsLeft(p) - 1, shield });
-  }
-
-  if (path === "finish") {
-    const r = await env.DB.prepare("SELECT * FROM runs WHERE id = ? AND user_id = ?").bind(String(body.runId || ""), u.id).first();
-    if (!r || r.done) return json(400, { error: "Полёт не найден" });
-    const secs = (now - r.started) / 1000;
-    // защита от накрутки: не больше 8 очков в секунду полёта (+10 на старт)
-    const score = Math.max(0, Math.min(Math.floor(Number(body.score) || 0), Math.floor(secs * 8) + 10));
-    const coins = Math.min(Math.round(score * (DIFF_MULT[r.diff ?? 1] ?? 1.5)), 900);
+  if (path === "mines/start") {
+    const stake = Number(body.stake), m = Number(body.mines);
+    if (!STAKES.includes(stake) || !MINES.includes(m)) return json(400, { error: "Выберите ставку и число мин" });
+    if (await game()) return json(400, { error: "Сначала закончите текущую игру" });
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    const id = crypto.randomUUID();
     await env.DB.batch([
-      env.DB.prepare("UPDATE runs SET done = 1, score = ? WHERE id = ?").bind(score, r.id),
-      env.DB.prepare("UPDATE players SET best = MAX(best, ?), week_best = MAX(week_best, ?), coins = coins + ? WHERE id = ?").bind(score, score, coins, u.id),
+      env.DB.prepare("UPDATE players SET coins = coins - ? WHERE id = ?").bind(stake, u.id),
+      env.DB.prepare("INSERT INTO mines_games (id, user_id, stake, m, mines, opened, status, created) VALUES (?, ?, ?, ?, ?, '[]', 'play', ?)").bind(id, u.id, stake, m, JSON.stringify(placeMines(m)), now),
     ]);
-    const q = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
-    return json(200, { ...view(q), score, earned: coins, record: score > (p.best || 0) });
+    return json(200, { ...(await fresh(env, u.id)), game: { id, stake, m, opened: [], mult: 1, next: minesMult(m, 1) } });
   }
 
+  if (path === "mines/open") {
+    const g = await game(), cell = Number(body.cell);
+    if (!g || g.id !== body.gameId) return json(400, { error: "Игра не найдена" });
+    const opened = JSON.parse(g.opened);
+    if (!(Number.isInteger(cell) && cell >= 0 && cell < 25) || opened.includes(cell)) return json(400, { error: "Эта клетка уже открыта" });
+    const mines = applyLuck(JSON.parse(g.mines), opened, cell, p.luck);
+    if (mines.includes(cell)) {
+      await env.DB.prepare("UPDATE mines_games SET status = 'lost', mines = ? WHERE id = ?").bind(JSON.stringify(mines), g.id).run();
+      return json(200, { ...(await fresh(env, u.id)), boom: true, cell, mines, lost: g.stake, game: null });
+    }
+    opened.push(cell);
+    const mult = minesMult(g.m, opened.length);
+    if (opened.length === 25 - g.m) { // все безопасные клетки открыты — выигрыш забирается сам
+      const win = Math.floor(g.stake * mult);
+      await env.DB.batch([env.DB.prepare("UPDATE mines_games SET status = 'won', opened = ?, mines = ? WHERE id = ?").bind(JSON.stringify(opened), JSON.stringify(mines), g.id), env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id)]);
+      await addWin(env, u.id, win - g.stake);
+      return json(200, { ...(await fresh(env, u.id)), cell, mines, win, mult, game: null });
+    }
+    await env.DB.prepare("UPDATE mines_games SET opened = ?, mines = ? WHERE id = ?").bind(JSON.stringify(opened), JSON.stringify(mines), g.id).run();
+    return json(200, { cell, safe: true, game: gview(g, opened) });
+  }
+
+  if (path === "mines/cash") {
+    const g = await game();
+    if (!g || g.id !== body.gameId) return json(400, { error: "Игра не найдена" });
+    const opened = JSON.parse(g.opened);
+    if (!opened.length) return json(400, { error: "Откройте хотя бы одну клетку" });
+    const mult = minesMult(g.m, opened.length), win = Math.floor(g.stake * mult);
+    await env.DB.batch([env.DB.prepare("UPDATE mines_games SET status = 'won' WHERE id = ?").bind(g.id), env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id)]);
+    await addWin(env, u.id, win - g.stake);
+    return json(200, { ...(await fresh(env, u.id)), win, mult, mines: JSON.parse(g.mines), game: null });
+  }
+
+  // ---- колесо 50/50 ----
   if (path === "spin") {
-    // бесплатная прокрутка дня: ставка 50 монет за счёт игры (проигрыш ничего не отнимает)
-    const free = !!p.free_spin && !body.paid;
-    const stake = free ? STAKES[0] : Number(body.stake);
+    const free = !!p.free_spin && !body.paid, stake = free ? STAKES[0] : Number(body.stake);
     if (!STAKES.includes(stake)) return json(400, { error: "Выберите ставку" });
     if (!free && (p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
-    const r = spinPick(Math.random(), Math.random(), p.luck ?? 50);
-    const delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
+    const r = spinPick(Math.random(), Math.random(), p.luck ?? 50), delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
     await env.DB.prepare(`UPDATE players SET coins = MAX(0, coins + ?)${free ? ", free_spin = 0" : ""} WHERE id = ?`).bind(delta, u.id).run();
-    const q = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
-    return json(200, { ...view(q), win: r.win, delta, stake, free, index: r.index, prize: { label: r.win ? `Выигрыш +${stake} монет` : free ? "Не повезло, бесплатная прокрутка" : `Не повезло: −${stake} монет` } });
+    if (r.win) await addWin(env, u.id, stake);
+    return json(200, { ...(await fresh(env, u.id)), win: r.win, delta, stake, free, index: r.index });
   }
 
+  if (path === "theme") {
+    const t = String(body.theme || "");
+    if (!themesOf(p).includes(t)) return json(403, { error: "Это оформление ещё не открыто" });
+    await env.DB.prepare("UPDATE players SET skin = ? WHERE id = ?").bind(t, u.id).run();
+    return json(200, { ok: true });
+  }
   if (path === "coinbuy") {
     const it = COIN_SHOP[body.item];
     if (!it) return json(400, { error: "Нет такого товара" });
-    if (it.skin && skinsOf(p).includes(it.skin)) return json(400, { error: "Эта ракета уже ваша" });
+    if (themesOf(p).includes(it.theme)) return json(400, { error: "Уже ваше" });
     if ((p.coins || 0) < it.coins) return json(403, { error: `Нужно ${it.coins} монет` });
-    if (it.skin) { const sk = skinsOf(p); sk.push(it.skin); await env.DB.prepare("UPDATE players SET coins = coins - ?, skins = ?, skin = ? WHERE id = ?").bind(it.coins, JSON.stringify(sk), it.skin, u.id).run(); }
-    else await env.DB.prepare("UPDATE players SET coins = coins - ?, shield = shield + 1 WHERE id = ?").bind(it.coins, u.id).run();
-    const q = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
-    return json(200, view(q));
+    await env.DB.prepare("UPDATE players SET coins = coins - ?, skins = ?, skin = ? WHERE id = ?").bind(it.coins, JSON.stringify([...themesOf(p), it.theme]), it.theme, u.id).run();
+    return json(200, await fresh(env, u.id));
   }
-
-  if (path === "skin") {
-    const s = String(body.skin || "");
-    if (!skinsOf(p).includes(s)) return json(403, { error: "Эта ракета ещё не открыта" });
-    await env.DB.prepare("UPDATE players SET skin = ? WHERE id = ?").bind(s, u.id).run();
-    return json(200, { ok: true });
-  }
-
   if (path === "buy") {
     const it = SHOP[body.item];
     if (!it) return json(400, { error: "Нет такого товара" });
-    if (it.skin && skinsOf(p).includes(it.skin)) return json(400, { error: "Эта ракета уже ваша" });
-    const r = await tg(env, "createInvoiceLink", { title: it.title, description: it.skin ? "Новый внешний вид ракеты в «Звёздном рейсе»" : "Дополнительные полёты в «Звёздном рейсе»", payload: `${body.item}:${u.id}`, currency: "XTR", prices: [{ label: it.title, amount: it.stars }] });
-    if (!r.ok) return json(502, { error: "Оплата временно недоступна" });
-    return json(200, { link: r.result });
+    if (themesOf(p).includes(it.theme)) return json(400, { error: "Уже ваше" });
+    const r = await tg(env, "createInvoiceLink", { title: it.title, description: "Оформление игрового поля в StarRace. На выигрыш не влияет.", payload: `${body.item}:${u.id}`, currency: "XTR", prices: [{ label: it.title, amount: it.stars }] });
+    return r.ok ? json(200, { link: r.result }) : json(502, { error: "Оплата временно недоступна" });
   }
-
   if (path === "top") {
     const rows = (await env.DB.prepare("SELECT id, name, week_best FROM players WHERE week = ? AND week_best > 0 ORDER BY week_best DESC LIMIT 30").bind(week(now)).all()).results || [];
     return json(200, { top: rows.map((r) => ({ name: r.name, score: r.week_best, me: r.id === u.id })) });
   }
   return json(404, { error: "Not found" });
+}
+
+export function spinPick(rand = Math.random(), rand2 = Math.random(), chance = 50) {
+  const win = rand < chance / 100, idx = WHEEL.map((x, i) => i).filter((i) => (WHEEL[i] === "×2") === win);
+  return { win, index: idx[Math.min(idx.length - 1, Math.floor(rand2 * idx.length))] };
+}
+
+// ---- «Везение» для админов: /luck ----
+const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean).includes(String(id));
+export async function luckCommand(env, m) {
+  const say = (text) => tg(env, "sendMessage", { chat_id: m.chat.id, text });
+  if (!isAdmin(env, m.from.id)) return say("Эта команда только для администратора.");
+  const [, who, val] = m.text.trim().split(/\s+/);
+  if (!who) {
+    const rows = (await env.DB.prepare("SELECT id, name, username, luck FROM players WHERE luck IS NOT NULL ORDER BY luck DESC LIMIT 50").all()).results || [];
+    return say(rows.length ? "🍀 Везение (колесо и мины):\n" + rows.map((r) => `${r.name}${r.username ? " @" + r.username : ""} (${r.id}) — ${r.luck}%`).join("\n") + "\n\nИзменить: /luck @ник 80 · /luck me 70 · /luck @ник reset" : "Везение ни у кого не изменено, у всех 50%.\n\nПример: /luck me 70 или /luck @ник 80");
+  }
+  let p;
+  if (who === "me") p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(m.from.id).first();
+  else if (/^\d+$/.test(who)) p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(Number(who)).first();
+  else p = await env.DB.prepare("SELECT id, name FROM players WHERE username = ?").bind(who.replace(/^@/, "").toLowerCase()).first();
+  if (!p) return say("Игрок не найден. Он должен хотя бы раз открыть игру. Можно указать его Telegram ID числом.");
+  if (val === "reset") { await env.DB.prepare("UPDATE players SET luck = NULL WHERE id = ?").bind(p.id).run(); return say(`${p.name}: везение снова обычное, 50%.`); }
+  const n = Math.round(Number(val));
+  if (!(n >= 0 && n <= 100)) return say("Укажите шанс от 0 до 100, например: /luck " + who + " 75");
+  await env.DB.prepare("UPDATE players SET luck = ? WHERE id = ?").bind(n, p.id).run();
+  return say(`🍀 ${p.name}: везение ${n}% (колесо и мины).`);
 }
 
 async function onUpdate(up, env) {
@@ -177,47 +212,20 @@ async function onUpdate(up, env) {
     const sp = m.successful_payment, [item] = String(sp.invoice_payload || "").split(":"), it = SHOP[item];
     if (!it) return;
     const ins = await env.DB.prepare("INSERT OR IGNORE INTO payments (charge_id, user_id, item, stars, ts) VALUES (?, ?, ?, ?, ?)").bind(sp.telegram_payment_charge_id, m.from.id, item, sp.total_amount, Date.now()).run();
-    if (!ins.meta?.changes) return; // повтор той же оплаты
-    await player(env, m.from);
-    if (it.runs) await env.DB.prepare("UPDATE players SET runs_extra = runs_extra + ? WHERE id = ?").bind(it.runs, m.from.id).run();
-    if (it.skin) {
-      const p = await env.DB.prepare("SELECT skins FROM players WHERE id = ?").bind(m.from.id).first();
-      const s = skinsOf(p); if (!s.includes(it.skin)) s.push(it.skin);
-      await env.DB.prepare("UPDATE players SET skins = ?, skin = ? WHERE id = ?").bind(JSON.stringify(s), it.skin, m.from.id).run();
-    }
+    if (!ins.meta?.changes) return;
+    const p = await player(env, m.from);
+    const t = themesOf(p); if (!t.includes(it.theme)) t.push(it.theme);
+    await env.DB.prepare("UPDATE players SET skins = ?, skin = ? WHERE id = ?").bind(JSON.stringify(t), it.theme, m.from.id).run();
     return tg(env, "sendMessage", { chat_id: m.chat.id, text: `⭐ Спасибо! ${it.title} уже в игре.` });
   }
   if (m.text?.startsWith("/luck")) return luckCommand(env, m);
   if (m.text?.startsWith("/paysupport")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Вопросы по оплате звёздами: напишите сюда, что купили и когда. Ответим в течение дня." });
-  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Звёзды тратятся на запуски и внешний вид ракет. Монеты — только игровые: их дают за полёты и каждый день, купить или вывести их нельзя. Колесо 50/50 крутится только на монеты." });
-  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "🚀 «Звёздный рейс» — веди ракету, собирай звёзды и уворачивайся от астероидов.\n\n5 бесплатных полётов каждый день, колесо удачи и рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🚀 Играть", web_app: { url: env.GAME_URL } }]] } });
-}
-
-// ---- «Везение» (только админы из ADMIN_IDS): шанс выигрыша в колесе для себя и выбранных игроков ----
-// /luck — список; /luck @ник 80 или /luck 123456 80 — шанс 80%; /luck me 70 — себе; /luck @ник reset — обратно 50%.
-const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean).includes(String(id));
-export async function luckCommand(env, m) {
-  const say = (text) => tg(env, "sendMessage", { chat_id: m.chat.id, text });
-  if (!isAdmin(env, m.from.id)) return say("Эта команда только для администратора.");
-  const [, who, val] = m.text.trim().split(/\s+/);
-  if (!who) {
-    const rows = (await env.DB.prepare("SELECT id, name, username, luck FROM players WHERE luck IS NOT NULL ORDER BY luck DESC LIMIT 50").all()).results || [];
-    return say(rows.length ? "🍀 Везение:\n" + rows.map((r) => `${r.name}${r.username ? " @" + r.username : ""} (${r.id}) — ${r.luck}%`).join("\n") + "\n\nИзменить: /luck @ник 80 · /luck me 70 · /luck @ник reset" : "Везение ни у кого не изменено, у всех 50%.\n\nПример: /luck me 70 или /luck @ник 80");
-  }
-  let p;
-  if (who === "me") p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(m.from.id).first();
-  else if (/^\d+$/.test(who)) p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(Number(who)).first();
-  else p = await env.DB.prepare("SELECT id, name FROM players WHERE username = ?").bind(who.replace(/^@/, "").toLowerCase()).first();
-  if (!p) return say("Игрок не найден. Он должен хотя бы раз открыть игру. Можно указать его Telegram ID числом.");
-  if (val === "reset") { await env.DB.prepare("UPDATE players SET luck = NULL WHERE id = ?").bind(p.id).run(); return say(`${p.name}: везение снова обычное, 50%.`); }
-  const n = Math.round(Number(val));
-  if (!(n >= 0 && n <= 100)) return say("Укажите шанс от 0 до 100, например: /luck " + who + " 75");
-  await env.DB.prepare("UPDATE players SET luck = ? WHERE id = ?").bind(n, p.id).run();
-  return say(`🍀 ${p.name}: шанс выигрыша в колесе теперь ${n}%.`);
+  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Играем только на игровые монеты: их дают каждый день, купить или вывести их нельзя. Звёзды тратятся только на оформление." });
+  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — «Мины» и колесо 50/50 на игровые монеты.\n\n500 монет на старт и 100 каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });
 }
 
 const SETUP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Подключение бота</title>
-<style>body{font:16px system-ui;background:#0b1226;color:#f5f1e6;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}form{display:grid;gap:12px;max-width:420px;width:100%}input,button{font:inherit;padding:14px;border-radius:12px;border:0}button{background:#ffc94a;font-weight:700}p{color:#a9b4cf}</style>
+<style>body{font:16px system-ui;background:#181c2e;color:#f2f3fa;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px}form{display:grid;gap:12px;max-width:420px;width:100%}input,button{font:inherit;padding:14px;border-radius:12px;border:0}button{background:#5a6bff;color:#fff;font-weight:700}p{color:#8e96b8}</style>
 <form method="post"><h2>Подключить бота к игре</h2><p>Вставьте токен от @BotFather. Он сохранится только на сервере игры.</p><input name="token" placeholder="123456:ABC..." autocomplete="off" required><button>Подключить</button></form>`;
 
 export default {
@@ -231,23 +239,21 @@ export default {
       const me = await (await fetch(`https://api.telegram.org/bot${t}/getMe`)).json().catch(() => ({}));
       if (!me.ok) return new Response("Токен не подошёл. Вернитесь назад и проверьте его.", { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } });
       await env.KV.put("bot_token", t);
-      const hook = `${url.origin}/telegram`;
-      await fetch(`https://api.telegram.org/bot${t}/setWebhook`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: hook, secret_token: await webhookSecret(t), allowed_updates: ["message", "pre_checkout_query"] }) });
-      await fetch(`https://api.telegram.org/bot${t}/setChatMenuButton`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ menu_button: { type: "web_app", text: "Играть", web_app: { url: env.GAME_URL } } }) });
+      const call = (m, b) => fetch(`https://api.telegram.org/bot${t}/${m}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+      await call("setWebhook", { url: `${url.origin}/telegram`, secret_token: await webhookSecret(t), allowed_updates: ["message", "pre_checkout_query"] });
+      await call("setChatMenuButton", { menu_button: { type: "web_app", text: "Играть", web_app: { url: env.GAME_URL } } });
       return new Response(`Готово! Бот @${me.result.username} подключён. Откройте его в Telegram и нажмите «Играть».`, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
     if (request.method !== "POST") return new Response("Not found", { status: 404 });
     if (url.pathname === "/telegram") {
       const t = await token(env);
       if (!t || request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== (await webhookSecret(t))) return new Response("forbidden", { status: 403 });
-      const up = await request.json();
-      ctx.waitUntil(onUpdate(up, env));
+      ctx.waitUntil(onUpdate(await request.json(), env));
       return new Response("ok");
     }
     if (url.pathname.startsWith("/api/")) {
       let body = {};
       try { body = await request.json(); } catch {}
-      delete body.__rand;
       return apiRoute(url.pathname.slice(5), body, env);
     }
     return new Response("Not found", { status: 404 });

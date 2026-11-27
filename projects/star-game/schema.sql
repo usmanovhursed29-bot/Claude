@@ -16,3 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_players_username ON players(username);
 CREATE INDEX IF NOT EXISTS idx_players_week ON players(week, week_best);
 CREATE TABLE IF NOT EXISTS runs (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, started INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0, score INTEGER, diff INTEGER NOT NULL DEFAULT 1);
 CREATE TABLE IF NOT EXISTS payments (charge_id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, item TEXT NOT NULL, stars INTEGER NOT NULL, ts INTEGER NOT NULL);
+-- «Мины»: расстановка мин хранится только на сервере, игрок видит её после конца игры.
+CREATE TABLE IF NOT EXISTS mines_games (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, stake INTEGER NOT NULL, m INTEGER NOT NULL, mines TEXT NOT NULL, opened TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_mines_user ON mines_games(user_id, status);
