@@ -99,3 +99,10 @@ CREATE TABLE IF NOT EXISTS water (
   last_at INTEGER NOT NULL DEFAULT 0,   -- когда было последнее напоминание (мс)
   day TEXT, drunk INTEGER NOT NULL DEFAULT 0  -- выпито за день по времени человека
 );
+-- Настройки: утренний план, знакомство пройдено.
+CREATE TABLE IF NOT EXISTS prefs (user_id INTEGER PRIMARY KEY, plan_on INTEGER NOT NULL DEFAULT 0, plan_h INTEGER NOT NULL DEFAULT 8, last_plan TEXT, onboarded INTEGER NOT NULL DEFAULT 0);
+-- Напоминания привычек (/habit Читать 20 минут 21:00).
+CREATE TABLE IF NOT EXISTS habit_rem (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, name TEXT NOT NULL, hh INTEGER NOT NULL, mm INTEGER NOT NULL, last_day TEXT);
+CREATE INDEX IF NOT EXISTS idx_habit_rem_user ON habit_rem(user_id);
+-- Приглашения: кто кого привёл (один раз на нового пользователя).
+CREATE TABLE IF NOT EXISTS referrals (user_id INTEGER PRIMARY KEY, inviter INTEGER NOT NULL, ts INTEGER NOT NULL);

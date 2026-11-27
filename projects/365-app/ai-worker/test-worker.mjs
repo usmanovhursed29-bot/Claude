@@ -69,9 +69,11 @@ const app = async (path, body) => {
 assert.equal((await worker.fetch(new Request("https://w/telegram", { method: "POST", body: "{}" }), env, { waitUntil() {} })).status, 403);
 
 let out = await say(42, "/start");
-assert.match(lastText(out), /^🆓 Бот бесплатный[\s\S]*Челленджи с друзьями[\s\S]*⭐ Хотите больше\? В подписке Plus/);
 const welcome = out.filter((m) => m.method === "sendMessage");
-assert.equal(welcome.length, 2);
+assert.equal(welcome.length, 3, "привет, что умеет бот, знакомство");
+assert.match(welcome[1].body.text, /^🆓 Бот бесплатный[\s\S]*Челленджи с друзьями[\s\S]*⭐ Хотите больше\? В подписке Plus/);
+assert.match(welcome[2].body.text, /1\/3/);
+assert.equal((await say(42, "/start")).filter((m) => m.method === "sendMessage").length, 2, "знакомство только один раз");
 assert.equal(welcome[0].body.reply_markup.keyboard[1][1].text, "⭐ Подписка Plus");
 assert.equal(welcome[0].body.reply_markup.keyboard[1][1].style, "success");
 const wkb = welcome[1].body.reply_markup.inline_keyboard;
@@ -412,5 +414,17 @@ assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в �
   const r = await app("/food-photo", { initData: initData(1), image: "AAAA", mime: "image/jpeg" });
   assert.equal(r.status, 200); assert.equal(r.json.items[0].n, "Салат"); assert.equal(r.json.items[0].k, 150);
   assert.equal((await app("/food-photo", { initData: initData(1) })).status, 400);
+}
+// новые команды: привычки, план, приглашения, /admin
+{
+  let o = await say(42, "напоминай зарядка в 7:30"); assert.match(lastText(o), /каждый день в 07:30/);
+  o = await say(42, "/habit"); assert.match(lastText(o), /07:30 — зарядка/);
+  o = await say(42, "/plan"); assert.match(o.filter((m) => m.method === "sendMessage")[0].body.text, /☀️ План на/);
+  o = await say(42, "/invite"); assert.match(lastText(o), /start=ref_42/);
+  const n0 = db.prepare("SELECT COUNT(*) c FROM referrals").get().c;
+  o = await say(4242, "/start ref_42"); assert.equal(db.prepare("SELECT COUNT(*) c FROM referrals").get().c, n0 + 1);
+  assert.ok(o.some((m) => m.body?.chat_id === 42 && /По твоей ссылке/.test(m.body.text)));
+  o = await say(4242, "/start ref_42"); assert.equal(db.prepare("SELECT COUNT(*) c FROM referrals").get().c, n0 + 1, "повторно не засчитывается");
+  o = await say(1, "/admin"); assert.match(lastText(o), /Вернулись через неделю[\s\S]*пришли по приглашениям: 1[\s\S]*привычки у 1/);
 }
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));

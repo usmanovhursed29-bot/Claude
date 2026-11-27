@@ -9,6 +9,7 @@ import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, l
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
 import { analyzeFood, foodCmd, foodText } from "./food.js";
 import { waterCommand, waterCallback, sendWater, waterAdd } from "./water.js";
+import { planText, sendMorning, prefs, setPrefs, parseHabit, habitAdd, habitList, sendHabits, habitCallback, onboardStart, onboardCallback, applyReferral, REF_DAYS } from "./daily.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -189,7 +190,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), sendMorning(env, (m, p) => telegram(env, m, p)), sendHabits(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -357,6 +358,15 @@ async function handleCallback(q, env) {
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
   if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
+  if (data.startsWith("hb:") && env.DB) return habitCallback(env, (m, p) => telegram(env, m, p), q);
+  if (data.startsWith("ob:") && env.DB) return onboardCallback(env, (m, p) => telegram(env, m, p), q, env.APP_URL);
+  if (data.startsWith("pl:") && env.DB) {
+    const [, k, v] = data.split(":");
+    if (k === "on" || k === "off") await setPrefs(env, userId, { plan_on: k === "on" ? 1 : 0 });
+    if (k === "h" && Number(v) >= 5 && Number(v) <= 11) await setPrefs(env, userId, { plan_on: 1, plan_h: Number(v) });
+    await answer("Готово");
+    return edit(await planSettingsText(env, userId), await planKb(env, userId));
+  }
   if (data.startsWith("wt:")) { if (!env.DB) return answer(); return waterCallback(env, (m, p) => telegram(env, m, p), q); }
   if (data.startsWith("jr:")) {
     if (!isOwner(env, userId) || !env.DB) return answer();
@@ -433,6 +443,14 @@ export async function adminText(env) {
   const remWait = await one("SELECT COUNT(*) c FROM reminders WHERE sent = 0 AND at >= ?", now);
   const kinds = (await env.DB.prepare("SELECT substr(cmd, 1, instr(cmd, '_') - 1) k, COUNT(*) c FROM inbox WHERE ts >= ? GROUP BY k ORDER BY c DESC").bind(now - 7 * D).all()).results || [];
   const names = { steps: "шаги", water: "вода", sleep: "сон", weight: "вес", exp: "расходы", inc: "доходы", mood: "настроение", energy: "энергия", meal: "еда", task: "задачи", event: "события" };
+  // удержание: из пришедших 7–14 дней назад — сколько были активны за последние 7 дней
+  const cohort = await one("SELECT COUNT(*) c FROM users WHERE first_seen BETWEEN ? AND ?", now - 14 * D, now - 7 * D);
+  const kept = await one("SELECT COUNT(DISTINCT e.user_id) c FROM events e JOIN users u ON u.id = e.user_id WHERE u.first_seen BETWEEN ? AND ? AND e.ts >= ?", now - 14 * D, now - 7 * D, now - 7 * D);
+  const refs = await one("SELECT COUNT(*) c FROM referrals WHERE ts >= ?", now - 30 * D);
+  const buyers30 = await one("SELECT COUNT(DISTINCT user_id) c FROM payments WHERE ts >= ?", now - 30 * D);
+  const waterOn = await one("SELECT COUNT(*) c FROM water WHERE on_ = 1");
+  const planOn = await one("SELECT COUNT(*) c FROM prefs WHERE plan_on = 1");
+  const habits = await one("SELECT COUNT(DISTINCT user_id) c FROM habit_rem");
   return [
     "📊 Kwantoww: статистика",
     "",
@@ -445,6 +463,9 @@ export async function adminText(env) {
     `Записей из чата за сутки: ${rec} (ждут открытия приложения: ${pending})`,
     `⭐ Подписчиков Plus: ${plusNow}, оплачено за 30 дней: ${stars30} звёзд`,
     `Напоминаний отправлено за сутки: ${remSent}, впереди: ${remWait}`,
+    `Вернулись через неделю: ${kept} из ${cohort} новичков прошлой недели${cohort ? ` (${Math.round((100 * kept) / cohort)}%)` : ""}`,
+    `Купили Plus за 30 дней: ${buyers30} чел. · пришли по приглашениям: ${refs}`,
+    `Включено: вода у ${waterOn}, утренний план у ${planOn}, привычки у ${habits}`,
     kinds.length ? `Что записывают (7 дней): ${kinds.map((k) => `${names[k.k] || k.k} ${k.c}`).join(", ")}` : "",
   ].filter(Boolean).join("\n");
 }
@@ -462,7 +483,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v7";
+  const flag = "webhook-updates-v8";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -473,6 +494,9 @@ async function ensureWebhookOnce(env) {
     { command: "top", description: "🏆 Таблица челленджа" },
     { command: "checkin", description: "☀️ Утренний вопрос про сон" },
     { command: "water", description: "💧 Напоминания пить воду" },
+    { command: "plan", description: "☀️ План дня и утренняя рассылка" },
+    { command: "habit", description: "⏰ Напоминания привычек" },
+    { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
     { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
     { command: "start", description: "❓ Что умеет бот" },
@@ -523,6 +547,31 @@ async function handleMessage(message, env) {
     if (!text.startsWith("/") && (await journalAnswer(env, tg, userId, text))) return;
   }
 
+  if (text.startsWith("/start ref_") && env.DB) {
+    const fresh = await env.DB.prepare("SELECT first_seen FROM users WHERE id = ?").bind(userId).first();
+    const inviter = Number(text.slice(11).trim());
+    if (fresh && Date.now() - fresh.first_seen < 60000 && (await applyReferral(env, userId, inviter))) {
+      await telegram(env, "sendMessage", { chat_id: inviter, text: `🎁 По твоей ссылке пришёл ${message.from.first_name || "друг"}! Вам обоим +${REF_DAYS} дней Kwantoww Plus.` }).catch(() => {});
+      await telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Тебя пригласил друг — тебе ${REF_DAYS} дней Kwantoww Plus в подарок!` });
+    }
+    text = "/start";
+  }
+  if (text.startsWith("/invite") || text === "🎁 Пригласить друга") {
+    const link = `https://t.me/${await botUsername(env)}?start=ref_${userId}`;
+    const n = env.DB ? (await env.DB.prepare("SELECT COUNT(*) c FROM referrals WHERE inviter = ?").bind(userId).first())?.c || 0 : 0;
+    return telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Пригласи друга — вы оба получите ${REF_DAYS} дней Kwantoww Plus (безлимитный ИИ и бонусы).\n\nТвоя ссылка:\n${link}\n\nУже пришло по ссылке: ${n}`,
+      reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
+  }
+  if ((text.startsWith("/plan") || text === "☀️ План дня") && env.DB) {
+    const l = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first())?.tz || "Europe/Moscow");
+    const d = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
+    await telegram(env, "sendMessage", { chat_id: chatId, text: await planText(env, userId, d) });
+    return telegram(env, "sendMessage", { chat_id: chatId, text: await planSettingsText(env, userId), reply_markup: await planKb(env, userId) });
+  }
+  if ((text.startsWith("/habit") || /^напоминай\s+.+\s+в\s+\d{1,2}[:.]\d{2}\s*$/i.test(text)) && env.DB) {
+    const tg2 = (m, p) => telegram(env, m, p), h = parseHabit(text);
+    return h ? habitAdd(env, tg2, chatId, userId, h) : habitList(env, tg2, chatId, userId);
+  }
   if (text.startsWith("/start ch_") && env.DB) {
     const r = await joinChallenge(env, userId, text.slice(10).trim());
     if (r.error) return sendMessage(env, chatId, r.error, true);
@@ -532,7 +581,10 @@ async function handleMessage(message, env) {
   }
   if (text.startsWith("/start")) {
     await telegram(env, "sendMessage", { chat_id: chatId, text: `Привет, ${message.from.first_name || ""}! 👋`, reply_markup: MAIN_KB });
-    return sendMessage(env, chatId, helpText(), "plus");
+    await sendMessage(env, chatId, helpText(), "plus");
+    // новичку — знакомство в 3 нажатия (вода, подъём, утренний план)
+    if (env.DB && !(await prefs(env, userId))?.onboarded) { await setPrefs(env, userId, { onboarded: 1 }); return onboardStart(env, (m, p) => telegram(env, m, p), chatId); }
+    return;
   }
 
   if (text.startsWith("/admin")) {
@@ -770,6 +822,10 @@ function helpText() {
     "",
     "💧 Напоминаю пить воду равномерно весь день — /water",
     "",
+    "☀️ Утром присылаю план дня — /plan · ⏰ напоминаю о привычках — /habit",
+    "",
+    "🎁 Пригласи друга — вам обоим неделя Plus: /invite",
+    "",
     "☀️ Каждое утро спрашиваю, как вы поспали — ответ одной кнопкой",
     "",
     "🏃 Челленджи с друзьями: кто пройдёт больше шагов за неделю — нажмите «Челлендж» внизу",
@@ -906,4 +962,13 @@ async function handleFoodPhoto(message, env) {
   const ts = Date.now();
   await env.DB.batch(r.items.map((it) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, foodCmd(it), ts)));
   return sendMessage(env, chatId, foodText(r.items), true);
+}
+
+async function planSettingsText(env, id) {
+  const p = await prefs(env, id);
+  return p?.plan_on ? `☀️ Утренний план включён: каждый день в ${p.plan_h ?? 8}:00 присылаю события, задачи и главное дело.` : "☀️ Утренний план выключен. Включи, и каждое утро я пришлю события, задачи и главное дело.";
+}
+async function planKb(env, id) {
+  const p = await prefs(env, id), h = p?.plan_h ?? 8, on = !!p?.plan_on;
+  return { inline_keyboard: [[6, 7, 8, 9, 10].map((x) => ({ text: (on && h === x ? "✓ " : "") + `${x}:00`, callback_data: `pl:h:${x}` })), [on ? { text: "🔕 Выключить", callback_data: "pl:off" } : { text: "🔔 Включить", callback_data: "pl:on", style: "success" }]] };
 }
