@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <defs>
+    <radialGradient id="bg" cx="0.7" cy="0.25" r="0.95"><stop offset="0" stop-color="#7b5cff"/><stop offset="0.45" stop-color="#4a3bd0"/><stop offset="1" stop-color="#1b1f4e"/></radialGradient>
+    <radialGradient id="pl" cx="0.35" cy="0.3"><stop offset="0" stop-color="#ffc2f2"/><stop offset="1" stop-color="#a14dff"/></radialGradient>
+    <linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset="0.45" stop-color="#ffc83d"/><stop offset="1" stop-color="#ff6a2c" stop-opacity="0"/></linearGradient>
+    <filter id="gl"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <g fill="#fff"><circle cx="90" cy="110" r="5"/><circle cx="540" cy="90" r="4"/><circle cx="110" cy="420" r="3.5"/><circle cx="560" cy="330" r="3"/><circle cx="230" cy="70" r="3"/><circle cx="470" cy="560" r="4"/></g>
+  <g fill="#ffc83d"><path d="M150 230l9 19 21 3-15 14 4 21-19-10-19 10 4-21-15-14 21-3z"/><path d="M520 200l6 12 13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2z"/></g>
+  <circle cx="470" cy="470" r="92" fill="url(#pl)"/>
+  <ellipse cx="470" cy="470" rx="150" ry="30" fill="none" stroke="#ffd36e" stroke-width="12" transform="rotate(-20 470 470)"/>
+  <path d="M370 455 A150 30 -20 0 0 570 488" fill="none" stroke="url(#pl)" stroke-width="0"/>
+  <g transform="translate(300 330) rotate(38)">
+    <path d="M-34 120 Q0 330 34 120 Z" fill="url(#fl)" filter="url(#gl)" opacity=".9"/>
+    <path d="M-26 120 Q0 270 26 120 Z" fill="url(#fl)"/>
+    <path d="M-60 40 L-110 140 L-52 118 Z" fill="#ff5d6c"/><path d="M60 40 L110 140 L52 118 Z" fill="#ff5d6c"/>
+    <path d="M0 -190 C 95 -120 88 40 66 128 L -66 128 C -88 40 -95 -120 0 -190 Z" fill="#f6f3ec"/>
+    <path d="M0 -190 C 48 -155 70 -115 76 -80 L -76 -80 C -70 -115 -48 -155 0 -190 Z" fill="#ff5d6c"/>
+    <circle cy="-6" r="40" fill="#53e0c8" stroke="#262b55" stroke-width="12"/>
+    <circle cx="-12" cy="-18" r="12" fill="#fff" opacity=".7"/>
+    <rect x="-66" y="110" width="132" height="22" rx="8" fill="#d9d4ca"/>
+  </g>
+</svg>
