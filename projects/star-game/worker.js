@@ -1,12 +1,12 @@
 // «Звёздный рейс» — мини-игра в Telegram. Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
 // Звёзды (XTR) покупают только запуски и скины. Монеты — бесплатная игровая валюта (за полёты и каждый день),
-// их нельзя купить и вывести; на них крутится колесо удачи. Так в игре есть удача, но нет ставок на деньги.
+// их нельзя купить и вывести; на них крутится колесо 50/50. Так в игре есть удача, но нет ставок на деньги.
 // Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY), в коде и чате его нет.
 import GAME from "./game.html";
 
 const FREE_RUNS = 5;               // бесплатных запусков в день
 const DAILY_COINS = 30;            // монет за первый вход дня
-const SPIN_COST = 50;              // монет за прокрутку колеса
+const SPIN_COST = 50;              // минимальная ставка в колесе
 const DIFF_MULT = [1, 1.5, 2, 3];   // сложность: Лёгкая, Средняя, Тяжёлая, Хардкор — множитель монет
 const SHOP = {
   runs5: { title: "+5 запусков", stars: 5, runs: 5 },
@@ -15,17 +15,12 @@ const SHOP = {
   skin_comet: { title: "Ракета «Комета»", stars: 35, skin: "comet" },
   skin_gold: { title: "Ракета «Золотая»", stars: 50, skin: "gold" },
 };
-// Колесо: только игровые призы. w — вес (вероятность = w / сумма).
-export const WHEEL = [
-  { id: "c10", label: "10 монет", coins: 10, w: 26 },
-  { id: "c30", label: "30 монет", coins: 30, w: 22 },
-  { id: "c80", label: "80 монет", coins: 80, w: 12 },
-  { id: "c200", label: "200 монет", coins: 200, w: 3 },
-  { id: "run1", label: "+1 запуск", runs: 1, w: 16 },
-  { id: "run3", label: "+3 запуска", runs: 3, w: 6 },
-  { id: "shield", label: "Щит на старт", shield: 1, w: 13 },
-  { id: "lucky", label: "Ракета «Удача»", skin: "lucky", w: 2 },
-];
+// Колесо 50 на 50 на монетах: половина секторов ×2 (ставка возвращается вдвойне), половина 0 (ставка сгорает).
+// Монеты нельзя купить за звёзды и нельзя вывести — это игровая валюта, на кону нет денег.
+export const STAKES = [50, 100, 250, 500];
+export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
+// Что раньше выпадало в колесе, теперь покупается за монеты.
+const COIN_SHOP = { shield: { title: "Щит на старт", coins: 100 }, skin_lucky: { title: "Ракета «Удача»", coins: 1000, skin: "lucky" } };
 const AUTH_MAX_AGE = 24 * 3600;
 
 const day = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
@@ -64,7 +59,8 @@ async function webhookSecret(t) {
 // ---- игрок ----
 async function player(env, u, now = Date.now()) {
   const name = String([u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Игрок").slice(0, 40);
-  await env.DB.prepare("INSERT INTO players (id, name, created) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name").bind(u.id, name, now).run();
+  const uname = u.username ? String(u.username).toLowerCase() : null;
+  await env.DB.prepare("INSERT INTO players (id, name, username, created) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, username = COALESCE(excluded.username, players.username)").bind(u.id, name, uname, now).run();
   const p = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
   const today = day(now), patch = {};
   if (p.free_day !== today) { patch.free_day = today; patch.free_used = 0; }
@@ -80,14 +76,13 @@ async function player(env, u, now = Date.now()) {
 const runsLeft = (p) => Math.max(0, FREE_RUNS - (p.free_used || 0)) + (p.runs_extra || 0);
 const skinsOf = (p) => { try { return JSON.parse(p.skins || '["classic"]'); } catch { return ["classic"]; } };
 const view = (p) => ({ runs: runsLeft(p), best: p.best || 0, weekBest: p.week_best || 0, coins: p.coins || 0, freeSpin: !!p.free_spin, shield: p.shield || 0,
-  skins: skinsOf(p), skin: p.skin || "classic", daily: !!p.daily, dailyCoins: DAILY_COINS, spinCost: SPIN_COST,
-  shop: Object.entries(SHOP).map(([id, s]) => ({ id, title: s.title, stars: s.stars, skin: s.skin })), wheel: WHEEL.map(({ id, label }) => ({ id, label })) });
+  skins: skinsOf(p), skin: p.skin || "classic", daily: !!p.daily, dailyCoins: DAILY_COINS, spinCost: SPIN_COST, stakes: STAKES, coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })),
+  shop: Object.entries(SHOP).map(([id, s]) => ({ id, title: s.title, stars: s.stars, skin: s.skin })), wheel: WHEEL });
 
-export function spinPick(rand = Math.random()) {
-  const total = WHEEL.reduce((s, x) => s + x.w, 0);
-  let r = rand * total;
-  for (const x of WHEEL) { if ((r -= x.w) < 0) return x; }
-  return WHEEL[0];
+// Результат прокрутки: выигрыш с вероятностью ровно 1/2 и номер сектора, на котором остановится колесо.
+export function spinPick(rand = Math.random(), rand2 = Math.random(), chance = 50) {
+  const win = rand < chance / 100, idx = WHEEL.map((x, i) => i).filter((i) => (WHEEL[i] === "×2") === win);
+  return { win, index: idx[Math.min(idx.length - 1, Math.floor(rand2 * idx.length))] };
 }
 
 async function apiRoute(path, body, env, now = Date.now()) {
@@ -124,19 +119,27 @@ async function apiRoute(path, body, env, now = Date.now()) {
   }
 
   if (path === "spin") {
-    const free = !!p.free_spin;
-    if (!free && (p.coins || 0) < SPIN_COST) return json(403, { error: `Нужно ${SPIN_COST} монет` });
-    const prize = spinPick(body.__rand ?? Math.random());
-    const sets = [], args = [];
-    if (free) sets.push("free_spin = 0"); else { sets.push("coins = coins - ?"); args.push(SPIN_COST); }
-    if (prize.coins) { sets.push("coins = coins + ?"); args.push(prize.coins); }
-    if (prize.runs) { sets.push("runs_extra = runs_extra + ?"); args.push(prize.runs); }
-    if (prize.shield) { sets.push("shield = shield + 1"); }
-    let dup = false;
-    if (prize.skin) { const s = skinsOf(p); if (s.includes(prize.skin)) { dup = true; sets.push("coins = coins + 150"); } else { s.push(prize.skin); sets.push("skins = ?"); args.push(JSON.stringify(s)); } }
-    await env.DB.prepare(`UPDATE players SET ${sets.join(", ")} WHERE id = ?`).bind(...args, u.id).run();
+    // бесплатная прокрутка дня: ставка 50 монет за счёт игры (проигрыш ничего не отнимает)
+    const free = !!p.free_spin && !body.paid;
+    const stake = free ? STAKES[0] : Number(body.stake);
+    if (!STAKES.includes(stake)) return json(400, { error: "Выберите ставку" });
+    if (!free && (p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    const r = spinPick(Math.random(), Math.random(), p.luck ?? 50);
+    const delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
+    await env.DB.prepare(`UPDATE players SET coins = MAX(0, coins + ?)${free ? ", free_spin = 0" : ""} WHERE id = ?`).bind(delta, u.id).run();
     const q = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
-    return json(200, { ...view(q), prize: { id: prize.id, label: dup ? "Ракета «Удача» уже есть: +150 монет" : prize.label }, index: WHEEL.indexOf(prize) });
+    return json(200, { ...view(q), win: r.win, delta, stake, free, index: r.index, prize: { label: r.win ? `Выигрыш +${stake} монет` : free ? "Не повезло, бесплатная прокрутка" : `Не повезло: −${stake} монет` } });
+  }
+
+  if (path === "coinbuy") {
+    const it = COIN_SHOP[body.item];
+    if (!it) return json(400, { error: "Нет такого товара" });
+    if (it.skin && skinsOf(p).includes(it.skin)) return json(400, { error: "Эта ракета уже ваша" });
+    if ((p.coins || 0) < it.coins) return json(403, { error: `Нужно ${it.coins} монет` });
+    if (it.skin) { const sk = skinsOf(p); sk.push(it.skin); await env.DB.prepare("UPDATE players SET coins = coins - ?, skins = ?, skin = ? WHERE id = ?").bind(it.coins, JSON.stringify(sk), it.skin, u.id).run(); }
+    else await env.DB.prepare("UPDATE players SET coins = coins - ?, shield = shield + 1 WHERE id = ?").bind(it.coins, u.id).run();
+    const q = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
+    return json(200, view(q));
   }
 
   if (path === "skin") {
@@ -184,9 +187,33 @@ async function onUpdate(up, env) {
     }
     return tg(env, "sendMessage", { chat_id: m.chat.id, text: `⭐ Спасибо! ${it.title} уже в игре.` });
   }
+  if (m.text?.startsWith("/luck")) return luckCommand(env, m);
   if (m.text?.startsWith("/paysupport")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Вопросы по оплате звёздами: напишите сюда, что купили и когда. Ответим в течение дня." });
-  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Звёзды тратятся на запуски и внешний вид ракет. Монеты и призы колеса — только игровые, их нельзя купить или вывести." });
+  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Звёзды тратятся на запуски и внешний вид ракет. Монеты — только игровые: их дают за полёты и каждый день, купить или вывести их нельзя. Колесо 50/50 крутится только на монеты." });
   return tg(env, "sendMessage", { chat_id: m.chat.id, text: "🚀 «Звёздный рейс» — веди ракету, собирай звёзды и уворачивайся от астероидов.\n\n5 бесплатных полётов каждый день, колесо удачи и рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🚀 Играть", web_app: { url: env.GAME_URL } }]] } });
+}
+
+// ---- «Везение» (только админы из ADMIN_IDS): шанс выигрыша в колесе для себя и выбранных игроков ----
+// /luck — список; /luck @ник 80 или /luck 123456 80 — шанс 80%; /luck me 70 — себе; /luck @ник reset — обратно 50%.
+const isAdmin = (env, id) => String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean).includes(String(id));
+export async function luckCommand(env, m) {
+  const say = (text) => tg(env, "sendMessage", { chat_id: m.chat.id, text });
+  if (!isAdmin(env, m.from.id)) return say("Эта команда только для администратора.");
+  const [, who, val] = m.text.trim().split(/\s+/);
+  if (!who) {
+    const rows = (await env.DB.prepare("SELECT id, name, username, luck FROM players WHERE luck IS NOT NULL ORDER BY luck DESC LIMIT 50").all()).results || [];
+    return say(rows.length ? "🍀 Везение:\n" + rows.map((r) => `${r.name}${r.username ? " @" + r.username : ""} (${r.id}) — ${r.luck}%`).join("\n") + "\n\nИзменить: /luck @ник 80 · /luck me 70 · /luck @ник reset" : "Везение ни у кого не изменено, у всех 50%.\n\nПример: /luck me 70 или /luck @ник 80");
+  }
+  let p;
+  if (who === "me") p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(m.from.id).first();
+  else if (/^\d+$/.test(who)) p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(Number(who)).first();
+  else p = await env.DB.prepare("SELECT id, name FROM players WHERE username = ?").bind(who.replace(/^@/, "").toLowerCase()).first();
+  if (!p) return say("Игрок не найден. Он должен хотя бы раз открыть игру. Можно указать его Telegram ID числом.");
+  if (val === "reset") { await env.DB.prepare("UPDATE players SET luck = NULL WHERE id = ?").bind(p.id).run(); return say(`${p.name}: везение снова обычное, 50%.`); }
+  const n = Math.round(Number(val));
+  if (!(n >= 0 && n <= 100)) return say("Укажите шанс от 0 до 100, например: /luck " + who + " 75");
+  await env.DB.prepare("UPDATE players SET luck = ? WHERE id = ?").bind(n, p.id).run();
+  return say(`🍀 ${p.name}: шанс выигрыша в колесе теперь ${n}%.`);
 }
 
 const SETUP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Подключение бота</title>

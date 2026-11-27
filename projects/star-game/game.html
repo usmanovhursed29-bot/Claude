@@ -74,10 +74,15 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .result[hidden]{display:none}
 .result b{display:block;font:900 26px var(--disp)}
 .result span{color:var(--soft);font-size:14px}
-.wheel{position:relative;width:min(320px,82vw);aspect-ratio:1;margin:8px auto 18px}
+.wheel{position:relative;width:min(270px,68vw);aspect-ratio:1;margin:8px auto 18px}
 .wheel canvas{width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.8,.12,1)}
 .wheel::after{content:"";position:absolute;left:50%;top:-8px;transform:translateX(-50%);border:15px solid transparent;border-top:26px solid var(--gold);filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
 .note{color:var(--soft);font-size:13px;text-align:center;margin:10px 4px}
+.stakes{display:flex;gap:8px;justify-content:center;margin:0 0 12px}
+.stakes button{width:64px;height:64px;border-radius:50%;font:900 16px var(--disp);background:radial-gradient(circle,#4b55a8 55%,#2d3470 56%);box-shadow:inset 0 0 0 4px rgba(255,255,255,.15),0 6px 14px -6px rgba(0,0,0,.6)}
+.stakes button.on{background:radial-gradient(circle,#7a5cff 55%,#4b36b8 56%);box-shadow:inset 0 0 0 4px #ffc83d}
+.stakes button[disabled]{opacity:.35}
+.wres{text-align:center;font:900 22px var(--disp);min-height:30px;margin:-6px 0 8px}
 .bon{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .bc{border-radius:22px;background:var(--card);border:1px solid var(--line);padding:10px 10px 14px;display:flex;flex-direction:column;gap:8px}
 .bc .pic{border-radius:16px;background:radial-gradient(circle at 50% 40%,#3c4a8a,#252c52);aspect-ratio:1.1;display:grid;place-items:center;border-bottom:3px solid var(--acc1)}
@@ -138,10 +143,13 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 </main>
 
 <main class="page" id="pWheel" hidden>
-  <h2 class="sec">Колесо удачи</h2>
+  <h2 class="sec">Колесо 50/50</h2>
   <div class="wheel"><canvas id="wc" width="640" height="640"></canvas></div>
+  <div class="wres" id="wRes"></div>
+  <div class="stakes" id="stakes"></div>
   <button class="go" id="bSpin" style="width:100%">Крутить</button>
-  <p class="note">Колесо крутится только на монеты из полётов. Монеты нельзя купить или вывести.</p>
+  <button class="go" id="bFree" style="width:100%;margin-top:10px" hidden>Бесплатная прокрутка 🎁</button>
+  <p class="note">50 на 50: «×2» удваивает ставку, «0» забирает её. Играем только на монеты из полётов, их нельзя купить или вывести.</p>
 </main>
 
 <main class="page" id="pTop" hidden>
@@ -170,7 +178,7 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 <div class="sheet" id="shop" hidden><div class="in">
   <div class="hd"><h3>Пополнить</h3><button class="x" id="shopX" aria-label="Закрыть">✕</button></div>
   <div class="shopg" id="shopList"></div>
-  <p class="note">Оплата звёздами Telegram. Звёзды тратятся на полёты и ракеты, выиграть их в игре нельзя.</p>
+  <p class="note">Полёты и ракеты — за звёзды Telegram. Щит и «Удача» — за монеты. Звёзды в игре выиграть нельзя.</p>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -206,7 +214,7 @@ function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add(
 function paintTop() {
   $("tCoins").textContent = fmt(me.coins); $("tRuns").textContent = me.runs == null ? "—" : demo ? "∞" : me.runs;
   const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user; $("tAva").textContent = (u && u.first_name ? u.first_name[0] : "Я").toUpperCase();
-  $("gBest").textContent = me.best ? `рекорд ${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : `${me.spinCost} монет`;
+  $("gBest").textContent = me.best ? `рекорд ${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : "50 на 50";
 }
 async function load() {
   if (demo) { let b = 0, c = 120; try { b = +(localStorage.getItem("sr_best") || 0); c = +(localStorage.getItem("sr_coins") || 120); } catch (e) {} me.runs = 99; me.best = b; me.coins = c; me.freeSpin = true; }
@@ -311,15 +319,15 @@ const SHOP_DEF = [{ id: "runs5", title: "+5 полётов", stars: 5 }, { id: "
 function openShop() { $("shop").hidden = false; renderShop(); }
 function renderShop() {
   const shop = (me.shop.length ? me.shop : SHOP_DEF).map((x) => ({ ...x, title: x.title.replace("запусков", "полётов") }));
-  const items = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...shop, { id: "skin_lucky", title: "Ракета «Удача»", stars: -1, skin: "lucky" }];
+  const items = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...shop, { id: "shield", title: "Щит на старт", coins: 100 }, { id: "skin_lucky", title: "Ракета «Удача»", coins: 1000, skin: "lucky" }];
   $("shopList").innerHTML = items.map((it) => {
     const own = it.skin && me.skins.includes(it.skin);
-    const pic = it.skin ? `<canvas data-skin="${it.skin}" width="140" height="140"></canvas>` : `<svg viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc83d"/></svg>`;
+    const pic = it.id === "shield" ? `<svg viewBox="0 0 60 60"><path d="M30 6l20 8v14c0 13-9 22-20 26-11-4-20-13-20-26V14z" fill="#53e0c8"/><path d="M22 30l6 6 11-12" stroke="#0f3a33" stroke-width="5" fill="none" stroke-linecap="round"/></svg>` : it.skin ? `<canvas data-skin="${it.skin}" width="140" height="140"></canvas>` : `<svg viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc83d"/></svg>`;
     let btn;
     if (own) btn = me.skin === it.skin ? `<button class="on" disabled>Выбрана</button>` : `<button class="own" data-use="${it.skin}">Выбрать</button>`;
-    else if (it.stars === -1) btn = `<button class="own" data-wheel="1">Только в колесе</button>`;
+    else if (it.coins) btn = `<button class="own" data-coin="${it.id}" ${me.coins < it.coins ? "disabled" : ""}>${fmt(it.coins)} 🪙</button>`;
     else btn = `<button data-buy="${it.id}">${it.stars} ⭐</button>`;
-    return `<div class="si"><div class="pic">${pic}</div><h4>${it.title}</h4><span>${it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span>${btn}</div>`;
+    return `<div class="si"><div class="pic">${pic}</div><h4>${it.title}</h4><span>${it.id === "shield" ? `За монеты · есть: ${me.shield || 0}` : it.coins ? "Только за монеты" : it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span>${btn}</div>`;
   }).join("");
   $("shopList").querySelectorAll("canvas").forEach((c) => { const g = c.getContext("2d"); g.translate(70, 76); g.scale(1.6, 1.6); rocket(g, c.dataset.skin, 0, false); });
 }
@@ -327,7 +335,8 @@ $("tPay").onclick = openShop; $("shopX").onclick = () => { $("shop").hidden = tr
 $("shop").addEventListener("click", async (e) => {
   if (e.target === $("shop")) { $("shop").hidden = true; return; }
   const use = e.target.dataset.use, buy = e.target.dataset.buy;
-  if (e.target.dataset.wheel) { $("shop").hidden = true; closeGame(); go("pWheel"); return; }
+  const coin = e.target.dataset.coin;
+  if (coin) { if (demo) { toast("Покупки работают внутри Telegram"); return; } try { Object.assign(me, await api("coinbuy", { item: coin })); toast("Готово!"); renderShop(); paintTop(); if (inGame) paintPanel(); } catch (err) { toast(err.message); } return; }
   if (use) { me.skin = use; if (!demo) api("skin", { skin: use }).catch(() => {}); renderShop(); haptic("light"); return; }
   if (!buy) return;
   if (demo) { toast("Покупки работают внутри Telegram"); return; }
@@ -335,28 +344,40 @@ $("shop").addEventListener("click", async (e) => {
   catch (err) { toast(err.message); }
 });
 
-// ---------- колесо (только монеты) ----------
-const DEMO_WHEEL = ["10 монет", "30 монет", "80 монет", "200 монет", "+1 полёт", "+3 полёта", "Щит", "Ракета «Удача»"];
-const WCOL = ["#3b4aa8", "#5a3fc0", "#3b4aa8", "#c98a1a", "#1f7a62", "#26936f", "#5a3fc0", "#b0326e"];
-let wAngle = 0, spinning = false;
-const wLabels = () => me.wheel.length ? me.wheel.map((w) => w.label.replace("+1 запуск", "+1 полёт").replace("+3 запуска", "+3 полёта").replace("Щит на старт", "Щит")) : DEMO_WHEEL;
+// ---------- колесо 50/50 (только монеты) ----------
+const DEMO_WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
+let wAngle = 0, spinning = false, stake = 50;
+const wLabels = () => (me.wheel && me.wheel.length && typeof me.wheel[0] === "string") ? me.wheel : DEMO_WHEEL;
+const stakesList = () => me.stakes || [50, 100, 250, 500];
 function drawWheel() {
   const g = $("wc").getContext("2d"), L = wLabels(), n = L.length, R = 300;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 640, 640); g.translate(320, 320);
   g.fillStyle = "#ffd36e"; g.beginPath(); g.arc(0, 0, R + 10, 0, 6.28); g.fill();
-  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + (i - .5) * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
-    g.fillStyle = WCOL[i % 8]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); g.strokeStyle = "rgba(255,255,255,.2)"; g.lineWidth = 3; g.stroke();
-    g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = "#fff"; g.font = "800 26px Manrope, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(L[i], R - 22, 0); g.restore(); }
+  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + (i - .5) * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n, win = L[i] === "×2";
+    g.fillStyle = win ? (i % 4 ? "#2fae6a" : "#24955a") : (i % 4 === 1 ? "#3a3f66" : "#2f3458"); g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); g.strokeStyle = "rgba(255,255,255,.2)"; g.lineWidth = 3; g.stroke();
+    g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = win ? "#fff" : "#9aa1c8"; g.font = "900 54px Unbounded, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.translate(R - 80, 0); g.rotate(Math.PI / 2); g.fillText(L[i], 0, 0); g.restore(); }
   g.fillStyle = "#ffd36e"; g.beginPath(); g.arc(0, 0, 46, 0, 6.28); g.fill(); g.fillStyle = "#181c2e"; starPath(g, 0, 0, 26); g.fill();
 }
-function paintWheel() { const b = $("bSpin"); b.textContent = me.freeSpin ? "Крутить бесплатно 🎁" : `Крутить за ${me.spinCost} монет`; b.disabled = spinning || (!me.freeSpin && me.coins < me.spinCost); }
-$("bSpin").onclick = async () => {
-  if (spinning) return; spinning = true; paintWheel(); haptic("medium"); let res;
-  try { if (demo) { const i = Math.floor(Math.random() * 8); res = { index: i, prize: { label: DEMO_WHEEL[i] } }; if (me.freeSpin) me.freeSpin = false; else me.coins -= me.spinCost; } else res = await api("spin"); }
-  catch (e) { toast(e.message); spinning = false; paintWheel(); return; }
+function paintWheel() {
+  if (!stakesList().includes(stake)) stake = stakesList()[0];
+  $("stakes").innerHTML = stakesList().map((v) => `<button data-s="${v}" class="${v === stake ? "on" : ""}" ${me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
+  const b = $("bSpin"); b.textContent = me.coins >= stake ? `Крутить на ${stake} монет` : `Нужно ${stake} монет`; b.disabled = spinning || me.coins < stake;
+  $("bFree").hidden = !me.freeSpin; $("bFree").disabled = spinning;
+}
+$("stakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (!v || spinning) return; stake = v; paintWheel(); haptic("light"); });
+async function spin(free) {
+  if (spinning) return; spinning = true; paintWheel(); $("wRes").textContent = ""; haptic("medium"); let res;
+  try {
+    if (demo) { const win = Math.random() < .5, idx = DEMO_WHEEL.map((x, i) => i).filter((i) => (DEMO_WHEEL[i] === "×2") === win), st = free ? 50 : stake;
+      const delta = free ? (win ? st : 0) : (win ? st : -st); res = { win, delta, index: idx[Math.floor(Math.random() * idx.length)] }; me.coins += delta; if (free) me.freeSpin = false; }
+    else res = await api("spin", free ? {} : { stake, paid: 1 });
+  } catch (e) { toast(e.message); spinning = false; paintWheel(); return; }
   const n = wLabels().length, seg = 360 / n; wAngle = wAngle - (wAngle % 360) + 360 * 5 + ((360 - res.index * seg) % 360) + (Math.random() - .5) * seg * .6; $("wc").style.transform = `rotate(${wAngle}deg)`;
-  setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintTop(); haptic("heavy"); toast("Приз: " + res.prize.label.replace("запуск", "полёт")); }, 4300);
-};
+  setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintTop(); haptic(res.win ? "heavy" : "light");
+    $("wRes").innerHTML = res.win ? `<span style="color:var(--green)">+${fmt(res.delta)} монет!</span>` : res.delta < 0 ? `<span style="color:var(--red)">${fmt(res.delta)} монет</span>` : `<span style="color:var(--soft)">Не повезло</span>`;
+    try { demo && localStorage.setItem("sr_coins", me.coins); } catch (e) {} }, 4300);
+}
+$("bSpin").onclick = () => spin(false); $("bFree").onclick = () => spin(true);
 
 // ---------- рейтинг ----------
 async function openTop() {
@@ -377,9 +398,9 @@ function paintBonus() {
   const can = demo || me.runs > 0;
   const C = [
     { pic: I.rocket, t: "Полёты сегодня", v: demo ? "∞" : `${me.runs ?? 0}`, sub: "5 бесплатных каждый день", b: can ? "Играть" : "Пополнить", act: can ? "play" : "shop" },
-    { pic: I.wheel, t: "Прокрутка колеса", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
+    { pic: I.wheel, t: "Прокрутка 50/50", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
     { pic: I.coin, t: "Монеты за вход", v: `+${me.dailyCoins}`, sub: "начисляются каждый день", b: "Получено", dis: true },
-    { pic: I.shield, t: "Щиты на старт", v: `${me.shield || 0}`, sub: "выпадают в колесе", b: me.shield ? "В полёт" : "Колесо", act: me.shield ? "play" : "wheel" } ];
+    { pic: I.shield, t: "Щиты на старт", v: `${me.shield || 0}`, sub: "100 монет за щит", b: me.shield ? "В полёт" : "Купить", act: me.shield ? "play" : "shop" } ];
   $("bonList").innerHTML = C.map((c) => `<div class="bc"><div class="pic">${c.pic}</div><p>${c.t}<br><b>${c.v}</b></p><p style="font-size:12px">${c.sub}</p><button ${c.dis ? "disabled" : ""} data-act="${c.act || ""}">${c.b}</button></div>`).join("");
 }
 $("bonList").addEventListener("click", (e) => { const a = e.target.dataset.act; if (a === "play") openGame(); else if (a === "wheel") go("pWheel"); else if (a === "shop") openShop(); });
