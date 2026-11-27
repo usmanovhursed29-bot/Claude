@@ -47,7 +47,10 @@ r = await call("mines/start", { stake: 50, mines: 24 }); const g2 = r.j.game.id;
 mines = JSON.parse(db.prepare("SELECT mines FROM mines_games WHERE id = ?").get(g2).mines);
 r = await call("mines/open", { gameId: g2, cell: mines[0] }); assert.equal(r.j.boom, true); assert.equal(r.j.coins, c1 - 50);
 assert.equal((await call("mines/cash", { gameId: g2 })).status, 400);
-assert.equal((await call("mines/start", { stake: 77, mines: 3 })).status, 400, "ставка только из списка");
+assert.equal((await call("mines/start", { stake: 9, mines: 3 })).status, 400, "ставка не меньше 10");
+assert.equal((await call("mines/start", { stake: 12.5, mines: 3 })).status, 400, "ставка целым числом");
+{ const cc = coins(); r = await call("mines/start", { stake: 37, mines: 3 }); assert.equal(r.status, 200); assert.equal(r.j.coins, cc - 37); const gx = r.j.game.id;
+  const mx = JSON.parse(db.prepare("SELECT mines FROM mines_games WHERE id = ?").get(gx).mines); await call("mines/open", { gameId: gx, cell: mx[0] }); }
 
 // везение в «Минах»: 100% — мина всегда уходит, 0% — мина всегда приходит
 { const ms = [0, 1, 2]; assert.ok(!applyLuck(ms, [], 0, 100).includes(0)); assert.ok(applyLuck(ms, [], 10, 0).includes(10)); assert.deepEqual(applyLuck(ms, [], 0, null), ms); }
@@ -98,6 +101,9 @@ db.prepare("UPDATE players SET coins = 1000, luck = NULL WHERE id = 7").run();
 r = await call("play", { game: "coin", stake: 100, params: { side: "heads" } }); assert.equal(r.j.coins, 900 + r.j.win); assert.equal(r.j.win, r.j.win ? 194 : 0);
 assert.equal((await call("play", { game: "dice", stake: 100, params: { target: 1 } })).status, 400);
 assert.equal((await call("play", { game: "slots", stake: 100 })).status, 400);
+db.prepare("UPDATE players SET coins = 1000 WHERE id = 7").run();
+r = await call("play", { game: "coin", stake: 777, params: { side: "tails" } }); assert.equal(r.j.coins, 1000 - 777 + r.j.win); assert.equal(r.j.win, r.j.win ? Math.floor(777 * 1.94) : 0);
+assert.equal((await call("play", { game: "coin", stake: 5, params: { side: "tails" } })).status, 400);
 // «Ракетка»: забрать до взрыва = ставка × множитель по серверному времени; после взрыва — проигрыш
 db.prepare("UPDATE players SET coins = 1000, luck = 100 WHERE id = 7").run();
 r = await call("crash/start", { stake: 100 }, t0); const cid = r.j.id; assert.equal(r.j.coins, 900);

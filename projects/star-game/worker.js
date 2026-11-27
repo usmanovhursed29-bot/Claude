@@ -6,7 +6,9 @@ import GAME from "./game.html";
 
 const DAILY_COINS = 100;           // монет за первый вход дня
 const START_COINS = 500;           // монет новичку
-export const STAKES = [50, 100, 250, 500];
+export const STAKES = [50, 100, 250, 500];  // быстрые кнопки в интерфейсе
+export const MIN_STAKE = 10, MAX_STAKE = 1000000;
+export const okStake = (x) => Number.isInteger(x) && x >= MIN_STAKE && x <= MAX_STAKE;
 export const MINES = [3, 5, 10, 24];
 const EDGE = 0.97;                 // множитель «Мин» = 0.97 × честный шанс
 export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
@@ -61,7 +63,7 @@ async function player(env, u, now = Date.now()) {
 }
 const themesOf = (p) => { try { const t = JSON.parse(p.skins || "[]").filter((x) => THEMES.includes(x)); return t.includes("classic") ? t : ["classic", ...t]; } catch { return ["classic"]; } };
 const view = (p) => ({ coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
-  themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, mines: MINES, wheel: WHEEL,
+  themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, minStake: MIN_STAKE, mines: MINES, wheel: WHEEL,
   shop: Object.entries(SHOP).map(([id, s]) => ({ id, ...s })), coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })) });
 const fresh = async (env, id) => view(await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(id).first());
 async function addWin(env, id, win) { await env.DB.prepare("UPDATE players SET best = MAX(best, ?), week_best = MAX(week_best, ?) WHERE id = ?").bind(win, win, id).run(); }
@@ -127,7 +129,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
 
   if (path === "mines/start") {
     const stake = Number(body.stake), m = Number(body.mines);
-    if (!STAKES.includes(stake) || !MINES.includes(m)) return json(400, { error: "Выберите ставку и число мин" });
+    if (!okStake(stake) || !MINES.includes(m)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
     if (await game()) return json(400, { error: "Сначала закончите текущую игру" });
     if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
     const id = crypto.randomUUID();
@@ -174,7 +176,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
   // ---- колесо 50/50 ----
   if (path === "spin") {
     const free = !!p.free_spin && !body.paid, stake = free ? STAKES[0] : Number(body.stake);
-    if (!STAKES.includes(stake)) return json(400, { error: "Выберите ставку" });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
     if (!free && (p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
     const r = spinPick(Math.random(), Math.random(), p.luck ?? 50), delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
     await env.DB.prepare(`UPDATE players SET coins = MAX(0, coins + ?)${free ? ", free_spin = 0" : ""} WHERE id = ?`).bind(delta, u.id).run();
@@ -183,7 +185,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
   }
 
   if (path === "play") {
-    const stake = Number(body.stake), r = STAKES.includes(stake) ? quickPlay(String(body.game), body.params || {}, p.luck) : null;
+    const stake = Number(body.stake), r = okStake(stake) ? quickPlay(String(body.game), body.params || {}, p.luck) : null;
     if (!r) return json(400, { error: "Выберите ставку и вариант" });
     if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
     const win = r.win ? Math.floor(stake * r.mult) : 0;
@@ -193,7 +195,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
   }
   if (path === "crash/start") {
     const stake = Number(body.stake);
-    if (!STAKES.includes(stake)) return json(400, { error: "Выберите ставку" });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
     if (await env.DB.prepare("SELECT id FROM crash_games WHERE user_id = ? AND status = 'fly'").bind(u.id).first()) await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE user_id = ? AND status = 'fly'").bind(u.id).run();
     if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
     const id = crypto.randomUUID();

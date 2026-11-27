@@ -85,6 +85,14 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .stakes button{width:58px;height:58px;border-radius:50%;font:900 16px var(--disp);background:radial-gradient(circle,#4b55a8 55%,#2d3470 56%);box-shadow:inset 0 0 0 4px rgba(255,255,255,.15),0 6px 14px -6px rgba(0,0,0,.6)}
 .stakes button.on{background:radial-gradient(circle,#7a5cff 55%,#4b36b8 56%);box-shadow:inset 0 0 0 4px #ffc83d}
 .stakes button[disabled]{opacity:.35}
+.sbox{display:flex;align-items:center;gap:6px;height:56px;padding:0 6px 0 14px;border-radius:16px;background:var(--bg);border:1px solid var(--line);margin-bottom:4px}
+.sbox span{font-size:20px}
+.sbox input{flex:1;min-width:0;height:100%;border:0;background:transparent;color:var(--ink);font:800 21px var(--body);outline:none}
+.sbox button{height:42px;min-width:44px;padding:0 10px;border-radius:12px;background:#2b3157;color:var(--soft);font-weight:800;font-size:14px}
+.sbox button[data-k="max"]{background:#343a63;color:var(--ink)}
+.sbox.off{opacity:.55}
+.sbal{font-size:12px;color:var(--red);margin:0 6px 4px}
+.stakes{display:block!important}
 .wres{text-align:center;font:900 22px var(--disp);min-height:30px;margin:-6px 0 8px}
 .bon{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .bc{border-radius:22px;background:var(--card);border:1px solid var(--line);padding:10px 10px 14px;display:flex;flex-direction:column;gap:8px}
@@ -265,10 +273,20 @@ async function loadLive() {
 // ---------- «Мины» ----------
 const GEM = `<svg viewBox="0 0 40 40"><path d="M20 4l12 8-12 24L8 12z" fill="#7fd6ff"/><path d="M20 4l12 8H8z" fill="#c9f1ff"/><path d="M8 12l12 24V12z" fill="#4fb6ec"/><path d="M32 12L20 36V12z" fill="#2f8fd1"/></svg>`;
 const BOMB = `<svg viewBox="0 0 40 40"><circle cx="18" cy="23" r="13" fill="#1b1f33"/><circle cx="13" cy="18" r="3.5" fill="#fff" opacity=".35"/><path d="M26 12l5-5" stroke="#ffc83d" stroke-width="3"/><circle cx="33" cy="5" r="3" fill="#ff5d6c"/></svg>`;
-let M = { stake: 100, m: 3, game: null, shown: null, busy: false };
+// ---------- ставка: одна на все игры, от 10 монет, вводится вручную или кнопками ½ / 2× / МАКС ----------
+const MIN_STAKE = 10;
+let STAKE = 100; try { STAKE = Math.max(MIN_STAKE, parseInt(localStorage.getItem("sr_stake")) || 100); } catch (e) {}
+function setStake(v) { STAKE = Math.max(MIN_STAKE, Math.min(1000000, Math.floor(v) || MIN_STAKE)); try { localStorage.setItem("sr_stake", STAKE); } catch (e) {} }
+function stakeBox(id, locked) { return `<div class="sbox${locked ? " off" : ""}"><span>🪙</span><input id="${id}" type="text" inputmode="numeric" value="${STAKE}" ${locked ? "disabled" : ""} aria-label="Ставка"><button data-k="half" ${locked ? "disabled" : ""}>½</button><button data-k="dbl" ${locked ? "disabled" : ""}>2×</button><button data-k="max" ${locked ? "disabled" : ""}>МАКС</button></div>${STAKE > me.coins ? `<div class="sbal">На балансе ${fmt(me.coins)}</div>` : ""}`; }
+function bindStake(el, repaint) {
+  el.addEventListener("click", (e) => { const k = e.target.dataset.k; if (!k) return; setStake(k === "half" ? STAKE / 2 : k === "dbl" ? STAKE * 2 : Math.max(MIN_STAKE, me.coins)); repaint(); haptic("light"); });
+  el.addEventListener("input", (e) => { if (e.target.tagName !== "INPUT") return; const v = parseInt(e.target.value.replace(/\D/g, "")) || 0; e.target.value = v || ""; if (v >= MIN_STAKE) { setStake(v); repaint(true); } });
+  el.addEventListener("focusout", (e) => { if (e.target.tagName === "INPUT") { setStake(parseInt(e.target.value) || MIN_STAKE); repaint(); } });
+}
+let M = { m: 3, game: null, shown: null, busy: false };
 const fmtX = (x) => "×" + x.toFixed(2).replace(".", ",");
 function demoMult(m, k) { let r = 1; for (let i = 0; i < k; i++) r = r * (25 - i) / (25 - m - i); return k ? Math.floor(.97 * r * 100) / 100 : 1; }
-function paintMines() {
+function paintMines(keepInput) {
   const g = M.game, B = $("board"); B.className = "board t-" + (me.theme || "classic");
   const shown = M.shown, opened = g ? g.opened : (shown && shown.opened) || [];
   B.innerHTML = [...Array(25).keys()].map((i) => { let cls = "cell", in_ = "";
@@ -277,21 +295,21 @@ function paintMines() {
     return `<button class="${cls}" data-c="${i}" ${!g || opened.includes(i) ? "tabindex=-1" : ""}>${in_}</button>`; }).join("");
   $("mMult").textContent = fmtX(g ? g.mult : 1); $("mNext").textContent = fmtX(g ? g.next : demoMult(M.m, 1)); $("mCount").textContent = g ? g.m : M.m;
   const st = me.stakes || [50, 100, 250, 500], mn = me.mines || [3, 5, 10, 24];
-  $("mStakes").innerHTML = st.map((v) => `<button data-s="${v}" class="${v === M.stake ? "on" : ""}" ${g || me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
+  if (!keepInput) $("mStakes").innerHTML = stakeBox("mIn", !!g);
   $("mSeg").innerHTML = mn.map((v) => `<button data-m="${v}" class="${v === M.m ? "on" : ""}" ${g ? "disabled" : ""}>${v} мин</button>`).join("");
   const go = $("mGo");
   if (g && g.opened.length) { go.disabled = M.busy; go.innerHTML = `Забрать ${fmt(Math.floor(g.stake * g.mult))} 🪙<small>${fmtX(g.mult)}</small>`; }
   else if (g) { go.disabled = true; go.innerHTML = "Открой клетку"; }
-  else { go.disabled = M.busy || me.coins < M.stake; go.innerHTML = me.coins < M.stake ? `Нужно ${M.stake} монет` : `Начать игру · ${M.stake} 🪙`; }
+  else { go.disabled = M.busy || me.coins < STAKE; go.innerHTML = me.coins < STAKE ? `Нужно ${STAKE} монет` : `Начать игру · ${STAKE} 🪙`; }
 }
-$("mStakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (v && !M.game) { M.stake = v; M.shown = null; paintMines(); haptic("light"); } });
+bindStake($("mStakes"), paintMines);
 $("mSeg").addEventListener("click", (e) => { const v = +e.target.dataset.m; if (v && !M.game) { M.m = v; M.shown = null; paintMines(); haptic("light"); } });
 // демо без Telegram: та же логика прямо в браузере
 const DEMO = { mines: null };
 async function mStart() {
   M.busy = true; M.shown = null;
-  try { if (demo) { if (me.coins < M.stake) throw new Error("Мало монет"); me.coins -= M.stake; const a = [...Array(25).keys()].sort(() => Math.random() - .5); DEMO.mines = a.slice(0, M.m); M.game = { id: "demo", stake: M.stake, m: M.m, opened: [], mult: 1, next: demoMult(M.m, 1) }; }
-        else { const d = await api("mines/start", { stake: M.stake, mines: M.m }); Object.assign(me, d); M.game = d.game; } haptic("medium"); }
+  try { if (demo) { if (me.coins < STAKE) throw new Error("Мало монет"); me.coins -= STAKE; const a = [...Array(25).keys()].sort(() => Math.random() - .5); DEMO.mines = a.slice(0, M.m); M.game = { id: "demo", stake: STAKE, m: M.m, opened: [], mult: 1, next: demoMult(M.m, 1) }; }
+        else { const d = await api("mines/start", { stake: STAKE, mines: M.m }); Object.assign(me, d); M.game = d.game; } haptic("medium"); }
   catch (e) { toast(e.message); }
   M.busy = false; paintMines(); paintTop();
 }
@@ -302,7 +320,7 @@ async function mOpen(cell) {
         else d = await api("mines/open", { gameId: M.game.id, cell }); }
   catch (e) { toast(e.message); M.busy = false; return; }
   M.busy = false;
-  if (d.boom) { if (!demo) Object.assign(me, d); M.shown = { mines: d.mines, boom: cell, opened: M.game.opened }; M.game = null; haptic("heavy"); toast(`💥 Мина! −${fmt(M.stake)} монет`); }
+  if (d.boom) { if (!demo) Object.assign(me, d); M.shown = { mines: d.mines, boom: cell, opened: M.game.opened }; M.game = null; haptic("heavy"); toast(`💥 Мина! −${fmt(STAKE)} монет`); }
   else if (d.win) { if (!demo) Object.assign(me, d); M.shown = { mines: d.mines, boom: -1, opened: [...M.game.opened, cell] }; M.game = null; toast(`🏆 Все кристаллы! +${fmt(d.win)} монет`); haptic("heavy"); }
   else { M.game = d.game; haptic("light"); }
   paintMines(); paintTop();
@@ -321,49 +339,49 @@ function starPath(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { co
 
 
 // ---------- быстрые игры: Ракетка, Монетка, Кубик, Сундуки ----------
-const PL = { game: "coin", stake: 100, side: "heads", target: 51, busy: false, last: null, cr: null };
+const PL = { game: "coin", side: "heads", target: 51, busy: false, last: null, cr: null };
 const CHEST = (open, gem) => `<svg viewBox="0 0 80 80"><rect x="8" y="34" width="64" height="38" rx="6" fill="#8a4b1f"/>${open ? `<path d="M8 34l6-22h52l6 22z" fill="#a85f2a"/>${gem ? `<path d="M40 14l12 8-12 22-12-22z" fill="#7fd6ff"/><path d="M40 14l12 8H28z" fill="#c9f1ff"/>` : `<text x="40" y="58" text-anchor="middle" font-size="18" fill="#d9c2a8">пусто</text>`}` : `<path d="M8 34c0-24 64-24 64 0z" fill="#a85f2a"/><rect x="8" y="32" width="64" height="6" fill="#ffc83d"/><rect x="34" y="28" width="12" height="16" rx="3" fill="#ffc83d"/>`}</svg>`;
 const ROCKET = `<svg viewBox="-30 -45 60 90"><path d="M-8 22q8 26 16 0z" fill="#ffc83d"/><path d="M-12 8l-12 16 14-4zM12 8l12 16-14-4z" fill="#ff5d6c"/><path d="M0-40c18 14 16 44 12 62h-24c-4-18-6-48 12-62z" fill="#f3f0ea"/><path d="M0-40c9 7 14 14 15 22h-30c1-8 6-15 15-22z" fill="#ff5d6c"/><circle cy="-2" r="7" fill="#53e0c8"/></svg>`;
 const NAMES = { coin: "Монетка", dice: "Кубик", chest: "Сундуки", crash: "Ракетка" };
 const diceMultC = (t) => Math.floor(97 / (t - 1) * 100) / 100;
 function openPlay(g) { if (PL.cr) return go("pPlay"); PL.game = g; PL.last = null; go("pPlay"); paintPlay(); }
-function paintPlay() {
+function paintPlay(keepInput) {
   const g = PL.game, st = me.stakes || [50, 100, 250, 500], L = PL.last, busy = PL.busy || !!PL.cr;
   $("plTitle").textContent = NAMES[g];
-  $("plStakes").innerHTML = st.map((v) => `<button data-s="${v}" class="${v === PL.stake ? "on" : ""}" ${busy || me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
-  const go = $("plGo"), cant = me.coins < PL.stake;
+  if (!keepInput) $("plStakes").innerHTML = stakeBox("plIn", busy);
+  const go = $("plGo"), cant = me.coins < STAKE;
   if (g === "coin") {
     if (!PL.flipT) $("plStage").innerHTML = `<div class="coin3d" id="coin" style="transition:none;transform:rotateY(${PL.face || 0}deg)"><div>О</div><div class="b">Р</div></div>`;
     $("plCtl").innerHTML = `<div class="seg"><button data-side="heads" class="${PL.side === "heads" ? "on" : ""}">Орёл</button><button data-side="tails" class="${PL.side === "tails" ? "on" : ""}">Решка</button></div>`;
     $("plSub").textContent = L ? (L.win ? `Выпал${L.result === "heads" ? " орёл" : "а решка"}! +${fmt(L.win)} монет` : `Выпал${L.result === "heads" ? " орёл" : "а решка"}. Не повезло`) : "Угадай сторону: выигрыш ×1,94";
-    go.textContent = cant ? `Нужно ${PL.stake} монет` : `Бросить · ${PL.stake} 🪙`;
+    go.textContent = cant ? `Нужно ${STAKE} монет` : `Бросить · ${STAKE} 🪙`;
   } else if (g === "dice") {
     const t = PL.target;
     $("plStage").innerHTML = `<div style="text-align:center"><div class="bigval ${L ? (L.win ? "w" : "l") : ""}">${L ? L.result : "?"}</div><div class="sub2">выпадет от 1 до 100</div></div>`;
     $("plCtl").innerHTML = `<div class="info"><span>Меньше <b>${t}</b></span><span>Шанс <b>${t - 1}%</b></span><span>Выигрыш <b>×${String(diceMultC(t)).replace(".", ",")}</b></span></div><input class="range" id="plRange" type="range" min="3" max="96" value="${t}" ${busy ? "disabled" : ""} aria-label="Число">`;
     $("plSub").textContent = L ? (L.win ? `${L.result} меньше ${t}! +${fmt(L.win)} монет` : `${L.result} — не меньше ${t}`) : "Двигай ползунок: меньше шанс — больше выигрыш";
-    go.textContent = cant ? `Нужно ${PL.stake} монет` : `Бросить · ${PL.stake} 🪙`;
+    go.textContent = cant ? `Нужно ${STAKE} монет` : `Бросить · ${STAKE} 🪙`;
   } else if (g === "chest") {
     $("plStage").innerHTML = `<div class="chests">${[0, 1, 2].map((i) => `<button class="chest ${L ? (L.result === i ? "win" : "lose") : ""}" data-pick="${i}" ${busy || cant ? "disabled" : ""}>${CHEST(!!L, L && L.result === i)}</button>`).join("")}</div>`;
     $("plCtl").innerHTML = "";
-    $("plSub").textContent = L ? (L.win ? `Угадал! +${fmt(L.win)} монет` : "Пусто. Кристалл был в другом сундуке") : `Выбери сундук: в одном кристалл ×2,91 (ставка ${PL.stake})`;
+    $("plSub").textContent = L ? (L.win ? `Угадал! +${fmt(L.win)} монет` : "Пусто. Кристалл был в другом сундуке") : `Выбери сундук: в одном кристалл ×2,91 (ставка ${STAKE})`;
     go.textContent = L ? "Ещё раз" : "Нажми на сундук"; go.disabled = !L; 
     return;
   } else if (g === "crash") {
     if (!PL.cr) $("plStage").innerHTML = `<div class="crashbox"><div id="crRocket">${ROCKET}</div><div class="bigval ${L && L.crashed ? "boom" : L && L.win ? "w" : ""}" id="crMult">${L ? (L.crashed ? "💥 ×" + String(L.crash).replace(".", ",") : "×" + String(L.mult).replace(".", ",")) : "×1,00"}</div></div>`;
     $("plCtl").innerHTML = "";
     $("plSub").textContent = PL.cr ? "Жми «Забрать», пока не взорвалась!" : L ? (L.win ? `Забрал на ×${String(L.mult).replace(".", ",")}: +${fmt(L.win)} монет` : `Взорвалась на ×${String(L.crash).replace(".", ",")}`) : "Множитель растёт. Забери до взрыва";
-    go.textContent = PL.cr ? `Забрать ${fmt(Math.floor(PL.stake * (PL.cr.mult || 1)))} 🪙` : cant ? `Нужно ${PL.stake} монет` : `Старт · ${PL.stake} 🪙`;
+    go.textContent = PL.cr ? `Забрать ${fmt(Math.floor(STAKE * (PL.cr.mult || 1)))} 🪙` : cant ? `Нужно ${STAKE} монет` : `Старт · ${STAKE} 🪙`;
     go.disabled = PL.busy || (!PL.cr && cant); return;
   }
   go.disabled = busy || cant;
 }
-$("plStakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (v && !PL.busy && !PL.cr) { PL.stake = v; PL.last = null; paintPlay(); haptic("light"); } });
+bindStake($("plStakes"), (k) => { PL.last = PL.game === "chest" ? PL.last : null; paintPlay(k); });
 $("plCtl").addEventListener("click", (e) => { const sd = e.target.dataset.side; if (sd && !PL.busy) { PL.side = sd; paintPlay(); haptic("light"); } });
 $("plCtl").addEventListener("input", (e) => { if (e.target.id === "plRange") { PL.target = +e.target.value; PL.last = null; const t = PL.target; e.target.previousElementSibling.innerHTML = `<span>Меньше <b>${t}</b></span><span>Шанс <b>${t - 1}%</b></span><span>Выигрыш <b>×${String(diceMultC(t)).replace(".", ",")}</b></span>`; } });
 $("plStage").addEventListener("click", (e) => { const c = e.target.closest("[data-pick]"); if (c && PL.game === "chest" && !PL.last) quick({ pick: +c.dataset.pick }); });
 function demoQuick(game, params) {
-  const st = PL.stake; let win, mult, result;
+  const st = STAKE; let win, mult, result;
   if (game === "coin") { win = Math.random() < .5; mult = 1.94; result = win ? params.side : params.side === "heads" ? "tails" : "heads"; }
   if (game === "dice") { const t = params.target; win = Math.random() < (t - 1) / 100; mult = diceMultC(t); result = win ? 1 + Math.floor(Math.random() * (t - 1)) : t + Math.floor(Math.random() * (101 - t)); }
   if (game === "chest") { win = Math.random() < 1 / 3; mult = 2.91; const o = [0, 1, 2].filter((x) => x !== params.pick); result = win ? params.pick : o[Math.floor(Math.random() * 2)]; }
@@ -371,7 +389,7 @@ function demoQuick(game, params) {
 }
 async function quick(params) {
   if (PL.busy) return; PL.busy = true; paintPlay(); haptic("medium"); let r;
-  try { r = demo ? demoQuick(PL.game, params) : await api("play", { game: PL.game, stake: PL.stake, params }); if (!demo) Object.assign(me, r); }
+  try { r = demo ? demoQuick(PL.game, params) : await api("play", { game: PL.game, stake: STAKE, params }); if (!demo) Object.assign(me, r); }
   catch (e) { toast(e.message); PL.busy = false; paintPlay(); return; }
   if (PL.game === "coin") { const c = $("coin"), f = r.result === "tails" ? 180 : 0; PL.flipT = 1; c.style.transition = ""; void c.offsetWidth; c.style.transform = `rotateY(${1800 + f}deg)`; await new Promise((ok) => setTimeout(ok, 1450)); PL.flipT = 0; PL.face = f; }
   if (PL.game === "dice") { for (let i = 0; i < 10; i++) { $("plStage").querySelector(".bigval").textContent = 1 + Math.floor(Math.random() * 100); await new Promise((ok) => setTimeout(ok, 60)); } }
@@ -379,7 +397,7 @@ async function quick(params) {
 }
 async function crashStart() {
   PL.busy = true; paintPlay(); let r;
-  try { if (demo) { me.coins -= PL.stake; const u = Math.random(); r = { id: "demo", k: .08, demoCrash: Math.max(1, Math.floor(97 / (1 - u)) / 100) }; } else { r = await api("crash/start", { stake: PL.stake }); Object.assign(me, r); } }
+  try { if (demo) { me.coins -= STAKE; const u = Math.random(); r = { id: "demo", k: .08, demoCrash: Math.max(1, Math.floor(97 / (1 - u)) / 100) }; } else { r = await api("crash/start", { stake: STAKE }); Object.assign(me, r); } }
   catch (e) { toast(e.message); PL.busy = false; paintPlay(); return; }
   PL.busy = false; PL.last = null; PL.cr = { id: r.id, k: r.k, t0: performance.now(), mult: 1, demoCrash: r.demoCrash }; paintPlay(); paintTop(); haptic("medium");
   $("plStage").innerHTML = `<div class="crashbox"><div id="crRocket">${ROCKET}</div><div class="bigval" id="crMult">×1,00</div></div>`; crashLoop(); crashPoll();
@@ -387,12 +405,12 @@ async function crashStart() {
 function crashLoop() { const c = PL.cr; if (!c) return; const t = (performance.now() - c.t0) / 1000; c.mult = Math.floor(Math.exp(c.k * t) * 100) / 100;
   if (c.demoCrash && c.mult >= c.demoCrash) return crashEnd({ crashed: true, crash: c.demoCrash });
   const m = $("crMult"), rk = $("crRocket"); if (m) m.textContent = "×" + c.mult.toFixed(2).replace(".", ","); if (rk) { const p = Math.min(1, Math.log(c.mult) / 2.5); rk.style.left = 12 + p * 66 + "%"; rk.style.bottom = 12 + p * 62 + "%"; rk.style.transform = `rotate(${30 + p * 15}deg)`; }
-  const go = $("plGo"); if (go && !PL.busy) go.textContent = `Забрать ${fmt(Math.floor(PL.stake * c.mult))} 🪙`; requestAnimationFrame(crashLoop); }
+  const go = $("plGo"); if (go && !PL.busy) go.textContent = `Забрать ${fmt(Math.floor(STAKE * c.mult))} 🪙`; requestAnimationFrame(crashLoop); }
 async function crashPoll() { while (PL.cr && !demo) { await new Promise((ok) => setTimeout(ok, 450)); if (!PL.cr) return; try { const r = await api("crash/tick", { id: PL.cr.id }); if (r.crashed) return crashEnd(r); } catch (e) {} } }
 function crashEnd(r) { const id = PL.cr && PL.cr.id; PL.cr = null; if (!demo) Object.assign(me, r); PL.last = { crashed: true, crash: r.crash, win: 0 }; haptic("heavy"); paintPlay(); paintTop(); }
 async function crashCash() {
   const c = PL.cr; if (!c || PL.busy) return; PL.busy = true; let r;
-  try { if (demo) { if (c.mult >= c.demoCrash) { PL.busy = false; return crashEnd({ crash: c.demoCrash }); } const w = Math.floor(PL.stake * c.mult); me.coins += w; r = { win: w, mult: c.mult }; } else r = await api("crash/cash", { id: c.id }); }
+  try { if (demo) { if (c.mult >= c.demoCrash) { PL.busy = false; return crashEnd({ crash: c.demoCrash }); } const w = Math.floor(STAKE * c.mult); me.coins += w; r = { win: w, mult: c.mult }; } else r = await api("crash/cash", { id: c.id }); }
   catch (e) { toast(e.message); PL.busy = false; return; }
   PL.busy = false;
   if (r.crashed) return crashEnd(r);
@@ -433,7 +451,7 @@ $("shop").addEventListener("click", async (e) => {
 
 // ---------- колесо 50/50 (только монеты) ----------
 const DEMO_WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
-let wAngle = 0, spinning = false, stake = 50;
+let wAngle = 0, spinning = false;
 const wLabels = () => (me.wheel && me.wheel.length && typeof me.wheel[0] === "string") ? me.wheel : DEMO_WHEEL;
 const stakesList = () => me.stakes || [50, 100, 250, 500];
 function drawWheel() {
@@ -445,19 +463,18 @@ function drawWheel() {
     g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = win ? "#fff" : "#9aa1c8"; g.font = "900 54px Unbounded, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.translate(R - 80, 0); g.rotate(Math.PI / 2); g.fillText(L[i], 0, 0); g.restore(); }
   g.fillStyle = "#ffd36e"; g.beginPath(); g.arc(0, 0, 46, 0, 6.28); g.fill(); g.fillStyle = "#181c2e"; starPath(g, 0, 0, 26); g.fill();
 }
-function paintWheel() {
-  if (!stakesList().includes(stake)) stake = stakesList()[0];
-  $("stakes").innerHTML = stakesList().map((v) => `<button data-s="${v}" class="${v === stake ? "on" : ""}" ${me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
-  const b = $("bSpin"); b.textContent = me.coins >= stake ? `Крутить на ${stake} монет` : `Нужно ${stake} монет`; b.disabled = spinning || me.coins < stake;
+function paintWheel(keepInput) {
+  if (!keepInput) $("stakes").innerHTML = stakeBox("wIn", spinning);
+  const b = $("bSpin"); b.textContent = me.coins >= STAKE ? `Крутить на ${STAKE} монет` : `Нужно ${STAKE} монет`; b.disabled = spinning || me.coins < STAKE;
   $("bFree").hidden = !me.freeSpin; $("bFree").disabled = spinning;
 }
-$("stakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (!v || spinning) return; stake = v; paintWheel(); haptic("light"); });
+bindStake($("stakes"), paintWheel);
 async function spin(free) {
   if (spinning) return; spinning = true; paintWheel(); $("wRes").textContent = ""; haptic("medium"); let res;
   try {
-    if (demo) { const win = Math.random() < .5, idx = DEMO_WHEEL.map((x, i) => i).filter((i) => (DEMO_WHEEL[i] === "×2") === win), st = free ? 50 : stake;
+    if (demo) { const win = Math.random() < .5, idx = DEMO_WHEEL.map((x, i) => i).filter((i) => (DEMO_WHEEL[i] === "×2") === win), st = free ? 50 : STAKE;
       const delta = free ? (win ? st : 0) : (win ? st : -st); res = { win, delta, index: idx[Math.floor(Math.random() * idx.length)] }; me.coins += delta; if (free) me.freeSpin = false; }
-    else res = await api("spin", free ? {} : { stake, paid: 1 });
+    else res = await api("spin", free ? {} : { stake: STAKE, paid: 1 });
   } catch (e) { toast(e.message); spinning = false; paintWheel(); return; }
   const n = wLabels().length, seg = 360 / n; wAngle = wAngle - (wAngle % 360) + 360 * 5 + ((360 - res.index * seg) % 360) + (Math.random() - .5) * seg * .6; $("wc").style.transform = `rotate(${wAngle}deg)`;
   setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintTop(); haptic(res.win ? "heavy" : "light");
