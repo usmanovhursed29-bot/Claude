@@ -126,8 +126,9 @@ db.prepare("UPDATE players SET luck = NULL WHERE id = 7").run();
   r = await call("race/finish", { runId: rid, score: 9999 }, t0 + 10000); assert.equal(r.j.score, 90); assert.equal(r.j.raceBest, 90); assert.equal(coins(), c0, "за Ракету SC не дают");
   assert.equal((await call("race/finish", { runId: rid, score: 5 }, t0 + 11000)).status, 400);
   await call("race/start", {}, t0); await call("race/start", {}, t0); assert.equal((await call("race/start", {}, t0)).status, 403);
-  r = await call("buy", { item: "runs10" }); assert.equal(r.j.link, "https://t.me/$inv");
-  await onUpdate({ message: { chat: { id: 7 }, from: { id: 7, first_name: "U7" }, successful_payment: { telegram_payment_charge_id: "chR", invoice_payload: "runs10:7", total_amount: 10, currency: "XTR" } } }, env);
+  r = await call("buy", { item: "runs10" }); assert.equal(r.j.link, "https://t.me/$inv"); assert.equal(sent.filter((x) => x.m === "createInvoiceLink").at(-1).b.prices[0].amount, 100, "10 ⭐ за полёт");
+  await call("buy", { item: "runs1" }); assert.equal(sent.filter((x) => x.m === "createInvoiceLink").at(-1).b.prices[0].amount, 10);
+  await onUpdate({ message: { chat: { id: 7 }, from: { id: 7, first_name: "U7" }, successful_payment: { telegram_payment_charge_id: "chR", invoice_payload: "runs10:7", total_amount: 100, currency: "XTR" } } }, env);
   r = await call("me", {}, t0); assert.equal(r.j.runs, 10); assert.equal(coins(), c0, "звёзды не дают SC");
   r = await call("race/top", {}, t0); assert.equal(r.j.top[0].score, 90); }
 

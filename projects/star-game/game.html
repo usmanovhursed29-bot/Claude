@@ -573,7 +573,7 @@ const SHOP_DEF = [{ id: "theme_neon", title: "Поле «Неон»", stars: 25,
 function openShop() { $("shop").hidden = false; renderShop(); }
 const themePic = (t) => { const [b, c] = THEME_C[t] || THEME_C.classic; return `<svg viewBox="0 0 60 60"><rect width="60" height="60" rx="10" fill="${b}"/>${[0, 1, 2].map((y) => [0, 1, 2].map((x) => `<rect x="${5 + x * 17.5}" y="${5 + y * 17.5}" width="15" height="15" rx="4" fill="${(x + y) % 3 === 1 ? "#4fb6ec" : c}"/>`).join("")).join("")}</svg>`; };
 function renderShop() {
-  const items = [{ id: "runs10", title: "+10 полётов «Ракеты»", stars: 10, runs: 10 }, { id: "runs50", title: "+50 полётов «Ракеты»", stars: 40, runs: 50 }, { id: "classic", title: "Поле «Классика»", stars: 0, theme: "classic" }, ...(me.shop && me.shop.length ? me.shop : SHOP_DEF).filter((x) => x.theme), ...(me.coinShop && me.coinShop.length ? me.coinShop : [{ id: "theme_lucky", title: "Поле «Удача»", coins: 2000, theme: "lucky" }])];
+  const items = [{ id: "runs1", title: "+1 полёт «Ракеты»", stars: 10, runs: 1 }, { id: "runs10", title: "+10 полётов «Ракеты»", stars: 100, runs: 10 }, { id: "runs50", title: "+50 полётов «Ракеты»", stars: 500, runs: 50 }, { id: "classic", title: "Поле «Классика»", stars: 0, theme: "classic" }, ...(me.shop && me.shop.length ? me.shop : SHOP_DEF).filter((x) => x.theme), ...(me.coinShop && me.coinShop.length ? me.coinShop : [{ id: "theme_lucky", title: "Поле «Удача»", coins: 2000, theme: "lucky" }])];
   const own = (t) => (me.themes || ["classic"]).includes(t);
   $("shopList").innerHTML = items.map((it) => {
     let btn;

@@ -17,8 +17,9 @@ export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
 const THEMES = ["classic", "neon", "gold", "cosmos", "lucky"];
 const FREE_RUNS = 3;               // бесплатных полётов «Ракеты» в день (игра на ловкость)
 const SHOP = {                     // за звёзды — оформление и полёты «Ракеты» (полёты не дают SC)
-  runs10: { title: "+10 полётов «Ракеты»", stars: 10, runs: 10 },
-  runs50: { title: "+50 полётов «Ракеты»", stars: 40, runs: 50 },
+  runs1: { title: "+1 полёт «Ракеты»", stars: 10, runs: 1 },     // 10 ⭐ за полёт
+  runs10: { title: "+10 полётов «Ракеты»", stars: 100, runs: 10 },
+  runs50: { title: "+50 полётов «Ракеты»", stars: 500, runs: 50 },
   theme_neon: { title: "Поле «Неон»", stars: 25, theme: "neon" },
   theme_cosmos: { title: "Поле «Космос»", stars: 35, theme: "cosmos" },
   theme_gold: { title: "Поле «Золото»", stars: 50, theme: "gold" },
