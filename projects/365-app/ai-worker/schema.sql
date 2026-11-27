@@ -106,3 +106,5 @@ CREATE TABLE IF NOT EXISTS habit_rem (id INTEGER PRIMARY KEY AUTOINCREMENT, user
 CREATE INDEX IF NOT EXISTS idx_habit_rem_user ON habit_rem(user_id);
 -- Приглашения: кто кого привёл (один раз на нового пользователя).
 CREATE TABLE IF NOT EXISTS referrals (user_id INTEGER PRIMARY KEY, inviter INTEGER NOT NULL, ts INTEGER NOT NULL);
+-- Уведомления о намазе (/namaz): город, что уже отправлено сегодня.
+CREATE TABLE IF NOT EXISTS namaz (user_id INTEGER PRIMARY KEY, on_ INTEGER NOT NULL DEFAULT 1, city TEXT NOT NULL DEFAULT 'odintsovo', sent TEXT, count INTEGER NOT NULL DEFAULT 0);

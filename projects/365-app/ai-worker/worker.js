@@ -9,6 +9,7 @@ import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, l
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
 import { analyzeFood, foodCmd, foodText } from "./food.js";
 import { waterCommand, waterCallback, sendWater, waterAdd } from "./water.js";
+import { namazCommand, namazCallback, sendNamaz } from "./namaz.js";
 import { planText, sendMorning, prefs, setPrefs, parseHabit, habitAdd, habitList, sendHabits, habitCallback, onboardStart, onboardCallback, applyReferral, REF_DAYS } from "./daily.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
@@ -190,7 +191,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), sendMorning(env, (m, p) => telegram(env, m, p)), sendHabits(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), sendMorning(env, (m, p) => telegram(env, m, p)), sendHabits(env, (m, p) => telegram(env, m, p)), sendNamaz(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -358,6 +359,7 @@ async function handleCallback(q, env) {
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
   if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
+  if (data.startsWith("nz:") && env.DB) return namazCallback(env, (m, p) => telegram(env, m, p), q);
   if (data.startsWith("hb:") && env.DB) return habitCallback(env, (m, p) => telegram(env, m, p), q);
   if (data.startsWith("ob:") && env.DB) return onboardCallback(env, (m, p) => telegram(env, m, p), q, env.APP_URL);
   if (data.startsWith("pl:") && env.DB) {
@@ -483,7 +485,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v8";
+  const flag = "webhook-updates-v9";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -496,6 +498,7 @@ async function ensureWebhookOnce(env) {
     { command: "water", description: "💧 Напоминания пить воду" },
     { command: "plan", description: "☀️ План дня и утренняя рассылка" },
     { command: "habit", description: "⏰ Напоминания привычек" },
+    { command: "namaz", description: "🕌 Время намаза и уведомления" },
     { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
     { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
@@ -562,6 +565,7 @@ async function handleMessage(message, env) {
     return telegram(env, "sendMessage", { chat_id: chatId, text: `🎁 Пригласи друга — вы оба получите ${REF_DAYS} дней Kwantoww Plus (безлимитный ИИ и бонусы).\n\nТвоя ссылка:\n${link}\n\nУже пришло по ссылке: ${n}`,
       reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
   }
+  if ((text.startsWith("/namaz") || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
   if ((text.startsWith("/plan") || text === "☀️ План дня") && env.DB) {
     const l = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first())?.tz || "Europe/Moscow");
     const d = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;
