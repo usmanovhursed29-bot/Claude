@@ -272,6 +272,21 @@ export async function luckCommand(env, m) {
   return say(`🍀 ${p.name}: везение ${n}% (во всех играх).`);
 }
 
+// /coins @ник 1000 (или me, или Telegram ID) — админ начисляет игровые монеты; минус — списать.
+export async function coinsCommand(env, m) {
+  const say = (text) => tg(env, "sendMessage", { chat_id: m.chat.id, text });
+  if (!isAdmin(env, m.from.id)) return say("Эта команда только для администратора.");
+  const [, who, val] = m.text.trim().split(/\s+/), n = Math.round(Number(val));
+  if (!who || !Number.isFinite(n) || n === 0 || Math.abs(n) > 1000000) return say("Пример: /coins me 1000 · /coins @ник 500 · /coins @ник -200");
+  const p = who === "me" ? await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(m.from.id).first()
+    : /^\d+$/.test(who) ? await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(Number(who)).first()
+    : await env.DB.prepare("SELECT id, name FROM players WHERE username = ?").bind(who.replace(/^@/, "").toLowerCase()).first();
+  if (!p) return say("Игрок не найден. Он должен хотя бы раз открыть игру.");
+  await env.DB.prepare("UPDATE players SET coins = MAX(0, coins + ?) WHERE id = ?").bind(n, p.id).run();
+  const q = await env.DB.prepare("SELECT coins FROM players WHERE id = ?").bind(p.id).first();
+  return say(`🪙 ${p.name}: ${n > 0 ? "+" : ""}${n} монет. Баланс: ${q.coins}.`);
+}
+
 async function onUpdate(up, env) {
   if (up.pre_checkout_query) {
     const q = up.pre_checkout_query, [item, uid] = String(q.invoice_payload || "").split(":"), it = SHOP[item];
@@ -291,6 +306,7 @@ async function onUpdate(up, env) {
     return tg(env, "sendMessage", { chat_id: m.chat.id, text: `⭐ Спасибо! ${it.title} уже в игре.` });
   }
   if (m.text?.startsWith("/luck")) return luckCommand(env, m);
+  if (m.text?.startsWith("/coins")) return coinsCommand(env, m);
   if (m.text?.startsWith("/paysupport")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Вопросы по оплате звёздами: напишите сюда, что купили и когда. Ответим в течение дня." });
   if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Играем только на игровые монеты: их дают каждый день, купить или вывести их нельзя. Звёзды тратятся только на оформление." });
   return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — Мины, Ракетка, Монетка, Кубик, Сундуки и колесо 50/50 на игровые монеты.\n\n500 монет на старт и 100 каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });

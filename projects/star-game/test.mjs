@@ -69,6 +69,9 @@ r = await call("mines/start", { stake: 100, mines: 24 }, t0, 8); r = await call(
 assert.equal(r.j.win, Math.floor(100 * 24.25), "с везением 100% единственная безопасная клетка находится сразу");
 assert.match(await say(7, "/luck"), /U8 @friend \(8\) — 100%/);
 assert.match(await say(7, "/luck @friend reset"), /50%/);
+assert.match(await say(9, "/coins me 1000"), /только для администратора/);
+const cf = coins(8); assert.match(await say(7, "/coins @friend 1000"), /\+1000 монет/); assert.equal(coins(8), cf + 1000);
+assert.match(await say(7, "/coins @friend -99999999"), /Пример/); assert.match(await say(7, "/coins @friend -500"), /-500/); assert.equal(coins(8), cf + 500);
 
 // магазин: звёзды только за оформление, монеты — за «Удачу»
 r = await call("buy", { item: "theme_neon" }); assert.equal(r.j.link, "https://t.me/$inv");
