@@ -1,6 +1,6 @@
 // «StarRace» — мини-игры в Telegram: «Мины», колесо 50/50, SC, кубик, сундуки, «Ракетка». Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
 // Играют только на SC: их дают каждый день, их нельзя купить за звёзды и нельзя вывести.
-// Звёзды (XTR) покупают только оформление (темы поля). Поэтому ставок на деньги в игре нет.
+// Звёзды (XTR) покупают оформление и полёты «Ракеты» (игра на ловкость, без SC). Поэтому ставок на деньги в игре нет.
 // Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY).
 import GAME from "./game.html";
 const GAME_ETAG = `"${GAME.length.toString(36)}-${[...GAME].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7).toString(36)}"`;
@@ -15,7 +15,10 @@ export const okMines = (m) => Number.isInteger(m) && m >= MIN_MINES && m <= MAX_
 const EDGE = 0.97;                 // множитель «Мин» = 0.97 × честный шанс
 export const WHEEL = ["×2", "0", "×2", "0", "×2", "0", "×2", "0"];
 const THEMES = ["classic", "neon", "gold", "cosmos", "lucky"];
-const SHOP = {                     // за звёзды — только внешний вид
+const FREE_RUNS = 3;               // бесплатных полётов «Ракеты» в день (игра на ловкость)
+const SHOP = {                     // за звёзды — оформление и полёты «Ракеты» (полёты не дают SC)
+  runs10: { title: "+10 полётов «Ракеты»", stars: 10, runs: 10 },
+  runs50: { title: "+50 полётов «Ракеты»", stars: 40, runs: 50 },
   theme_neon: { title: "Поле «Неон»", stars: 25, theme: "neon" },
   theme_cosmos: { title: "Поле «Космос»", stars: 35, theme: "cosmos" },
   theme_gold: { title: "Поле «Золото»", stars: 50, theme: "gold" },
@@ -59,6 +62,8 @@ async function player(env, u, now = Date.now()) {
   const patch = {};
   if (p.name !== name) patch.name = name;
   if (uname && p.username !== uname) patch.username = uname;
+  if (p.free_day !== day(now)) { patch.free_day = day(now); patch.free_used = 0; }
+  if (p.race_week !== week(now)) { patch.race_week = week(now); patch.race_wbest = 0; }
   if (p.coin_day !== day(now)) { patch.coin_day = day(now); patch.coins = (p.coins || 0) + DAILY_COINS; patch.free_spin = 1; }
   if (p.week !== week(now)) { patch.week = week(now); patch.week_best = 0; }
   if (Object.keys(patch).length) {
@@ -69,7 +74,8 @@ async function player(env, u, now = Date.now()) {
   return p;
 }
 const themesOf = (p) => { try { const t = JSON.parse(p.skins || "[]").filter((x) => THEMES.includes(x)); return t.includes("classic") ? t : ["classic", ...t]; } catch { return ["classic"]; } };
-const view = (p) => ({ id: p.id, name: p.name, username: p.username, played: p.played || 0, wins: p.wins || 0, since: p.created, coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
+const runsLeft = (p) => Math.max(0, FREE_RUNS - (p.free_used || 0)) + (p.runs_extra || 0);
+const view = (p) => ({ runs: runsLeft(p), freeRuns: FREE_RUNS, raceBest: p.race_best || 0, raceWeek: p.race_wbest || 0, id: p.id, name: p.name, username: p.username, played: p.played || 0, wins: p.wins || 0, since: p.created, coins: p.coins || 0, best: p.best || 0, weekBest: p.week_best || 0, freeSpin: !!p.free_spin, daily: !!p.daily, dailyCoins: DAILY_COINS,
   themes: themesOf(p), theme: THEMES.includes(p.skin) ? p.skin : "classic", stakes: STAKES, minStake: MIN_STAKE, minMines: MIN_MINES, maxMines: MAX_MINES, wheel: WHEEL,
   shop: Object.entries(SHOP).map(([id, s]) => ({ id, ...s })), coinShop: Object.entries(COIN_SHOP).map(([id, c]) => ({ id, ...c })) });
 const fresh = async (env, id) => view(await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(id).first());
@@ -231,6 +237,31 @@ async function apiRoute(path, body, env, now = Date.now()) {
     return json(200, { ...(await fresh(env, u.id)), win, mult: cur, crash: g.crash });
   }
 
+  // ---- «Ракета» — игра на ловкость: полёты (3 в день бесплатно или за звёзды), очки и рейтинг; SC не начисляются ----
+  if (path === "race/start") {
+    if (runsLeft(p) <= 0) return json(403, { error: "Полёты закончились: купите в магазине за звёзды или приходите завтра" });
+    const free = (p.free_used || 0) < FREE_RUNS, id = crypto.randomUUID();
+    await env.DB.batch([
+      env.DB.prepare(free ? "UPDATE players SET free_used = free_used + 1 WHERE id = ?" : "UPDATE players SET runs_extra = runs_extra - 1 WHERE id = ?").bind(u.id),
+      env.DB.prepare("INSERT INTO runs (id, user_id, started, done) VALUES (?, ?, ?, 0)").bind(id, u.id, now),
+    ]);
+    return json(200, { ...(await fresh(env, u.id)), runId: id });
+  }
+  if (path === "race/finish") {
+    const r = await env.DB.prepare("SELECT * FROM runs WHERE id = ? AND user_id = ?").bind(String(body.runId || ""), u.id).first();
+    if (!r || r.done) return json(400, { error: "Полёт не найден" });
+    const score = Math.max(0, Math.min(Math.floor(Number(body.score) || 0), Math.floor((now - r.started) / 1000 * 8) + 10)); // защита от накрутки
+    await env.DB.batch([
+      env.DB.prepare("UPDATE runs SET done = 1, score = ? WHERE id = ?").bind(score, r.id),
+      env.DB.prepare("UPDATE players SET race_best = MAX(race_best, ?), race_wbest = MAX(race_wbest, ?) WHERE id = ?").bind(score, score, u.id),
+    ]);
+    return json(200, { ...(await fresh(env, u.id)), score, record: score > (p.race_best || 0) });
+  }
+  if (path === "race/top") {
+    const rows = (await env.DB.prepare("SELECT id, name, race_wbest FROM players WHERE race_week = ? AND race_wbest > 0 ORDER BY race_wbest DESC LIMIT 30").bind(week(now)).all()).results || [];
+    return json(200, { top: rows.map((r) => ({ name: r.name, score: r.race_wbest, me: r.id === u.id })) });
+  }
+
   if (path === "theme") {
     const t = String(body.theme || "");
     if (!themesOf(p).includes(t)) return json(403, { error: "Это оформление ещё не открыто" });
@@ -248,8 +279,8 @@ async function apiRoute(path, body, env, now = Date.now()) {
   if (path === "buy") {
     const it = SHOP[body.item];
     if (!it) return json(400, { error: "Нет такого товара" });
-    if (themesOf(p).includes(it.theme)) return json(400, { error: "Уже ваше" });
-    const r = await tg(env, "createInvoiceLink", { title: it.title, description: "Оформление игрового поля в StarRace. На выигрыш не влияет.", payload: `${body.item}:${u.id}`, currency: "XTR", prices: [{ label: it.title, amount: it.stars }] });
+    if (it.theme && themesOf(p).includes(it.theme)) return json(400, { error: "Уже ваше" });
+    const r = await tg(env, "createInvoiceLink", { title: it.title, description: it.runs ? "Полёты для игры на ловкость «Ракета» в StarRace." : "Оформление игрового поля в StarRace. На выигрыш не влияет.", payload: `${body.item}:${u.id}`, currency: "XTR", prices: [{ label: it.title, amount: it.stars }] });
     return r.ok ? json(200, { link: r.result }) : json(502, { error: "Оплата временно недоступна" });
   }
   if (path === "top") {
@@ -315,8 +346,8 @@ async function onUpdate(up, env) {
     const ins = await env.DB.prepare("INSERT OR IGNORE INTO payments (charge_id, user_id, item, stars, ts) VALUES (?, ?, ?, ?, ?)").bind(sp.telegram_payment_charge_id, m.from.id, item, sp.total_amount, Date.now()).run();
     if (!ins.meta?.changes) return;
     const p = await player(env, m.from);
-    const t = themesOf(p); if (!t.includes(it.theme)) t.push(it.theme);
-    await env.DB.prepare("UPDATE players SET skins = ?, skin = ? WHERE id = ?").bind(JSON.stringify(t), it.theme, m.from.id).run();
+    if (it.runs) await env.DB.prepare("UPDATE players SET runs_extra = runs_extra + ? WHERE id = ?").bind(it.runs, m.from.id).run();
+    else { const t = themesOf(p); if (!t.includes(it.theme)) t.push(it.theme); await env.DB.prepare("UPDATE players SET skins = ?, skin = ? WHERE id = ?").bind(JSON.stringify(t), it.theme, m.from.id).run(); }
     return tg(env, "sendMessage", { chat_id: m.chat.id, text: `⭐ Спасибо! ${it.title} уже в игре.` });
   }
   if (m.text?.startsWith("/luck")) return luckCommand(env, m);

@@ -120,6 +120,17 @@ r = await call("crash/start", { stake: 100 }, t0); const cid2 = r.j.id;
 r = await call("crash/cash", { id: cid2 }, t0 + 60000); assert.equal(r.j.crashed, true); assert.equal(r.j.status, "lost");
 db.prepare("UPDATE players SET luck = NULL WHERE id = 7").run();
 
+// «Ракета»: 3 бесплатных полёта в день, очки ограничены временем, SC не меняются; полёты покупаются звёздами
+{ const c0 = coins(); r = await call("me", {}, t0); assert.equal(r.j.runs, 3);
+  r = await call("race/start", {}, t0); const rid = r.j.runId; assert.equal(r.j.runs, 2);
+  r = await call("race/finish", { runId: rid, score: 9999 }, t0 + 10000); assert.equal(r.j.score, 90); assert.equal(r.j.raceBest, 90); assert.equal(coins(), c0, "за Ракету SC не дают");
+  assert.equal((await call("race/finish", { runId: rid, score: 5 }, t0 + 11000)).status, 400);
+  await call("race/start", {}, t0); await call("race/start", {}, t0); assert.equal((await call("race/start", {}, t0)).status, 403);
+  r = await call("buy", { item: "runs10" }); assert.equal(r.j.link, "https://t.me/$inv");
+  await onUpdate({ message: { chat: { id: 7 }, from: { id: 7, first_name: "U7" }, successful_payment: { telegram_payment_charge_id: "chR", invoice_payload: "runs10:7", total_amount: 10, currency: "XTR" } } }, env);
+  r = await call("me", {}, t0); assert.equal(r.j.runs, 10); assert.equal(coins(), c0, "звёзды не дают SC");
+  r = await call("race/top", {}, t0); assert.equal(r.j.top[0].score, 90); }
+
 // профиль: игры и победы считаются
 r = await call("me"); assert.ok(r.j.played >= 5); assert.ok(r.j.wins >= 1 && r.j.wins <= r.j.played); assert.equal(r.j.id, 7); assert.equal(r.j.name, "U7");
 
