@@ -36,7 +36,12 @@ head=f'''<!doctype html>
 TG=open(os.path.join(here,"tg.js"),encoding="utf-8").read()
 tail=f'''
 <script>
-{TG}if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{{updateViaCache:"none"}}).then(r=>r.update()).catch(()=>{{}}));</script>
+{TG}(()=>{{try{{const k=localStorage.getItem("kw_key");if(!k)return;const b=location.origin+location.pathname.replace(/[^/]*$/,"");
+const m={{name:"Kwantoww",short_name:"Kwantoww",lang:"ru",start_url:b+"?key="+k,scope:b,display:"standalone",background_color:"#f6f5f2",theme_color:"#f6f5f2",
+icons:[{{src:b+"icon-192.png",sizes:"192x192",type:"image/png"}},{{src:b+"icon-512.png",sizes:"512x512",type:"image/png"}},{{src:b+"icon-maskable-512.png",sizes:"512x512",type:"image/png",purpose:"maskable"}}]}};
+const l=document.querySelector('link[rel="manifest"]');if(l)l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{{type:"application/manifest+json"}}));
+if(!new URLSearchParams(location.search).get("key"))history.replaceState(null,"",location.pathname+"?key="+k+location.hash)}}catch(e){{}}}})();
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{{updateViaCache:"none"}}).then(r=>r.update()).catch(()=>{{}}));</script>
 </body>
 </html>
 '''

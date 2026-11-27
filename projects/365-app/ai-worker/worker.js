@@ -89,7 +89,7 @@ export default {
     } catch {
       return reply(400, { error: "Неверный запрос" });
     }
-    const user = await telegramUser(body.initData, env.BOT_TOKEN);
+    const user = await authUser(body.initData, env);
     if (!user) return reply(401, { error: "Советы работают только внутри Telegram-бота" });
 
     // Записи, которые человек отправил боту в чате: приложение забирает их и записывает у себя.
@@ -370,6 +370,7 @@ async function handleCallback(q, env) {
     await answer("Готово");
     return edit(await planSettingsText(env, userId), await planKb(env, userId));
   }
+  if (data === "ak:reset" && env.LIMITS) { await answer("Готово"); return sendAppLink(env, q.message.chat.id, q.from, true); }
   if (data.startsWith("wt:")) { if (!env.DB) return answer(); return waterCallback(env, (m, p) => telegram(env, m, p), q); }
   if (data.startsWith("jr:")) {
     if (!isOwner(env, userId) || !env.DB) return answer();
@@ -492,6 +493,8 @@ async function sendNewsOnce(env) {
   await env.LIMITS.put(NEWS_FLAG, "1");
   const rows = (await env.DB.prepare("SELECT id FROM users WHERE COALESCE(blocked, 0) = 0 LIMIT 5000").all()).results || [];
   const text = ["🆕 Что нового в Kwantoww:", "", "♾ Вопросы ИИ — теперь без ограничений, бесплатно",
+    "📱 Kwantoww иконкой на телефоне, без захода в Telegram — /app",
+    "",
     "🍳 Рецепты с фото, рационы на 2000–3000 ккал и список покупок",
     "🕌 Время намаза с уведомлением и аятом или хадисом", "💧 Напоминания пить воду", "☀️ План дня по утрам и ⏰ напоминания привычек",
     "", "👇 Всё это теперь кнопками внизу чата. Полный список — «❓ Все команды»."].join("\n");
@@ -505,7 +508,7 @@ async function sendNewsOnce(env) {
   return n;
 }
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v13";
+  const flag = "webhook-updates-v14";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -518,6 +521,7 @@ async function ensureWebhookOnce(env) {
     { command: "water", description: "💧 Напоминания пить воду" },
     { command: "plan", description: "☀️ План дня и утренняя рассылка" },
     { command: "habit", description: "⏰ Напоминания привычек" },
+    { command: "app", description: "📱 Приложение на экран телефона" },
     { command: "recipes", description: "🍳 Рецепты, рационы и список покупок" },
     { command: "namaz", description: "🕌 Время намаза и уведомления" },
     { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
@@ -591,6 +595,7 @@ async function handleMessage(message, env) {
       reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
   }
   if ((text.startsWith("/namaz") || text === "🕌 Намаз" || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
+  if ((text.startsWith("/app") || text === "📱 Приложение") && env.LIMITS) return sendAppLink(env, chatId, message.from);
   if (text.startsWith("/recipes") || text === "🍳 Рецепты") {
     const u = new URL(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/"); u.searchParams.set("view", "recipes");
     return telegram(env, "sendMessage", { chat_id: chatId, text: "🍳 Рецепты: завтраки, обеды, ужины и перекусы с фото и КБЖУ.\n\nВо вкладке «Рационы» — готовые меню на 2000 / 2500 / 3000 ккал. Отметь 1–2 дня, и во вкладке «Покупки» будет список продуктов.",
@@ -919,6 +924,38 @@ async function webhookSecret(botToken) {
 }
 
 // Telegram Mini App auth: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+// Вход в приложение: внутри Telegram — подписанный initData, вне Telegram — личный ключ из /app ("key:<hex>").
+async function authUser(initData, env) {
+  if (typeof initData === "string" && initData.startsWith("key:")) {
+    const k = initData.slice(4);
+    if (!/^[a-f0-9]{32,64}$/.test(k) || !env.LIMITS) return null;
+    return JSON.parse((await env.LIMITS.get(`ak:${k}`)) || "null");
+  }
+  return telegramUser(initData, env.BOT_TOKEN);
+}
+async function appKey(env, from, reset = false) {
+  let k = reset ? null : await env.LIMITS.get(`aku:${from.id}`);
+  if (!k) {
+    const old = await env.LIMITS.get(`aku:${from.id}`);
+    if (old) await env.LIMITS.delete(`ak:${old}`);
+    k = [...crypto.getRandomValues(new Uint8Array(20))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    await env.LIMITS.put(`ak:${k}`, JSON.stringify({ id: from.id, first_name: from.first_name || "" }));
+    await env.LIMITS.put(`aku:${from.id}`, k);
+  }
+  return k;
+}
+async function sendAppLink(env, chatId, from, reset = false) {
+  const u = new URL(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/");
+  u.searchParams.set("key", await appKey(env, from, reset));
+  return telegram(env, "sendMessage", { chat_id: chatId, disable_web_page_preview: true,
+    text: [`📱 Kwantoww как отдельное приложение — без захода в Telegram${reset ? " (новая ссылка, старая больше не работает)" : ""}.`, "",
+      "1. Нажмите кнопку ниже — откроется в браузере.", "",
+      "iPhone (Safari): кнопка «Поделиться» ⬆️ → «На экран „Домой“» → «Добавить».",
+      "Android (Chrome): меню ⋮ → «Добавить на главный экран» или «Установить приложение».", "",
+      "Иконка Kwantoww появится на телефоне. Данные те же, что в боте: всё синхронизируется.", "",
+      "⚠️ Ссылка личная — не пересылайте её. Если отправили по ошибке, нажмите «Новая ссылка»."].join("\n"),
+    reply_markup: { inline_keyboard: [[{ text: "📱 Открыть в браузере", url: u.toString(), style: "primary" }], [{ text: "🔄 Новая ссылка (старая перестанет работать)", callback_data: "ak:reset" }]] } });
+}
 async function telegramUser(initData, botToken) {
   if (typeof initData !== "string" || !initData) return null;
   const params = new URLSearchParams(initData);

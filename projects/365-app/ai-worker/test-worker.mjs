@@ -461,3 +461,18 @@ console.log("Сервер: все проверки пройдены ✅\n\n" + l
   assert.equal(sent.slice(b2).filter((m) => /Что нового/.test(m.body?.text || "")).length, 0, "только один раз");
   console.log("ok news once", news.length);
 }
+
+// /app: личная ссылка для приложения вне Telegram, вход по ключу, сброс ключа
+{
+  const o = await say(77, "/app");
+  const url = o.find((m) => m.method === "sendMessage").body.reply_markup.inline_keyboard[0][0].url;
+  const key = new URL(url).searchParams.get("key");
+  assert.match(key, /^[a-f0-9]{40}$/);
+  const viaTg = (await app("/restore", { initData: initData(77) })).json.docs;
+  assert.deepEqual((await app("/restore", { initData: "key:" + key })).json.docs, viaTg, "по ключу — те же данные");
+  assert.equal((await app("/restore", { initData: "key:" + "0".repeat(40) })).status, 401, "чужой ключ не пускает");
+  assert.equal(new URL((await say(77, "/app")).find((m) => m.method === "sendMessage").body.reply_markup.inline_keyboard[0][0].url).searchParams.get("key"), key, "ссылка та же");
+  await tg({ callback_query: { id: "c1", data: "ak:reset", from: { id: 77, first_name: "U" }, message: { message_id: 1, chat: { id: 77 } } } });
+  assert.equal((await app("/restore", { initData: "key:" + key })).status, 401, "после сброса старый ключ не работает");
+  console.log("ok app key login");
+}

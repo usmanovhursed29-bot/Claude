@@ -666,7 +666,10 @@ function lsWrite(){try{const o={};KEYS.forEach(k=>o[k]=S[k]);localStorage.setIte
 /* ---------- облачная копия: данные идут за аккаунтом Telegram на любое устройство (сервер бота, /backup и /restore) ---------- */
 const cloud={at:{},dirty:new Set(),early:new Set(),t:null,ready:false};
 try{cloud.at=JSON.parse(localStorage.getItem("kwantoww:at")||"{}")||{}}catch{}
-const cloudOn=()=>!!(AI_URL&&window.Telegram?.WebApp?.initData);
+/* вход вне Telegram: личный ключ из ссылки /app в боте (?key=...), хранится на устройстве */
+const KW_KEY=(()=>{try{const k=new URLSearchParams(location.search).get("key");if(k&&/^[a-f0-9]{32,64}$/.test(k)){localStorage.setItem("kw_key",k);return k}return localStorage.getItem("kw_key")||""}catch{return""}})();
+function TGI(){return window.Telegram?.WebApp?.initData||(KW_KEY?"key:"+KW_KEY:"")}
+const cloudOn=()=>!!(AI_URL&&TGI());
 function cloudSaveAt(){try{localStorage.setItem("kwantoww:at",JSON.stringify(cloud.at))}catch{}}
 function cloudMark(key){
   if(!cloudOn())return;
@@ -678,14 +681,14 @@ function cloudPush(leaving){
   if(!cloudOn()||!cloud.dirty.size)return;
   const keys=[...cloud.dirty];cloud.dirty.clear();
   const docs={};keys.forEach(k=>docs[k]={at:cloud.at[k]||Date.now(),v:S[k]});
-  const body=JSON.stringify({initData:window.Telegram.WebApp.initData,docs});
+  const body=JSON.stringify({initData:TGI(),docs});
   fetch(AI_URL.replace(/\/$/,"")+"/backup",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:!!leaving&&body.length<60000,body})
     .then(r=>{if(!r.ok)throw 0}).catch(()=>{keys.forEach(k=>cloud.dirty.add(k))});
 }
 async function cloudRestore(){
   if(!cloudOn()){cloud.ready=true;return}
   try{
-    const r=await fetch(AI_URL.replace(/\/$/,"")+"/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:window.Telegram.WebApp.initData})});
+    const r=await fetch(AI_URL.replace(/\/$/,"")+"/restore",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:TGI()})});
     const docs=r.ok?((await r.json()).docs||{}):null;
     if(docs){
       const obj={};KEYS.forEach(k=>obj[k]=S[k]);let changed=false;
@@ -1675,7 +1678,7 @@ async function showAdvice(sec){
   const out=$("#adviceText");
   try{
     const r=await fetch(AI_URL.replace(/\/$/,"")+"/advice",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({section:sec,context:contextText(only),initData:window.Telegram?.WebApp?.initData||""})});
+      body:JSON.stringify({section:sec,context:contextText(only),initData:TGI()})});
     const j=await r.json().catch(()=>({}));
     out.textContent=r.ok?j.text:(j.error||"Не получилось получить совет. Попробуйте позже");
   }catch(e){out.textContent="Нет связи с сервером советов. Проверьте интернет"}
@@ -1701,7 +1704,7 @@ async function sendAsk(form){
   const hist=ui.askHist;const item={q,a:null};hist.push(item);if(hist.length>6)hist.shift();$("#askLog").innerHTML=askLog();
   try{
     const r=await fetch(AI_URL.replace(/\/$/,"")+"/ask",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({question:q,context:contextText(null),history:hist.filter(h=>h!==item&&h.a).slice(-3),initData:window.Telegram?.WebApp?.initData||""})});
+      body:JSON.stringify({question:q,context:contextText(null),history:hist.filter(h=>h!==item&&h.a).slice(-3),initData:TGI()})});
     const j=await r.json().catch(()=>({}));
     item.a=r.ok?j.text:(j.error||"Не получилось получить ответ. Попробуйте позже");
   }catch(e){item.a="Нет связи с сервером. Проверьте интернет"}
@@ -2012,14 +2015,14 @@ function daysPayload(){
 }
 /* keep a summary on the advice server so the Telegram chat assistant knows the user's day */
 function syncContext(){
-  const initData=window.Telegram?.WebApp?.initData;
+  const initData=TGI();
   if(!AI_URL||!initData)return;
   fetch(AI_URL.replace(/\/$/,"")+"/sync",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,body:JSON.stringify({context:contextText(null),initData,days:daysPayload(),goals:{water:S.settings.goals.water,steps:S.settings.goals.steps,sleep:S.settings.goals.sleep}})}).catch(()=>{});
 }
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")syncContext()});
 /* записи из чата с ботом («14 000 шагов», «выпил 200 мл воды»): забираем с сервера и записываем в тот день, когда человек их отправил */
 function pullInbox(){
-  const initData=window.Telegram?.WebApp?.initData;
+  const initData=TGI();
   if(!AI_URL||!initData)return;
   const base=AI_URL.replace(/\/$/,"");
   let seen=[];try{seen=JSON.parse(localStorage.getItem("kwantoww:inbox")||"[]")}catch{}
@@ -2038,8 +2041,8 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 document.addEventListener("change",async e=>{
   const t=e.target;if(t.id!=="foodCam"||!t.files||!t.files[0])return;
   const file=t.files[0];t.value="";
-  const initData=window.Telegram?.WebApp?.initData;
-  if(!AI_URL||!initData){toast("Фото еды работает внутри Telegram-бота Kwantoww");return}
+  const initData=TGI();
+  if(!AI_URL||!initData){toast("Фото еды: открой приложение по ссылке из бота (/app) или внутри Telegram");return}
   const btn=$("#foodCamBtn");if(btn)btn.classList.add("busy");toast("Смотрю, что на тарелке…");
   try{
     const bmp=await createImageBitmap(file);const k=Math.min(1,1024/Math.max(bmp.width,bmp.height));
@@ -2057,7 +2060,7 @@ document.addEventListener("change",async e=>{
 });
 /* ближайшие события календаря → сервер, чтобы бот напомнил о них в чате за 15 минут */
 function syncReminders(){
-  const initData=window.Telegram?.WebApp?.initData;
+  const initData=TGI();
   if(!AI_URL||!initData)return;
   const now=Date.now(),items=[];
   for(const e of S.events||[]){if(!e.date||!/^\d{2}:\d{2}$/.test(e.time||""))continue;const at=new Date(e.date+"T"+e.time+":00").getTime();if(at>now-3600000&&at<now+30*864e5)items.push({key:String(e.id),title:e.title||"Событие",at,time:e.time})}
@@ -2067,6 +2070,7 @@ function syncReminders(){
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")syncReminders()});
 setTimeout(syncReminders,2500);
 setTimeout(()=>cloudRestore().then(pullInbox),700);
+setTimeout(()=>{if(AI_URL&&!TGI()&&!sessionStorage.getItem("kwNoKey")){try{sessionStorage.setItem("kwNoKey","1")}catch{}toast("Чтобы здесь были данные из бота, открой приложение по ссылке: напиши боту /app")}},2500);
 setTimeout(syncContext,3000);
 boot();
 importCommand();
