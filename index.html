@@ -654,7 +654,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="47340009";
+const BUILD="8f2e73c1";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
@@ -759,7 +759,7 @@ function applyLoaded(obj){
 async function boot(){
   const local=lsRead();
   applyLoaded(local);
-  applyTheme();route();
+  applyTheme();{const qv=new URLSearchParams(location.search).get("view");if(qv&&VIEWS.some(x=>x[0]===qv))route(qv);else route()}
   setSync("load");
   let db=null,uid=null;
   try{
