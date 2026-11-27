@@ -440,3 +440,24 @@ console.log("Сервер: все проверки пройдены ✅\n\n" + l
   env.AI_LIMITS = saved;
   console.log("ok unlimited AI by default");
 }
+
+// защита от спама: при SPAM_CAP_PER_DAY=3 четвёртый вопрос получает вежливый отказ
+{
+  const saved = env.AI_LIMITS; delete env.AI_LIMITS; env.SPAM_CAP_PER_DAY = "3";
+  let last = [];
+  for (let i = 0; i < 4; i++) last = await say(889, `спам вопрос ${i} про сон?`);
+  assert.ok(last.some((m) => /очень много/.test(m.body?.text || "")), "кап от спама срабатывает");
+  env.AI_LIMITS = saved; delete env.SPAM_CAP_PER_DAY;
+  console.log("ok spam cap");
+}
+// разовая рассылка новостей: всем один раз, с кнопками
+{
+  const { default: w2 } = await import("./worker.js");
+  await w2.scheduled({}, env, { waitUntil: async (p) => p }); await new Promise((r) => setTimeout(r, 1500));
+  const news = sent.filter((m) => /Что нового в Kwantoww/.test(m.body?.text || ""));
+  assert.ok(news.length >= 1 && news[0].body.reply_markup.keyboard[0][0].text === "🍳 Рецепты");
+  const b2 = sent.length;
+  await w2.scheduled({}, env, { waitUntil: async (p) => p }); await new Promise((r) => setTimeout(r, 300));
+  assert.equal(sent.slice(b2).filter((m) => /Что нового/.test(m.body?.text || "")).length, 0, "только один раз");
+  console.log("ok news once", news.length);
+}

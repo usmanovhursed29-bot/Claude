@@ -192,7 +192,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), sendMorning(env, (m, p) => telegram(env, m, p)), sendHabits(env, (m, p) => telegram(env, m, p)), sendNamaz(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), sendMorning(env, (m, p) => telegram(env, m, p)), sendHabits(env, (m, p) => telegram(env, m, p)), sendNamaz(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), sendNewsOnce(env).catch(() => 0), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -485,6 +485,25 @@ async function ensureWebhookUpdates(env) {
   }
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
+// Разовая рассылка всем пользователям: что нового в боте (кнопки внизу появятся вместе с сообщением).
+const NEWS_FLAG = "news-2026-11-27";
+async function sendNewsOnce(env) {
+  if (!env.DB || (await env.LIMITS.get(NEWS_FLAG))) return 0;
+  await env.LIMITS.put(NEWS_FLAG, "1");
+  const rows = (await env.DB.prepare("SELECT id FROM users WHERE COALESCE(blocked, 0) = 0 LIMIT 5000").all()).results || [];
+  const text = ["🆕 Что нового в Kwantoww:", "", "♾ Вопросы ИИ — теперь без ограничений, бесплатно",
+    "🍳 Рецепты с фото, рационы на 2000–3000 ккал и список покупок",
+    "🕌 Время намаза с уведомлением и аятом или хадисом", "💧 Напоминания пить воду", "☀️ План дня по утрам и ⏰ напоминания привычек",
+    "", "👇 Всё это теперь кнопками внизу чата. Полный список — «❓ Все команды»."].join("\n");
+  let n = 0;
+  for (const r of rows) {
+    const res = await telegram(env, "sendMessage", { chat_id: r.id, text, reply_markup: MAIN_KB }).catch(() => null);
+    if (res && res.status === 403) await env.DB.prepare("UPDATE users SET blocked = 1 WHERE id = ?").bind(r.id).run();
+    else if (res?.ok) n++;
+    await new Promise((ok) => setTimeout(ok, 50));
+  }
+  return n;
+}
 async function ensureWebhookOnce(env) {
   const flag = "webhook-updates-v13";
   if (await env.LIMITS.get(flag)) return;
@@ -535,7 +554,7 @@ async function handleMessage(message, env) {
     // Голосовое: распознаём речь и дальше обрабатываем как обычный текст.
     const media = message.voice || message.audio;
     if ((media.duration || 0) > 120) return sendMessage(env, chatId, "Голосовое длиннее 2 минут, такие я не разбираю. Скажите короче, пожалуйста.");
-    if (!(await takeQuota(userId, env))) return sendMessage(env, chatId, `На сегодня запросы закончились (${env.DAILY_LIMIT} в день). Завтра продолжим`);
+    if (!(await takeQuota(userId, env))) return sendMessage(env, chatId, "Сегодня очень много сообщений. Продолжим завтра.");
     await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
     text = (await transcribe(env, media)) || "";
     await track(env, message.from, "voice");
@@ -682,7 +701,7 @@ async function handleMessage(message, env) {
   }
 
   const q = await takeAiQuota(userId, env);
-  if (!q.ok) return telegram(env, "sendMessage", { chat_id: chatId, text: q.plus ? "Сегодня вы задали очень много вопросов. Продолжим завтра." : limitText(env), reply_markup: q.plus ? undefined : plusButton });
+  if (!q.ok) return telegram(env, "sendMessage", { chat_id: chatId, text: q.plus || env.AI_LIMITS !== "on" ? "Сегодня вы задали очень много вопросов. Продолжим завтра." : limitText(env), reply_markup: q.plus || env.AI_LIMITS !== "on" ? undefined : plusButton });
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   const history = JSON.parse((await env.LIMITS.get(histKey)) || "[]");
   const context = await env.LIMITS.get(`ctx:${userId}`);
@@ -707,10 +726,20 @@ async function isPlus(env, userId) {
   return (u?.premium_until || 0) > Date.now();
 }
 // Вопросы ИИ (чат, «Спросить ИИ», советы): бесплатно 3 в день, с подпиской без ограничений.
-// Сейчас вопросы ИИ без ограничений для всех. Вернуть лимиты: переменная AI_LIMITS = "on".
+// Защита от спама: человек этого не заметит, а бот не упрётся в лимит Gemini из-за одного спамера.
+const SPAM_CAP = (env) => Number(env.SPAM_CAP_PER_DAY) || 200;
+async function spamOk(env, userId, kind) {
+  if (isAdmin(env, userId)) return true;
+  const key = `spam:${kind}:${userId}:${new Date().toISOString().slice(0, 10)}`;
+  const used = Number(await env.LIMITS.get(key)) || 0;
+  if (used >= SPAM_CAP(env)) return false;
+  await env.LIMITS.put(key, String(used + 1), { expirationTtl: DAY_TTL });
+  return true;
+}
+// Сейчас вопросы ИИ без ограничений для всех (кроме защиты от спама). Вернуть лимиты: переменная AI_LIMITS = "on".
 async function takeAiQuota(userId, env) {
   const plus = await isPlus(env, userId);
-  if (env.AI_LIMITS !== "on") return { ok: true, plus, left: null };
+  if (env.AI_LIMITS !== "on") return { ok: await spamOk(env, userId, "ai"), plus, left: null };
   const key = `ai:${userId}:${new Date().toISOString().slice(0, 10)}`;
   const used = Number(await env.LIMITS.get(key)) || 0;
   if (used >= (plus ? PLUS_AI(env) : FREE_AI(env))) return { ok: false, plus };
@@ -778,7 +807,7 @@ async function handlePayment(message, env) {
 }
 
 async function takeQuota(userId, env) {
-  if (env.AI_LIMITS !== "on") return true;
+  if (env.AI_LIMITS !== "on") return spamOk(env, userId, "msg");
   const key = `${userId}:${new Date().toISOString().slice(0, 10)}`;
   const used = Number(await env.LIMITS.get(key)) || 0;
   if (used >= Number(env.DAILY_LIMIT)) return false;
