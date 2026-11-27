@@ -181,6 +181,7 @@ svg.i.s{width:16px;height:16px}
 textarea.in{height:auto;padding:10px 12px;resize:vertical;line-height:22px}
 .in:focus{outline:none;box-shadow:inset 0 0 0 1.5px var(--accent)}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
+label.btn.busy{opacity:.6;pointer-events:none}
 .j-wrap{display:flex;flex-direction:column;gap:12px;max-width:760px}
 .card.j-date{display:flex;flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:6px 10px}
 .j-date .j-d{font-size:22px;font-weight:650;letter-spacing:-.01em}
@@ -560,6 +561,7 @@ button.gcard:active,a.gcard:active{transform:scale(.985)}
     <symbol id="i-food" viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10"/><path d="M17 21V3c-2 1-3 4-3 7s1 4 3 4"/></symbol>
     <symbol id="i-gym" viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></symbol>
     <symbol id="i-money" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11M9 8h6"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
     <symbol id="i-ai" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></symbol>
@@ -622,7 +624,7 @@ const ic=(id,cls="")=>`<svg class="i ${cls}" aria-hidden="true"><use href="#i-${
 
 /* ---------- state ---------- */
 const STANDALONE=true; /* true in the installable build */
-const BUILD="88db306d";
+const BUILD="5c790f1a";
 const AI_URL="https://kwantoww-ai.usmanovhursed747.workers.dev"; /* address of the advice server (ai-worker); empty = advice buttons hidden */
 const STEPS_SHORTCUT=""; /* iCloud link to a ready-made iPhone Shortcut that sends today's steps; empty = button hidden */
 window.addEventListener("error",e=>{const m=`${e.message||"ошибка"}${e.lineno?" · строка "+e.lineno:""}`;try{localStorage.setItem("kwantoww:lastError",new Date().toLocaleString("ru-RU")+" · "+m)}catch{}try{toast("Ошибка: "+m)}catch{}});
@@ -1277,7 +1279,7 @@ function foodView(){
     <div class="card" id="planBox">${planHtml()}</div>
   </div>
   <div class="grid g-main">
-    <div class="card"><div class="card-h"><h2>Съедено сегодня</h2><button class="btn sm pri" data-a="qs" data-v="meal">${ic("plus","s")}Приём пищи</button></div>
+    <div class="card"><div class="card-h"><h2>Съедено сегодня</h2><span class="row" style="gap:6px"><label class="btn sm pri" for="foodCam" id="foodCamBtn">${ic("cam","s")}Фото еды<input id="foodCam" type="file" accept="image/*" capture="environment" hidden></label><button class="btn sm" data-a="qs" data-v="meal">${ic("plus","s")}Вручную</button></span></div>
       ${bar("Калории",e.kcal,P?.kcal,"ккал")}
       <div class="grid g3" style="gap:12px">${bar("Белки",e.p,P?.prot,"г")}${bar("Жиры",e.f,P?.fat,"г")}${bar("Углеводы",e.c,P?.carb,"г")}</div>
       <div class="list">${M.map(m=>`<div class="li"><span class="t">${esc(m.name)}<br><span class="meta mono">Б ${fmt(m.p)} · Ж ${fmt(m.f)} · У ${fmt(m.c)}</span></span><span class="r">${fmt(m.kcal)} ккал</span><button class="btn sm ghost x ${ui.armed===m.id?"armed":""}" data-a="meal-del" data-id="${m.id}" aria-label="Удалить">${ui.armed===m.id?"Удалить?":ic("x","s")}</button></div>`).join("")||`<div class="empty">Пока ничего. Добавьте приём пищи${STANDALONE?"":" или напишите ассистенту, что вы съели"}</div>`}</div>
@@ -1828,6 +1830,10 @@ function runCommand(cmd,day,srcId){
     if(!e||!/^\d{4}-\d{2}-\d{2}$/.test(e.d)||!/^\d{2}:\d{2}$/.test(e.h))return null;
     const id=srcId?"c"+srcId:rid();if(S.events.some(x=>x.id===id))return null;
     S.events.push({id,title:String(e.t||"Событие").slice(0,120),date:e.d,time:e.h,dur:60,tag:"personal"});persist("events");return`Событие: ${e.t}, ${e.d.slice(8)}.${e.d.slice(5,7)} в ${e.h}`}
+  if(cmd.startsWith("food_")){/* блюдо с фото из чата: {n,g,k,p,f,c} */
+    let it;try{it=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(cmd.slice(5).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))))}catch{return null}
+    if(!it||!(+it.k>0))return null;const T=day||today();const id=srcId?"f"+srcId:rid();const L=S.food.meals[T]=S.food.meals[T]||[];if(L.some(m=>m.id===id))return null;
+    L.push({id,name:String(it.n||"Блюдо").slice(0,60)+(it.g?` ~${Math.round(it.g)} г`:""),kcal:Math.round(+it.k),p:Math.round(+it.p||0),f:Math.round(+it.f||0),c:Math.round(+it.c||0)});persist("food");return`Еда: ${it.n}, ${Math.round(+it.k)} ккал`}
   if(cmd.startsWith("journal_")){/* ответ на вопрос дневника из чата: {d:YYYY-MM-DD,k:поле,v:текст} */
     let j;try{j=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(cmd.slice(8).replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0))))}catch{return null}
     const keys=["highlight",...JQ.map(x=>x[0])];
@@ -1898,6 +1904,27 @@ function pullInbox(){
     }).catch(()=>{});
 }
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pullInbox()});
+/* фото еды: уменьшаем на телефоне, ИИ на сервере считает КБЖУ, блюда сразу в «Питание» */
+document.addEventListener("change",async e=>{
+  const t=e.target;if(t.id!=="foodCam"||!t.files||!t.files[0])return;
+  const file=t.files[0];t.value="";
+  const initData=window.Telegram?.WebApp?.initData;
+  if(!AI_URL||!initData){toast("Фото еды работает внутри Telegram-бота Kwantoww");return}
+  const btn=$("#foodCamBtn");if(btn)btn.classList.add("busy");toast("Смотрю, что на тарелке…");
+  try{
+    const bmp=await createImageBitmap(file);const k=Math.min(1,1024/Math.max(bmp.width,bmp.height));
+    const cv=document.createElement("canvas");cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
+    const image=cv.toDataURL("image/jpeg",.82).split(",")[1];
+    const r=await fetch(AI_URL.replace(/\/$/,"")+"/food-photo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData,image,mime:"image/jpeg"})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){toast(d.error||"Не получилось разобрать фото");return}
+    if(!d.food||!d.items?.length){toast("Не вижу еды на фото. Снимите тарелку сверху при хорошем свете");return}
+    const T=today();const L=S.food.meals[T]=S.food.meals[T]||[];let kc=0;
+    for(const it of d.items){L.push({id:rid(),name:it.n+(it.g?` ~${it.g} г`:""),kcal:it.k,p:it.p,f:it.f,c:it.c});kc+=it.k}
+    commit("food");toast(`Записал: ${d.items.map(i=>i.n).join(", ")} · ≈${fmt(kc)} ккал`);
+  }catch(err){toast("Не получилось открыть фото, попробуйте ещё раз")}
+  finally{const b=$("#foodCamBtn");if(b)b.classList.remove("busy")}
+});
 /* ближайшие события календаря → сервер, чтобы бот напомнил о них в чате за 15 минут */
 function syncReminders(){
   const initData=window.Telegram?.WebApp?.initData;
