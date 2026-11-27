@@ -63,6 +63,8 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
+    // Приложение «Команды» на iPhone присылает данные из «Здоровья» по личной ссылке /health?t=<код> (код выдаёт бот: /health).
+    if (path === "/health") return reply(...(await healthImport(env, request)));
     if (request.method !== "POST") return reply(404, { error: "Not found" });
 
     if (path === "/telegram") {
@@ -75,9 +77,6 @@ export default {
       else ctx.waitUntil(handleMessage(update.message, env));
       return new Response("ok");
     }
-
-    // Приложение «Команды» на iPhone присылает данные из «Здоровья» по личной ссылке /health?t=<код> (код выдаёт бот: /health).
-    if (path === "/health") return reply(...(await healthImport(env, request)));
 
     let body;
     try {
@@ -829,7 +828,8 @@ async function sendHealthLink(env, chatId, userId, renew) {
 export async function healthImport(env, request) {
   const url = new URL(request.url);
   let body = {};
-  try { body = await request.json(); } catch {}
+  if (request.method === "POST") { try { body = await request.json(); } catch {} }
+  for (const k of ["steps", "water", "sleep", "weight", "date", "quiet"]) if (body[k] == null && url.searchParams.has(k)) body[k] = url.searchParams.get(k);
   const t = String(url.searchParams.get("t") || body.t || "");
   const uid = t && env.LIMITS ? await env.LIMITS.get(`ht:${t}`) : null;
   if (!uid || !env.DB) return [401, { error: "Ссылка не подходит. Получите новую в боте: /health" }];
