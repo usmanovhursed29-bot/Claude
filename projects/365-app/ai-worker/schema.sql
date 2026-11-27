@@ -89,3 +89,13 @@ CREATE TABLE IF NOT EXISTS backups (
   v TEXT NOT NULL,                 -- JSON раздела
   PRIMARY KEY (user_id, key)
 );
+-- Напоминания пить воду (/water): цель на день делится между напоминаниями с from_h до to_h.
+CREATE TABLE IF NOT EXISTS water (
+  user_id INTEGER PRIMARY KEY,
+  on_ INTEGER NOT NULL DEFAULT 1,
+  goal INTEGER NOT NULL DEFAULT 2500,   -- мл в день
+  from_h INTEGER NOT NULL DEFAULT 8, to_h INTEGER NOT NULL DEFAULT 22,
+  every_min INTEGER NOT NULL DEFAULT 60,
+  last_at INTEGER NOT NULL DEFAULT 0,   -- когда было последнее напоминание (мс)
+  day TEXT, drunk INTEGER NOT NULL DEFAULT 0  -- выпито за день по времени человека
+);

@@ -8,6 +8,7 @@ import { saveDays, praise, insights, createChallenge, joinChallenge, leaderboard
 import { parseEntries, entriesFromAI, AI_EXTRACT_PROMPT, parseEvent, eventCmd, localNow } from "./parse.js";
 import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } from "./journal.js";
 import { analyzeFood, foodCmd, foodText } from "./food.js";
+import { waterCommand, waterCallback, sendWater, waterAdd } from "./water.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
   "Опирайся только на данные пользователя ниже, ничего не выдумывай. Сначала главное, потом один конкретный совет. " +
@@ -188,7 +189,7 @@ export default {
   },
   // Раз в минуту: кому пора напомнить о событии.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
+    ctx.waitUntil(Promise.all([sendDueReminders(env), sendCheckins(env), sendWeekly(env), sendJournal(env, (m, p) => telegram(env, m, p)), sendWater(env, (m, p) => telegram(env, m, p)), ensureWebhookOnce(env), env.DB ? finishChallenges(env, (id, t) => sendMessage(env, id, t)) : null]));
   },
 };
 
@@ -356,6 +357,7 @@ async function handleCallback(q, env) {
   const answer = (text) => telegram(env, "answerCallbackQuery", { callback_query_id: q.id, ...(text ? { text } : {}) });
   const edit = (text, markup) => telegram(env, "editMessageText", { chat_id: chatId, message_id: msgId, text, ...(markup ? { reply_markup: markup } : {}) });
   if (data === "pay:info") { await answer(); return sendPlusInfo(env, chatId, userId); }
+  if (data.startsWith("wt:")) { if (!env.DB) return answer(); return waterCallback(env, (m, p) => telegram(env, m, p), q); }
   if (data.startsWith("jr:")) {
     if (!isOwner(env, userId) || !env.DB) return answer();
     return answer(await journalCallback(env, (m, p) => telegram(env, m, p), userId, data.slice(3)));
@@ -460,7 +462,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v6";
+  const flag = "webhook-updates-v7";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -470,6 +472,7 @@ async function ensureWebhookOnce(env) {
     { command: "challenge", description: "🏃 Челлендж шагов с друзьями" },
     { command: "top", description: "🏆 Таблица челленджа" },
     { command: "checkin", description: "☀️ Утренний вопрос про сон" },
+    { command: "water", description: "💧 Напоминания пить воду" },
     { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
     { command: "start", description: "❓ Что умеет бот" },
@@ -485,6 +488,9 @@ async function ensureWebhookOnce(env) {
 
 async function saveEntries(env, userId, entries, ts) {
   await env.DB.batch(entries.map((e) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, e.cmd, ts)));
+  // вода из сообщений («выпил 300 мл») тоже идёт в счёт дневной цели напоминаний
+  const ml = entries.filter((e) => /^water_\d+$/.test(e.cmd)).reduce((a, e) => a + Number(e.cmd.slice(6)), 0);
+  if (ml > 0) await waterAdd(env, userId, ml, ts).catch(() => {});
 }
 
 async function handleMessage(message, env) {
@@ -559,6 +565,7 @@ async function handleMessage(message, env) {
     return sendMessage(env, chatId, boardText(await leaderboard(env, my.code), "🏃 Челлендж шагов") + "\n\nШаги берутся из приложения и записей в чате.");
   }
   if (text.startsWith("/checkin") || text.startsWith("/вопросы")) return sendCheckinSettings(env, chatId, userId);
+  if ((text.startsWith("/water") || text === "💧 Вода" || /^напоминай.*(вод|пить)/i.test(text)) && env.DB) return waterCommand(env, (m, p) => telegram(env, m, p), chatId, userId);
   if (text.startsWith("/health") || text === "❤️ Здоровье iPhone") return sendHealthLink(env, chatId, userId, text.includes("new"));
   if (text.startsWith("/myid")) return sendMessage(env, chatId, `Ваш Telegram ID: ${userId}`);
   if (text.startsWith("/reset")) {
@@ -760,6 +767,8 @@ function helpText() {
     "📅 Ставлю дела в календарь и напоминаю за 15 минут: «завтра в 12:00 поликлиника»",
     "",
     "📸 Пришлите фото еды — посчитаю калории и БЖУ и запишу в «Питание»",
+    "",
+    "💧 Напоминаю пить воду равномерно весь день — /water",
     "",
     "☀️ Каждое утро спрашиваю, как вы поспали — ответ одной кнопкой",
     "",
