@@ -19,3 +19,7 @@ id = "0f53f2fda6aa4b708070dddfe534c224"
 type = "Text"
 globs = ["**/*.html"]
 fallthrough = true
+
+# сервер работает рядом с базой D1 — меньше задержка на каждый запрос
+[placement]
+mode = "smart"

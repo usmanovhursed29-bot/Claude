@@ -1,11 +1,12 @@
-// «StarRace» — мини-игры в Telegram: «Мины», колесо 50/50, монетка, кубик, сундуки, «Ракетка». Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
-// Играют только на монеты: их дают каждый день, их нельзя купить за звёзды и нельзя вывести.
+// «StarRace» — мини-игры в Telegram: «Мины», колесо 50/50, SC, кубик, сундуки, «Ракетка». Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
+// Играют только на SC: их дают каждый день, их нельзя купить за звёзды и нельзя вывести.
 // Звёзды (XTR) покупают только оформление (темы поля). Поэтому ставок на деньги в игре нет.
 // Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY).
 import GAME from "./game.html";
+const GAME_ETAG = `"${GAME.length.toString(36)}-${[...GAME].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7).toString(36)}"`;
 
-const DAILY_COINS = 100;           // монет за первый вход дня
-const START_COINS = 500;           // монет новичку
+const DAILY_COINS = 100;           // SC за первый вход дня
+const START_COINS = 500;           // SC новичку
 export const STAKES = [50, 100, 250, 500];  // быстрые кнопки в интерфейсе
 export const MIN_STAKE = 10, MAX_STAKE = 1000000;
 export const okStake = (x) => Number.isInteger(x) && x >= MIN_STAKE && x <= MAX_STAKE;
@@ -50,9 +51,14 @@ async function webhookSecret(t) { const d = await crypto.subtle.digest("SHA-256"
 async function player(env, u, now = Date.now()) {
   const name = String([u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "Игрок").slice(0, 40);
   const uname = u.username ? String(u.username).toLowerCase() : null;
-  await env.DB.prepare("INSERT INTO players (id, name, username, created, coins) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, username = COALESCE(excluded.username, players.username)").bind(u.id, name, uname, now, START_COINS).run();
-  const p = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
+  // быстрый путь: один SELECT; запись в базу — только для нового игрока, смены имени/ника или нового дня
+  let p = await env.DB.prepare("SELECT * FROM players WHERE id = ?").bind(u.id).first();
+  if (!p) {
+    p = await env.DB.prepare("INSERT INTO players (id, name, username, created, coins) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name RETURNING *").bind(u.id, name, uname, now, START_COINS).first();
+  }
   const patch = {};
+  if (p.name !== name) patch.name = name;
+  if (uname && p.username !== uname) patch.username = uname;
   if (p.coin_day !== day(now)) { patch.coin_day = day(now); patch.coins = (p.coins || 0) + DAILY_COINS; patch.free_spin = 1; }
   if (p.week !== week(now)) { patch.week = week(now); patch.week_best = 0; }
   if (Object.keys(patch).length) {
@@ -84,7 +90,7 @@ export function applyLuck(mines, opened, cell, luck, rand = Math.random) {
 }
 
 
-// ---- быстрые игры на удачу: монетка, кубик, сундуки; и «Ракетка» (краш) ----
+// ---- быстрые игры на удачу: SC, кубик, сундуки; и «Ракетка» (краш) ----
 // Везение L (0–100): 50 — честный шанс p; 100 — всегда выигрыш; 0 — всегда проигрыш.
 export const luckP = (p, L) => (L == null || L === 50 ? p : L > 50 ? p + (1 - p) * (L - 50) / 50 : p * L / 50);
 const m2 = (x) => Math.floor(x * 100) / 100;
@@ -131,10 +137,10 @@ async function apiRoute(path, body, env, now = Date.now()) {
 
   if (path === "mines/start") {
     const stake = Number(body.stake), m = Number(body.mines);
-    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} SC` });
     if (!okMines(m)) return json(400, { error: `Мин от ${MIN_MINES} до ${MAX_MINES}` });
     if (await game()) return json(400, { error: "Сначала закончите текущую игру" });
-    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} SC` });
     const id = crypto.randomUUID();
     await env.DB.batch([
       env.DB.prepare("UPDATE players SET coins = coins - ? WHERE id = ?").bind(stake, u.id),
@@ -180,8 +186,8 @@ async function apiRoute(path, body, env, now = Date.now()) {
   // ---- колесо 50/50 ----
   if (path === "spin") {
     const free = !!p.free_spin && !body.paid, stake = free ? STAKES[0] : Number(body.stake);
-    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
-    if (!free && (p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} SC` });
+    if (!free && (p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} SC` });
     const r = spinPick(Math.random(), Math.random(), p.luck ?? 50), delta = free ? (r.win ? stake : 0) : (r.win ? stake : -stake);
     await env.DB.prepare(`UPDATE players SET coins = MAX(0, coins + ?)${free ? ", free_spin = 0" : ""} WHERE id = ?`).bind(delta, u.id).run();
     if (r.win) await addWin(env, u.id, stake);
@@ -192,7 +198,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
   if (path === "play") {
     const stake = Number(body.stake), r = okStake(stake) ? quickPlay(String(body.game), body.params || {}, p.luck) : null;
     if (!r) return json(400, { error: "Выберите ставку и вариант" });
-    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} SC` });
     const win = r.win ? Math.floor(stake * r.mult) : 0;
     await env.DB.prepare("UPDATE players SET coins = coins - ? + ? WHERE id = ?").bind(stake, win, u.id).run();
     if (win) await addWin(env, u.id, win - stake);
@@ -201,9 +207,9 @@ async function apiRoute(path, body, env, now = Date.now()) {
   }
   if (path === "crash/start") {
     const stake = Number(body.stake);
-    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} монет` });
+    if (!okStake(stake)) return json(400, { error: `Ставка от ${MIN_STAKE} SC` });
     if (await env.DB.prepare("SELECT id FROM crash_games WHERE user_id = ? AND status = 'fly'").bind(u.id).first()) await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE user_id = ? AND status = 'fly'").bind(u.id).run();
-    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} SC` });
     const id = crypto.randomUUID();
     await env.DB.batch([env.DB.prepare("UPDATE players SET coins = coins - ? WHERE id = ?").bind(stake, u.id), env.DB.prepare("INSERT INTO crash_games (id, user_id, stake, crash, start, status) VALUES (?, ?, ?, ?, ?, 'fly')").bind(id, u.id, stake, crashPoint(p.luck), now)]);
     return json(200, { ...(await fresh(env, u.id)), id, k: CRASH_K });
@@ -235,7 +241,7 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const it = COIN_SHOP[body.item];
     if (!it) return json(400, { error: "Нет такого товара" });
     if (themesOf(p).includes(it.theme)) return json(400, { error: "Уже ваше" });
-    if ((p.coins || 0) < it.coins) return json(403, { error: `Нужно ${it.coins} монет` });
+    if ((p.coins || 0) < it.coins) return json(403, { error: `Нужно ${it.coins} SC` });
     await env.DB.prepare("UPDATE players SET coins = coins - ?, skins = ?, skin = ? WHERE id = ?").bind(it.coins, JSON.stringify([...themesOf(p), it.theme]), it.theme, u.id).run();
     return json(200, await fresh(env, u.id));
   }
@@ -280,7 +286,7 @@ export async function luckCommand(env, m) {
   return say(`🍀 ${p.name}: везение ${n}% (во всех играх).`);
 }
 
-// /coins @ник 1000 (или me, или Telegram ID) — админ начисляет игровые монеты; минус — списать.
+// /coins @ник 1000 (или me, или Telegram ID) — админ начисляет StarCoin; минус — списать.
 export async function coinsCommand(env, m) {
   const say = (text) => tg(env, "sendMessage", { chat_id: m.chat.id, text });
   if (!isAdmin(env, m.from.id)) return say("Эта команда только для администратора.");
@@ -292,7 +298,7 @@ export async function coinsCommand(env, m) {
   if (!p) return say("Игрок не найден. Он должен хотя бы раз открыть игру.");
   await env.DB.prepare("UPDATE players SET coins = MAX(0, coins + ?) WHERE id = ?").bind(n, p.id).run();
   const q = await env.DB.prepare("SELECT coins FROM players WHERE id = ?").bind(p.id).first();
-  return say(`🪙 ${p.name}: ${n > 0 ? "+" : ""}${n} монет. Баланс: ${q.coins}.`);
+  return say(`🪙 ${p.name}: ${n > 0 ? "+" : ""}${n} SC. Баланс: ${q.coins} SC.`);
 }
 
 async function onUpdate(up, env) {
@@ -316,8 +322,8 @@ async function onUpdate(up, env) {
   if (m.text?.startsWith("/luck")) return luckCommand(env, m);
   if (m.text?.startsWith("/coins")) return coinsCommand(env, m);
   if (m.text?.startsWith("/paysupport")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Вопросы по оплате звёздами: напишите сюда, что купили и когда. Ответим в течение дня." });
-  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Играем только на игровые монеты: их дают каждый день, купить или вывести их нельзя. Звёзды тратятся только на оформление." });
-  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — Мины, Ракетка, Монетка, Кубик, Сундуки и колесо 50/50 на игровые монеты.\n\n500 монет на старт и 100 каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });
+  if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Играем только на StarCoin (SC) — игровую валюту: её дают каждый день, купить или вывести её нельзя. Звёзды Telegram тратятся только на оформление." });
+  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — Мины, Ракетка, Монетка, Кубик, Сундуки и колесо 50/50 на StarCoin.\n\n500 SC на старт и 100 SC каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });
 }
 
 const SETUP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Подключение бота</title>
@@ -327,7 +333,11 @@ const SETUP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" c
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) return new Response(GAME, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      // страница игры кэшируется браузером Telegram на 5 минут и сжимается Cloudflare — открывается быстрее
+      if (request.headers.get("If-None-Match") === GAME_ETAG) return new Response(null, { status: 304, headers: { ETag: GAME_ETAG } });
+      return new Response(GAME, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300", ETag: GAME_ETAG } });
+    }
     if (url.pathname === "/setup") {
       if (!env.SETUP_KEY || url.searchParams.get("key") !== env.SETUP_KEY) return new Response("Нет доступа", { status: 403 });
       if (request.method === "GET") return new Response(SETUP_PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } });
