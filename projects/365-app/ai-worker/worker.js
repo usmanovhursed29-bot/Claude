@@ -10,6 +10,7 @@ import { isOwner, startJournal, journalAnswer, journalCallback, sendJournal } fr
 import { analyzeFood, foodCmd, foodText } from "./food.js";
 import { waterCommand, waterCallback, sendWater, waterAdd } from "./water.js";
 import { namazCommand, namazCallback, sendNamaz } from "./namaz.js";
+import { sendGuide } from "./guide.js";
 import { planText, sendMorning, prefs, setPrefs, parseHabit, habitAdd, habitList, sendHabits, habitCallback, onboardStart, onboardCallback, applyReferral, REF_DAYS } from "./daily.js";
 
 const RULES = "Отвечай по-русски, коротко: до 3 предложений или до 4 коротких пунктов. " +
@@ -485,7 +486,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v9";
+  const flag = "webhook-updates-v10";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -508,7 +509,9 @@ async function ensureWebhookOnce(env) {
   await telegram(env, "setMyCommands", { commands: cmds });
   // у владельца в меню есть ещё «Дневник»
   for (const id of String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean)) {
-    await telegram(env, "setMyCommands", { scope: { type: "chat", chat_id: Number(id) }, commands: [{ command: "diary", description: "📔 Дневник дня" }, ...cmds] }).catch(() => {});
+    await telegram(env, "setMyCommands", { scope: { type: "chat", chat_id: Number(id) }, commands: [{ command: "diary", description: "📔 Дневник дня" }, { command: "guide", description: "📘 Гайд по блогу" }, ...cmds] }).catch(() => {});
+    // один раз прислать владельцу гайд по блогу (и закрепить)
+    await sendGuide(async (m, p) => (await telegram(env, m, p)).json().catch(() => null), Number(id)).catch(() => {});
   }
   await env.LIMITS.put(flag, "1");
 }
@@ -547,6 +550,7 @@ async function handleMessage(message, env) {
       const u = await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first();
       return startJournal(env, tg, userId, u?.tz);
     }
+    if (text.startsWith("/guide") || text === "📘 Гайд") return sendGuide(async (m, p) => (await telegram(env, m, p)).json().catch(() => null), chatId);
     if (!text.startsWith("/") && (await journalAnswer(env, tg, userId, text))) return;
   }
 
