@@ -8,3 +8,5 @@ nekurs/env.master
 .dev.vars
 node_modules/
 .wrangler/
+skills-library/
+.claude/skills/motion-video-director/
