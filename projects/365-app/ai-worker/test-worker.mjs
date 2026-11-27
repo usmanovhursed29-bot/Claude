@@ -377,4 +377,23 @@ assert.equal(await sendWeekly(env, Date.UTC(2026, 10, 28, 14, 5)), 0, "не в �
   assert.deepEqual((await app("/restore", { initData: initData(78) })).json.docs, {}, "чужие данные не видны");
   assert.equal((await app("/restore", { initData: "user=%7B%22id%22%3A77%7D&hash=bad" })).status, 401);
 }
+// «Здоровье» iPhone: /health выдаёт личную ссылку, по ней команда присылает шаги, воду, сон и вес.
+{
+  const o = await say(42, "/health");
+  const link = o.find((m) => m.method === "sendMessage")?.body.text.match(/https:\/\/\S+\/health\?t=([0-9a-f]+)/);
+  assert.ok(link, "бот прислал ссылку");
+  const call = (q, body) => worker.fetch(new Request("https://w/health" + q, { method: "POST", body: JSON.stringify(body) }), env, { waitUntil() {} });
+  const before = db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 42").get().c;
+  let r = await call("?t=" + link[1], { steps: "8 412", water: 1250, sleep: "7,5", weight: 72.4 });
+  assert.equal(r.status, 200);
+  const cmds = db.prepare("SELECT cmd FROM inbox WHERE user_id = 42 ORDER BY id DESC LIMIT 4").all().map((x) => x.cmd).sort();
+  assert.deepEqual(cmds, ["sleep_7-5", "steps_8412", "watert_1250", "weight_72-4"]);
+  assert.equal(db.prepare("SELECT COUNT(*) c FROM inbox WHERE user_id = 42").get().c, before + 4);
+  assert.equal((await call("?t=bad", { steps: 1 })).status, 401);
+  assert.equal((await call("?t=" + link[1], {})).status, 400);
+  const o2 = await say(42, "/health_new");
+  const link2 = o2.find((m) => m.method === "sendMessage")?.body.text.match(/health\?t=([0-9a-f]+)/);
+  assert.notEqual(link2[1], link[1]);
+  assert.equal((await call("?t=" + link[1], { steps: 1 })).status, 401, "старая ссылка больше не работает");
+}
 console.log("Сервер: все проверки пройдены ✅\n\n" + lastText(out));

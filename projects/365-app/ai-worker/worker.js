@@ -76,6 +76,9 @@ export default {
       return new Response("ok");
     }
 
+    // Приложение «Команды» на iPhone присылает данные из «Здоровья» по личной ссылке /health?t=<код> (код выдаёт бот: /health).
+    if (path === "/health") return reply(...(await healthImport(env, request)));
+
     let body;
     try {
       body = await request.json();
@@ -446,7 +449,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v5";
+  const flag = "webhook-updates-v6";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -456,6 +459,7 @@ async function ensureWebhookOnce(env) {
     { command: "challenge", description: "🏃 Челлендж шагов с друзьями" },
     { command: "top", description: "🏆 Таблица челленджа" },
     { command: "checkin", description: "☀️ Утренний вопрос про сон" },
+    { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
     { command: "style", description: "🎭 Характер ИИ (Plus)" },
     { command: "start", description: "❓ Что умеет бот" },
     { command: "paysupport", description: "Вопросы по оплате" },
@@ -543,6 +547,7 @@ async function handleMessage(message, env) {
     return sendMessage(env, chatId, boardText(await leaderboard(env, my.code), "🏃 Челлендж шагов") + "\n\nШаги берутся из приложения и записей в чате.");
   }
   if (text.startsWith("/checkin") || text.startsWith("/вопросы")) return sendCheckinSettings(env, chatId, userId);
+  if (text.startsWith("/health") || text === "❤️ Здоровье iPhone") return sendHealthLink(env, chatId, userId, text.includes("new"));
   if (text.startsWith("/myid")) return sendMessage(env, chatId, `Ваш Telegram ID: ${userId}`);
   if (text.startsWith("/reset")) {
     await env.LIMITS.delete(histKey);
@@ -799,3 +804,46 @@ async function telegramUser(initData, botToken) {
   return JSON.parse(params.get("user") || "null");
 }
 
+
+// ---- «Здоровье» iPhone → бот: личная ссылка для приложения «Команды» ----
+async function sendHealthLink(env, chatId, userId, renew) {
+  if (!env.LIMITS || !env.DB) return sendMessage(env, chatId, "Пока недоступно.");
+  let t = renew ? null : await env.LIMITS.get(`htu:${userId}`);
+  if (!t) {
+    const old = await env.LIMITS.get(`htu:${userId}`);
+    if (old) await env.LIMITS.delete(`ht:${old}`);
+    t = [...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    await env.LIMITS.put(`ht:${t}`, String(userId));
+    await env.LIMITS.put(`htu:${userId}`, t);
+  }
+  const url = `${env.WORKER_URL || "https://kwantoww-ai.usmanovhursed747.workers.dev"}/health?t=${t}`;
+  return telegram(env, "sendMessage", { chat_id: chatId, text: [
+    "❤️ Ваша личная ссылка для приложения «Команды» на iPhone:",
+    "", url, "",
+    "Команда отправляет на неё шаги, воду, сон и вес из «Здоровья», а я записываю их в Kwantoww.",
+    "Никому не пересылайте ссылку: по ней можно записать данные в ваш аккаунт. Новая ссылка (старая перестанет работать): /health_new",
+  ].join("\n"), link_preview_options: { is_disabled: true } });
+}
+
+// Принимает JSON {steps, water, sleep, weight, date?}: water — мл за день (итог), sleep — часы, weight — кг. Пустые поля пропускаются.
+export async function healthImport(env, request) {
+  const url = new URL(request.url);
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const t = String(url.searchParams.get("t") || body.t || "");
+  const uid = t && env.LIMITS ? await env.LIMITS.get(`ht:${t}`) : null;
+  if (!uid || !env.DB) return [401, { error: "Ссылка не подходит. Получите новую в боте: /health" }];
+  const num = (v) => { const n = parseFloat(String(v ?? "").replace(",", ".").replace(/[^0-9.]/g, "")); return Number.isFinite(n) ? n : null; };
+  const steps = num(body.steps), water = num(body.water), sleep = num(body.sleep), weight = num(body.weight);
+  const cmds = [], lines = [];
+  if (steps !== null && steps >= 0 && steps < 200000) { cmds.push(`steps_${Math.round(steps)}`); lines.push(`👣 ${Math.round(steps).toLocaleString("ru-RU")} шагов`); }
+  if (water !== null && water > 0 && water < 20000) { cmds.push(`watert_${Math.round(water)}`); lines.push(`💧 ${Math.round(water)} мл воды`); }
+  if (sleep !== null && sleep > 0 && sleep <= 16) { const h = Math.round(sleep * 10) / 10; cmds.push(`sleep_${String(h).replace(".", "-")}`); lines.push(`😴 сон ${h} ч`); }
+  if (weight !== null && weight >= 30 && weight <= 300) { const w = Math.round(weight * 10) / 10; cmds.push(`weight_${String(w).replace(".", "-")}`); lines.push(`⚖️ вес ${w} кг`); }
+  if (!cmds.length) return [400, { error: "Нет данных: пришлите steps, water, sleep или weight" }];
+  const ts = /^\d{4}-\d{2}-\d{2}$/.test(body.date || "") ? Date.parse(body.date + "T12:00:00Z") : Date.now();
+  const userId = Number(uid);
+  await env.DB.batch(cmds.map((c) => env.DB.prepare("INSERT INTO inbox (user_id, cmd, ts, done) VALUES (?, ?, ?, 0)").bind(userId, c, ts)));
+  if (body.quiet !== true && body.quiet !== "1") await telegram(env, "sendMessage", { chat_id: userId, text: "❤️ Из «Здоровья» iPhone записал:\n" + lines.join("\n") }).catch(() => {});
+  return [200, { ok: true, saved: lines }];
+}

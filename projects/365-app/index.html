@@ -1823,6 +1823,7 @@ function runCommand(cmd,day,srcId){
     case"exp":{if(!(num>0))return null;const cat=CATS[extra]?extra:"other";S.money.tx.push({id:rid(),date:T,type:"exp",amount:Math.round(num),cat,note:"",acc:acc?.id||""});if(acc)acc.balance-=Math.round(num);persist("money");return`Расход ${rub(num)} · ${CATS[cat][0]}`}
     case"inc":{if(!(num>0))return null;S.money.tx.push({id:rid(),date:T,type:"inc",amount:Math.round(num),cat:"other",note:"Доход",acc:acc?.id||""});if(acc)acc.balance+=Math.round(num);persist("money");return`Доход ${rub(num)}`}
     case"water":{if(!(num>0))return null;l().water=(l().water||0)+Math.round(num);persist("health");return`+${fmt(num)} мл воды`}
+    case"watert":{if(!(num>0))return null;l().water=Math.max(l().water||0,Math.round(num));persist("health");return`Вода за день: ${fmt(num)} мл`} /* итог за день из «Здоровья» iPhone: не складываем повторно */
     case"steps":{if(!(num>=0))return null;l().steps=Math.round(num);persist("health");return`Шаги: ${fmt(num)}`}
     case"sleep":{if(!(num>0&&num<=16))return null;l().sleep=Math.round(num*60);persist("health");return`Сон: ${hm(num*60)}`}
     case"weight":{if(!(num>=30&&num<=300))return null;l().weight=Math.round(num*10)/10;S.food.profile.weight=l().weight;persist("health");persist("food");return`Вес: ${fmt1(num)} кг`}
