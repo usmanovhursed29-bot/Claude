@@ -1,4 +1,4 @@
-// «StarRace» — мини-игры в Telegram: «Мины» и колесо 50/50. Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
+// «StarRace» — мини-игры в Telegram: «Мины», колесо 50/50, монетка, кубик, сундуки, «Ракетка». Cloudflare Worker: отдаёт игру, API, вебхук бота, оплату звёздами.
 // Играют только на монеты: их дают каждый день, их нельзя купить за звёзды и нельзя вывести.
 // Звёзды (XTR) покупают только оформление (темы поля). Поэтому ставок на деньги в игре нет.
 // Токен бота хранится в KV (ставится один раз через /setup?key=SETUP_KEY).
@@ -79,6 +79,43 @@ export function applyLuck(mines, opened, cell, luck, rand = Math.random) {
   return mines;
 }
 
+
+// ---- быстрые игры на удачу: монетка, кубик, сундуки; и «Ракетка» (краш) ----
+// Везение L (0–100): 50 — честный шанс p; 100 — всегда выигрыш; 0 — всегда проигрыш.
+export const luckP = (p, L) => (L == null || L === 50 ? p : L > 50 ? p + (1 - p) * (L - 50) / 50 : p * L / 50);
+const m2 = (x) => Math.floor(x * 100) / 100;
+export const COIN_MULT = 1.94, CHEST_MULT = 2.91;
+export const diceMult = (target) => m2(EDGE * 100 / (target - 1));   // выигрыш, если выпало меньше target (1–100)
+export function quickPlay(game, params, L, rand = Math.random) {
+  if (game === "coin") {
+    const side = params.side === "tails" ? "tails" : "heads", win = rand() < luckP(0.5, L);
+    return { win, mult: COIN_MULT, result: win ? side : side === "heads" ? "tails" : "heads" };
+  }
+  if (game === "dice") {
+    const target = Math.round(Number(params.target));
+    if (!(target >= 3 && target <= 96)) return null;
+    const win = rand() < luckP((target - 1) / 100, L);
+    const roll = win ? 1 + Math.floor(rand() * (target - 1)) : target + Math.floor(rand() * (101 - target));
+    return { win, mult: diceMult(target), result: roll };
+  }
+  if (game === "chest") {
+    const pick = Number(params.pick);
+    if (![0, 1, 2].includes(pick)) return null;
+    const win = rand() < luckP(1 / 3, L), others = [0, 1, 2].filter((x) => x !== pick);
+    return { win, mult: CHEST_MULT, result: win ? pick : others[Math.floor(rand() * 2)] };
+  }
+  return null;
+}
+// «Ракетка»: точка взрыва выбирается при старте; P(взрыв не раньше x) = 0.97 / x. Множитель растёт как e^(0.08·сек).
+export const CRASH_K = 0.08;
+export const crashAt = (ms) => m2(Math.exp(CRASH_K * ms / 1000));
+export function crashPoint(L, rand = Math.random) {
+  let u = rand();
+  if (L != null && L !== 50) u = L > 50 ? u + (1 - u) * (L - 50) / 50 : u * L / 50;
+  if (u >= 0.999) return 1000;
+  return Math.max(1, m2(EDGE / (1 - u)));
+}
+
 async function apiRoute(path, body, env, now = Date.now()) {
   const u = await telegramUser(body.initData, await token(env), now);
   if (!u) return json(401, { error: "Откройте игру внутри Telegram" });
@@ -145,6 +182,41 @@ async function apiRoute(path, body, env, now = Date.now()) {
     return json(200, { ...(await fresh(env, u.id)), win: r.win, delta, stake, free, index: r.index });
   }
 
+  if (path === "play") {
+    const stake = Number(body.stake), r = STAKES.includes(stake) ? quickPlay(String(body.game), body.params || {}, p.luck) : null;
+    if (!r) return json(400, { error: "Выберите ставку и вариант" });
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    const win = r.win ? Math.floor(stake * r.mult) : 0;
+    await env.DB.prepare("UPDATE players SET coins = coins - ? + ? WHERE id = ?").bind(stake, win, u.id).run();
+    if (win) await addWin(env, u.id, win - stake);
+    return json(200, { ...(await fresh(env, u.id)), ...r, win, stake });
+  }
+  if (path === "crash/start") {
+    const stake = Number(body.stake);
+    if (!STAKES.includes(stake)) return json(400, { error: "Выберите ставку" });
+    if (await env.DB.prepare("SELECT id FROM crash_games WHERE user_id = ? AND status = 'fly'").bind(u.id).first()) await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE user_id = ? AND status = 'fly'").bind(u.id).run();
+    if ((p.coins || 0) < stake) return json(403, { error: `Нужно ${stake} монет` });
+    const id = crypto.randomUUID();
+    await env.DB.batch([env.DB.prepare("UPDATE players SET coins = coins - ? WHERE id = ?").bind(stake, u.id), env.DB.prepare("INSERT INTO crash_games (id, user_id, stake, crash, start, status) VALUES (?, ?, ?, ?, ?, 'fly')").bind(id, u.id, stake, crashPoint(p.luck), now)]);
+    return json(200, { ...(await fresh(env, u.id)), id, k: CRASH_K });
+  }
+  if (path === "crash/tick" || path === "crash/cash") {
+    const g = await env.DB.prepare("SELECT * FROM crash_games WHERE id = ? AND user_id = ?").bind(String(body.id || ""), u.id).first();
+    if (!g) return json(400, { error: "Полёт не найден" });
+    const cur = crashAt(now - g.start);
+    if (g.status !== "fly" || cur >= g.crash) {
+      if (g.status === "fly") await env.DB.prepare("UPDATE crash_games SET status = 'lost' WHERE id = ?").bind(g.id).run();
+      return json(200, { ...(await fresh(env, u.id)), crashed: true, crash: g.crash, status: g.status === "won" ? "won" : "lost" });
+    }
+    if (path === "crash/tick") return json(200, { flying: true, mult: cur });
+    const win = Math.floor(g.stake * cur);
+    const upd = await env.DB.prepare("UPDATE crash_games SET status = 'won' WHERE id = ? AND status = 'fly'").bind(g.id).run();
+    if (!upd.meta?.changes) return json(400, { error: "Уже забрано" });
+    await env.DB.prepare("UPDATE players SET coins = coins + ? WHERE id = ?").bind(win, u.id).run();
+    await addWin(env, u.id, win - g.stake);
+    return json(200, { ...(await fresh(env, u.id)), win, mult: cur, crash: g.crash });
+  }
+
   if (path === "theme") {
     const t = String(body.theme || "");
     if (!themesOf(p).includes(t)) return json(403, { error: "Это оформление ещё не открыто" });
@@ -186,7 +258,7 @@ export async function luckCommand(env, m) {
   const [, who, val] = m.text.trim().split(/\s+/);
   if (!who) {
     const rows = (await env.DB.prepare("SELECT id, name, username, luck FROM players WHERE luck IS NOT NULL ORDER BY luck DESC LIMIT 50").all()).results || [];
-    return say(rows.length ? "🍀 Везение (колесо и мины):\n" + rows.map((r) => `${r.name}${r.username ? " @" + r.username : ""} (${r.id}) — ${r.luck}%`).join("\n") + "\n\nИзменить: /luck @ник 80 · /luck me 70 · /luck @ник reset" : "Везение ни у кого не изменено, у всех 50%.\n\nПример: /luck me 70 или /luck @ник 80");
+    return say(rows.length ? "🍀 Везение (во всех играх):\n" + rows.map((r) => `${r.name}${r.username ? " @" + r.username : ""} (${r.id}) — ${r.luck}%`).join("\n") + "\n\nИзменить: /luck @ник 80 · /luck me 70 · /luck @ник reset" : "Везение ни у кого не изменено, у всех 50%.\n\nПример: /luck me 70 или /luck @ник 80");
   }
   let p;
   if (who === "me") p = await env.DB.prepare("SELECT id, name FROM players WHERE id = ?").bind(m.from.id).first();
@@ -197,7 +269,7 @@ export async function luckCommand(env, m) {
   const n = Math.round(Number(val));
   if (!(n >= 0 && n <= 100)) return say("Укажите шанс от 0 до 100, например: /luck " + who + " 75");
   await env.DB.prepare("UPDATE players SET luck = ? WHERE id = ?").bind(n, p.id).run();
-  return say(`🍀 ${p.name}: везение ${n}% (колесо и мины).`);
+  return say(`🍀 ${p.name}: везение ${n}% (во всех играх).`);
 }
 
 async function onUpdate(up, env) {
@@ -221,7 +293,7 @@ async function onUpdate(up, env) {
   if (m.text?.startsWith("/luck")) return luckCommand(env, m);
   if (m.text?.startsWith("/paysupport")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Вопросы по оплате звёздами: напишите сюда, что купили и когда. Ответим в течение дня." });
   if (m.text?.startsWith("/terms")) return tg(env, "sendMessage", { chat_id: m.chat.id, text: "Играем только на игровые монеты: их дают каждый день, купить или вывести их нельзя. Звёзды тратятся только на оформление." });
-  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — «Мины» и колесо 50/50 на игровые монеты.\n\n500 монет на старт и 100 каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });
+  return tg(env, "sendMessage", { chat_id: m.chat.id, text: "💎 StarRace — Мины, Ракетка, Монетка, Кубик, Сундуки и колесо 50/50 на игровые монеты.\n\n500 монет на старт и 100 каждый день, рейтинг недели.", reply_markup: { inline_keyboard: [[{ text: "🎮 Играть", web_app: { url: env.GAME_URL } }]] } });
 }
 
 const SETUP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Подключение бота</title>

@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createHmac } from "node:crypto";
 import assert from "node:assert/strict";
-import worker, { apiRoute, onUpdate, spinPick, WHEEL, minesMult, placeMines, applyLuck } from "./worker.js";
+import worker, { apiRoute, onUpdate, spinPick, WHEEL, minesMult, placeMines, applyLuck, quickPlay, luckP, diceMult, crashPoint, crashAt } from "./worker.js";
 
 const db = new DatabaseSync(":memory:"); db.exec(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
 const st = (sql) => { let a = []; const s = db.prepare(sql); return { bind(...x) { a = x; return this; }, first: async () => s.get(...a) ?? null, all: async () => ({ results: s.all(...a) }), run: async () => { const r = s.run(...a); return { meta: { changes: r.changes } }; } }; };
@@ -81,6 +81,30 @@ assert.equal(db.prepare("SELECT COUNT(*) c FROM payments").get().c, 1);
 db.prepare("UPDATE players SET coins = 2500 WHERE id = 7").run();
 r = await call("coinbuy", { item: "theme_lucky" }); assert.equal(r.j.coins, 500); assert.ok(r.j.themes.includes("lucky"));
 assert.equal((await call("theme", { theme: "gold" })).status, 403);
+
+// быстрые игры: честные шансы, везение, расчёт выигрыша
+assert.equal(luckP(.5, 100), 1); assert.equal(luckP(.5, 0), 0); assert.equal(luckP(.3, null), .3); assert.equal(luckP(.5, 75), .75);
+{ let w = 0, N = 30000; for (let i = 0; i < N; i++) w += quickPlay("coin", { side: "heads" }, null).win; assert.ok(Math.abs(w / N - .5) < .02, "монетка ~50%"); }
+{ let w = 0, N = 30000; for (let i = 0; i < N; i++) { const r2 = quickPlay("dice", { target: 51 }, null); w += r2.win; assert.equal(r2.win, r2.result < 51); } assert.ok(Math.abs(w / N - .5) < .02, "кубик <51 ~50%"); }
+{ let w = 0, N = 30000; for (let i = 0; i < N; i++) { const r2 = quickPlay("chest", { pick: 1 }, null); w += r2.win; assert.equal(r2.win, r2.result === 1); } assert.ok(Math.abs(w / N - 1 / 3) < .02, "сундук ~1/3"); }
+assert.equal(diceMult(51), 1.94); assert.equal(quickPlay("dice", { target: 2 }, null), null);
+for (let i = 0; i < 50; i++) { assert.equal(quickPlay("coin", { side: "tails" }, 100).win, true); assert.equal(quickPlay("chest", { pick: 0 }, 0).win, false); }
+{ let surv = 0, N = 40000; for (let i = 0; i < N; i++) surv += crashPoint(null) >= 2; assert.ok(Math.abs(surv / N - .485) < .02, "Ракетка: до ×2 долетает ~48,5%"); }
+assert.equal(crashPoint(100), 1000); assert.equal(crashAt(0), 1); assert.equal(crashAt(10000), 2.22);
+db.prepare("UPDATE players SET coins = 1000, luck = NULL WHERE id = 7").run();
+r = await call("play", { game: "coin", stake: 100, params: { side: "heads" } }); assert.equal(r.j.coins, 900 + r.j.win); assert.equal(r.j.win, r.j.win ? 194 : 0);
+assert.equal((await call("play", { game: "dice", stake: 100, params: { target: 1 } })).status, 400);
+assert.equal((await call("play", { game: "slots", stake: 100 })).status, 400);
+// «Ракетка»: забрать до взрыва = ставка × множитель по серверному времени; после взрыва — проигрыш
+db.prepare("UPDATE players SET coins = 1000, luck = 100 WHERE id = 7").run();
+r = await call("crash/start", { stake: 100 }, t0); const cid = r.j.id; assert.equal(r.j.coins, 900);
+r = await call("crash/tick", { id: cid }, t0 + 5000); assert.equal(r.j.flying, true); assert.equal(r.j.mult, crashAt(5000));
+r = await call("crash/cash", { id: cid }, t0 + 5000); assert.equal(r.j.win, Math.floor(100 * crashAt(5000))); assert.equal(r.j.coins, 900 + r.j.win);
+assert.equal((await call("crash/cash", { id: cid }, t0 + 6000)).j.crashed, true, "второй раз не забрать");
+db.prepare("UPDATE players SET luck = 0 WHERE id = 7").run();
+r = await call("crash/start", { stake: 100 }, t0); const cid2 = r.j.id;
+r = await call("crash/cash", { id: cid2 }, t0 + 60000); assert.equal(r.j.crashed, true); assert.equal(r.j.status, "lost");
+db.prepare("UPDATE players SET luck = NULL WHERE id = 7").run();
 
 // новый день — +100 и снова бесплатная прокрутка; рейтинг по лучшему выигрышу недели
 r = await call("me", {}, t1); assert.equal(r.j.freeSpin, true);

@@ -19,3 +19,6 @@ CREATE TABLE IF NOT EXISTS payments (charge_id TEXT PRIMARY KEY, user_id INTEGER
 -- «Мины»: расстановка мин хранится только на сервере, игрок видит её после конца игры.
 CREATE TABLE IF NOT EXISTS mines_games (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, stake INTEGER NOT NULL, m INTEGER NOT NULL, mines TEXT NOT NULL, opened TEXT NOT NULL, status TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_mines_user ON mines_games(user_id, status);
+-- «Ракетка»: точка взрыва хранится только на сервере.
+CREATE TABLE IF NOT EXISTS crash_games (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, stake INTEGER NOT NULL, crash REAL NOT NULL, start INTEGER NOT NULL, status TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_crash_user ON crash_games(user_id, status);

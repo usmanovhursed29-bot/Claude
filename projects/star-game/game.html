@@ -113,6 +113,24 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .sheet .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .sheet .hd h3{font:900 24px var(--disp);margin:0}
 .x{width:40px;height:40px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:18px}
+
+/* быстрые игры */
+.stage{position:relative;height:230px;border-radius:24px;background:radial-gradient(120% 100% at 50% 0%,#33307a,#1f2348);display:grid;place-items:center;overflow:hidden;margin-top:4px}
+.coin3d{width:140px;height:140px;position:relative;transform-style:preserve-3d;transition:transform 1.4s cubic-bezier(.2,.8,.2,1)}
+.coin3d div{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;backface-visibility:hidden;font:900 44px var(--disp);color:#7a4a00;background:radial-gradient(circle at 35% 30%,#ffe596,#ffc83d 55%,#d99a1a);box-shadow:inset 0 0 0 8px #e6a417}
+.coin3d .b{transform:rotateY(180deg)}
+.bigval{font:900 76px var(--disp);letter-spacing:-.03em}
+.bigval.w{color:var(--green)}.bigval.l{color:var(--red)}
+.sub2{color:var(--soft);font-size:14px;margin-top:4px;text-align:center}
+.range{width:100%;accent-color:#7a5cff;height:32px}
+.chests{display:flex;gap:12px;justify-content:center}
+.chest{width:96px;height:96px;border-radius:20px;background:#2b3160;display:grid;place-items:center;transition:transform .2s}
+.chest svg{width:76px;height:76px}.chest.win{background:#1f6b4d;animation:pop .4s}.chest.lose{opacity:.5}
+.crashbox{position:absolute;inset:0;display:grid;place-items:center}
+.crashbox .bigval{position:relative;z-index:2}
+#crRocket{position:absolute;left:12%;bottom:12%;width:54px;height:54px;transition:none;z-index:1}
+.boom{color:var(--red)!important}
+.info{display:flex;justify-content:space-between;font-size:14px;color:var(--soft);padding:0 4px}.info b{color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);transform:translateX(-50%);z-index:50;background:#2d3352;border:1px solid var(--line);padding:12px 18px;border-radius:14px;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none;text-align:center}
 .toast.show{opacity:1}
 </style>
@@ -136,6 +154,10 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
   <h2 class="sec">Игры</h2>
   <div class="games">
     <button class="game" data-open="mines"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2346b8"/><stop offset="1" stop-color="#5a2fc4"/></linearGradient></defs><rect width="300" height="400" fill="url(#g1)"/><g opacity=".35" fill="#fff"><rect x="20" y="250" width="50" height="50" rx="10"/><rect x="80" y="250" width="50" height="50" rx="10"/><rect x="170" y="250" width="50" height="50" rx="10"/><rect x="230" y="250" width="50" height="50" rx="10"/><rect x="20" y="310" width="50" height="50" rx="10"/><rect x="230" y="310" width="50" height="50" rx="10"/></g><g transform="translate(150 170)"><path d="M0-90l55 36-55 140-55-140z" fill="#7fd6ff"/><path d="M0-90l55 36H-55z" fill="#c9f1ff"/><path d="M-55-54L0 86V-54z" fill="#4fb6ec"/><path d="M55-54L0 86V-54z" fill="#2f8fd1"/></g><g transform="translate(240 90)"><circle r="26" fill="#1b1f33"/><path d="M14-20l12-12" stroke="#ffc83d" stroke-width="5"/><circle cx="28" cy="-34" r="5" fill="#ff5d6c"/></g></svg><span class="bd"><i></i><span id="gBest">новая</span></span><span class="nm">Мины</span></button>
+    <button class="game" data-play="crash"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b1d8a"/><stop offset="1" stop-color="#d1458f"/></linearGradient></defs><rect width="300" height="400" fill="url(#g5)"/><path d="M20 330 Q150 320 260 90" stroke="#ffc83d" stroke-width="10" fill="none" stroke-linecap="round"/><g transform="translate(250 100) rotate(40)"><path d="M0-40c18 14 16 44 12 58h-24c-4-14-6-44 12-58z" fill="#f3f0ea"/><path d="M0-40c9 7 14 14 15 22h-30c1-8 6-15 15-22z" fill="#ff5d6c"/><circle cy="-4" r="7" fill="#53e0c8"/></g><text x="40" y="120" font-family="Unbounded,Arial Black" font-weight="900" font-size="52" fill="#fff">×2,4</text></svg><span class="bd"><i></i><span>успей забрать</span></span><span class="nm">Ракетка</span></button>
+    <button class="game" data-play="coin"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><radialGradient id="g6" cx=".5" cy=".35"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#a8501a"/></radialGradient><radialGradient id="cn" cx=".35" cy=".3"><stop offset="0" stop-color="#ffe596"/><stop offset=".6" stop-color="#ffc83d"/><stop offset="1" stop-color="#d99a1a"/></radialGradient></defs><rect width="300" height="400" fill="url(#g6)"/><ellipse cx="150" cy="190" rx="95" ry="95" fill="url(#cn)" stroke="#e6a417" stroke-width="14"/><text x="150" y="215" text-anchor="middle" font-family="Unbounded,Arial Black" font-weight="900" font-size="72" fill="#7a4a00">★</text></svg><span class="bd"><i></i><span>×1,94</span></span><span class="nm">Монетка</span></button>
+    <button class="game" data-play="dice"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#127a6a"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g7)"/><g transform="translate(150 185) rotate(-12)"><rect x="-80" y="-80" width="160" height="160" rx="34" fill="#fff"/><g fill="#1b1f33"><circle cx="-40" cy="-40" r="15"/><circle cx="40" cy="-40" r="15"/><circle r="15"/><circle cx="-40" cy="40" r="15"/><circle cx="40" cy="40" r="15"/></g></g></svg><span class="bd"><i></i><span>до ×48</span></span><span class="nm">Кубик</span></button>
+    <button class="game" data-play="chest"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g8" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a2fb8"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g8)"/><g transform="translate(150 200)"><rect x="-95" y="-20" width="190" height="100" rx="12" fill="#8a4b1f"/><path d="M-95-20c0-60 190-60 190 0z" fill="#a85f2a"/><rect x="-95" y="-24" width="190" height="14" fill="#ffc83d"/><rect x="-16" y="-30" width="32" height="40" rx="6" fill="#ffc83d"/><circle cy="-8" r="6" fill="#7a4a00"/></g><g fill="#7fd6ff"><path d="M60 90l10 16-10 16-10-16z"/><path d="M240 110l7 12-7 12-7-12z"/></g></svg><span class="bd"><i></i><span>1 из 3 · ×2,91</span></span><span class="nm">Сундуки</span></button>
     <button class="game" data-tab="pWheel"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><radialGradient id="g2" cx=".5" cy=".3"><stop offset="0" stop-color="#ff8a3d"/><stop offset="1" stop-color="#b8233f"/></radialGradient></defs><rect width="300" height="400" fill="url(#g2)"/><g transform="translate(150 185)"><circle r="104" fill="#ffd36e"/><path d="M0 0L0-94A94 94 0 0 1 66-66z" fill="#5a6bff"/><path d="M0 0L66-66A94 94 0 0 1 94 0z" fill="#8b5cf6"/><path d="M0 0L94 0A94 94 0 0 1 66 66z" fill="#3fd47a"/><path d="M0 0L66 66A94 94 0 0 1 0 94z" fill="#ff5d6c"/><path d="M0 0L0 94A94 94 0 0 1-66 66z" fill="#5a6bff"/><path d="M0 0L-66 66A94 94 0 0 1-94 0z" fill="#8b5cf6"/><path d="M0 0L-94 0A94 94 0 0 1-66-66z" fill="#3fd47a"/><path d="M0 0L-66-66A94 94 0 0 1 0-94z" fill="#ff5d6c"/><circle r="22" fill="#ffd36e"/><path d="M0-118l14 26h-28z" fill="#fff"/></g></svg><span class="bd"><i></i><span id="gSpin">крутить</span></span><span class="nm">Колесо</span></button>
     <button class="game" data-tab="pTop"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a5bd8"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g3)"/><g transform="translate(150 175)"><path d="M-60-60h120v30c0 50-30 80-60 80s-60-30-60-80z" fill="#ffc83d"/><path d="M-60-45h-26c0 40 20 55 36 55M60-45h26c0 40-20 55-36 55" stroke="#ffc83d" stroke-width="12" fill="none"/><rect x="-14" y="48" width="28" height="34" fill="#e6a417"/><rect x="-44" y="80" width="88" height="22" rx="6" fill="#ffc83d"/><path d="M0-40l9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3z" fill="#fff6d0"/></g></svg><span class="bd"><i></i><span>неделя</span></span><span class="nm">Рейтинг</span></button>
     <button class="game" data-tab="pBonus"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a2fc4"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g4)"/><g transform="translate(150 190)"><rect x="-80" y="-20" width="160" height="100" rx="10" fill="#7c4dff"/><rect x="-90" y="-50" width="180" height="40" rx="10" fill="#9a73ff"/><rect x="-14" y="-50" width="28" height="130" fill="#ffc83d"/><path d="M0-50c-30-50-70-20-40 0M0-50c30-50 70-20 40 0" stroke="#ffc83d" stroke-width="12" fill="none"/></g><g fill="#9ad8ff"><path d="M50 90l8 14-8 14-8-14z"/><path d="M250 300l6 10-6 10-6-10z"/></g></svg><span class="bd"><i></i><span>каждый день</span></span><span class="nm">Бонусы</span></button>
@@ -171,6 +193,18 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
     <button class="go" id="mGo">Начать игру</button>
     <div class="stakes" id="mStakes"></div>
     <div class="seg" id="mSeg"></div>
+  </section>
+  <p class="note">Играем на игровые монеты. Их дают каждый день, купить или вывести их нельзя.</p>
+</main>
+
+<main class="page" id="pPlay" hidden>
+  <h2 class="sec" id="plTitle">Игра</h2>
+  <div class="stage" id="plStage"></div>
+  <div class="sub2" id="plSub"></div>
+  <section class="panel">
+    <div id="plCtl"></div>
+    <button class="go" id="plGo">Играть</button>
+    <div class="stakes" id="plStakes"></div>
   </section>
   <p class="note">Играем на игровые монеты. Их дают каждый день, купить или вывести их нельзя.</p>
 </main>
@@ -216,9 +250,9 @@ async function load() {
 }
 
 // ---------- вкладки ----------
-const PAGES = ["pGames", "pMines", "pWheel", "pTop", "pBonus"];
+const PAGES = ["pGames", "pMines", "pPlay", "pWheel", "pTop", "pBonus"];
 function go(id) { for (const p of PAGES) $(p).hidden = p !== id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === id)); if (id === "pMines") paintMines(); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
-document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) go("pMines"); });
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) go("pMines"); const pl = e.target.closest("[data-play]"); if (pl) openPlay(pl.dataset.play); });
 
 // ---------- лента лучших: настоящие рекорды недели ----------
 const AVC = ["#ff8a3d", "#5a6bff", "#3fd47a", "#ff5d6c", "#8b5cf6", "#ffc83d"];
@@ -284,6 +318,90 @@ async function mCash() {
 $("board").addEventListener("click", (e) => { const c = e.target.closest(".cell"); if (c) mOpen(+c.dataset.c); });
 $("mGo").onclick = () => (M.game ? mCash() : mStart());
 function starPath(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
+
+
+// ---------- быстрые игры: Ракетка, Монетка, Кубик, Сундуки ----------
+const PL = { game: "coin", stake: 100, side: "heads", target: 51, busy: false, last: null, cr: null };
+const CHEST = (open, gem) => `<svg viewBox="0 0 80 80"><rect x="8" y="34" width="64" height="38" rx="6" fill="#8a4b1f"/>${open ? `<path d="M8 34l6-22h52l6 22z" fill="#a85f2a"/>${gem ? `<path d="M40 14l12 8-12 22-12-22z" fill="#7fd6ff"/><path d="M40 14l12 8H28z" fill="#c9f1ff"/>` : `<text x="40" y="58" text-anchor="middle" font-size="18" fill="#d9c2a8">пусто</text>`}` : `<path d="M8 34c0-24 64-24 64 0z" fill="#a85f2a"/><rect x="8" y="32" width="64" height="6" fill="#ffc83d"/><rect x="34" y="28" width="12" height="16" rx="3" fill="#ffc83d"/>`}</svg>`;
+const ROCKET = `<svg viewBox="-30 -45 60 90"><path d="M-8 22q8 26 16 0z" fill="#ffc83d"/><path d="M-12 8l-12 16 14-4zM12 8l12 16-14-4z" fill="#ff5d6c"/><path d="M0-40c18 14 16 44 12 62h-24c-4-18-6-48 12-62z" fill="#f3f0ea"/><path d="M0-40c9 7 14 14 15 22h-30c1-8 6-15 15-22z" fill="#ff5d6c"/><circle cy="-2" r="7" fill="#53e0c8"/></svg>`;
+const NAMES = { coin: "Монетка", dice: "Кубик", chest: "Сундуки", crash: "Ракетка" };
+const diceMultC = (t) => Math.floor(97 / (t - 1) * 100) / 100;
+function openPlay(g) { if (PL.cr) return go("pPlay"); PL.game = g; PL.last = null; go("pPlay"); paintPlay(); }
+function paintPlay() {
+  const g = PL.game, st = me.stakes || [50, 100, 250, 500], L = PL.last, busy = PL.busy || !!PL.cr;
+  $("plTitle").textContent = NAMES[g];
+  $("plStakes").innerHTML = st.map((v) => `<button data-s="${v}" class="${v === PL.stake ? "on" : ""}" ${busy || me.coins < v ? "disabled" : ""}>${v}</button>`).join("");
+  const go = $("plGo"), cant = me.coins < PL.stake;
+  if (g === "coin") {
+    if (!PL.flipT) $("plStage").innerHTML = `<div class="coin3d" id="coin" style="transition:none;transform:rotateY(${PL.face || 0}deg)"><div>О</div><div class="b">Р</div></div>`;
+    $("plCtl").innerHTML = `<div class="seg"><button data-side="heads" class="${PL.side === "heads" ? "on" : ""}">Орёл</button><button data-side="tails" class="${PL.side === "tails" ? "on" : ""}">Решка</button></div>`;
+    $("plSub").textContent = L ? (L.win ? `Выпал${L.result === "heads" ? " орёл" : "а решка"}! +${fmt(L.win)} монет` : `Выпал${L.result === "heads" ? " орёл" : "а решка"}. Не повезло`) : "Угадай сторону: выигрыш ×1,94";
+    go.textContent = cant ? `Нужно ${PL.stake} монет` : `Бросить · ${PL.stake} 🪙`;
+  } else if (g === "dice") {
+    const t = PL.target;
+    $("plStage").innerHTML = `<div style="text-align:center"><div class="bigval ${L ? (L.win ? "w" : "l") : ""}">${L ? L.result : "?"}</div><div class="sub2">выпадет от 1 до 100</div></div>`;
+    $("plCtl").innerHTML = `<div class="info"><span>Меньше <b>${t}</b></span><span>Шанс <b>${t - 1}%</b></span><span>Выигрыш <b>×${String(diceMultC(t)).replace(".", ",")}</b></span></div><input class="range" id="plRange" type="range" min="3" max="96" value="${t}" ${busy ? "disabled" : ""} aria-label="Число">`;
+    $("plSub").textContent = L ? (L.win ? `${L.result} меньше ${t}! +${fmt(L.win)} монет` : `${L.result} — не меньше ${t}`) : "Двигай ползунок: меньше шанс — больше выигрыш";
+    go.textContent = cant ? `Нужно ${PL.stake} монет` : `Бросить · ${PL.stake} 🪙`;
+  } else if (g === "chest") {
+    $("plStage").innerHTML = `<div class="chests">${[0, 1, 2].map((i) => `<button class="chest ${L ? (L.result === i ? "win" : "lose") : ""}" data-pick="${i}" ${busy || cant ? "disabled" : ""}>${CHEST(!!L, L && L.result === i)}</button>`).join("")}</div>`;
+    $("plCtl").innerHTML = "";
+    $("plSub").textContent = L ? (L.win ? `Угадал! +${fmt(L.win)} монет` : "Пусто. Кристалл был в другом сундуке") : `Выбери сундук: в одном кристалл ×2,91 (ставка ${PL.stake})`;
+    go.textContent = L ? "Ещё раз" : "Нажми на сундук"; go.disabled = !L; 
+    return;
+  } else if (g === "crash") {
+    if (!PL.cr) $("plStage").innerHTML = `<div class="crashbox"><div id="crRocket">${ROCKET}</div><div class="bigval ${L && L.crashed ? "boom" : L && L.win ? "w" : ""}" id="crMult">${L ? (L.crashed ? "💥 ×" + String(L.crash).replace(".", ",") : "×" + String(L.mult).replace(".", ",")) : "×1,00"}</div></div>`;
+    $("plCtl").innerHTML = "";
+    $("plSub").textContent = PL.cr ? "Жми «Забрать», пока не взорвалась!" : L ? (L.win ? `Забрал на ×${String(L.mult).replace(".", ",")}: +${fmt(L.win)} монет` : `Взорвалась на ×${String(L.crash).replace(".", ",")}`) : "Множитель растёт. Забери до взрыва";
+    go.textContent = PL.cr ? `Забрать ${fmt(Math.floor(PL.stake * (PL.cr.mult || 1)))} 🪙` : cant ? `Нужно ${PL.stake} монет` : `Старт · ${PL.stake} 🪙`;
+    go.disabled = PL.busy || (!PL.cr && cant); return;
+  }
+  go.disabled = busy || cant;
+}
+$("plStakes").addEventListener("click", (e) => { const v = +e.target.dataset.s; if (v && !PL.busy && !PL.cr) { PL.stake = v; PL.last = null; paintPlay(); haptic("light"); } });
+$("plCtl").addEventListener("click", (e) => { const sd = e.target.dataset.side; if (sd && !PL.busy) { PL.side = sd; paintPlay(); haptic("light"); } });
+$("plCtl").addEventListener("input", (e) => { if (e.target.id === "plRange") { PL.target = +e.target.value; PL.last = null; const t = PL.target; e.target.previousElementSibling.innerHTML = `<span>Меньше <b>${t}</b></span><span>Шанс <b>${t - 1}%</b></span><span>Выигрыш <b>×${String(diceMultC(t)).replace(".", ",")}</b></span>`; } });
+$("plStage").addEventListener("click", (e) => { const c = e.target.closest("[data-pick]"); if (c && PL.game === "chest" && !PL.last) quick({ pick: +c.dataset.pick }); });
+function demoQuick(game, params) {
+  const st = PL.stake; let win, mult, result;
+  if (game === "coin") { win = Math.random() < .5; mult = 1.94; result = win ? params.side : params.side === "heads" ? "tails" : "heads"; }
+  if (game === "dice") { const t = params.target; win = Math.random() < (t - 1) / 100; mult = diceMultC(t); result = win ? 1 + Math.floor(Math.random() * (t - 1)) : t + Math.floor(Math.random() * (101 - t)); }
+  if (game === "chest") { win = Math.random() < 1 / 3; mult = 2.91; const o = [0, 1, 2].filter((x) => x !== params.pick); result = win ? params.pick : o[Math.floor(Math.random() * 2)]; }
+  const w = win ? Math.floor(st * mult) : 0; me.coins += w - st; return { win: w, mult, result };
+}
+async function quick(params) {
+  if (PL.busy) return; PL.busy = true; paintPlay(); haptic("medium"); let r;
+  try { r = demo ? demoQuick(PL.game, params) : await api("play", { game: PL.game, stake: PL.stake, params }); if (!demo) Object.assign(me, r); }
+  catch (e) { toast(e.message); PL.busy = false; paintPlay(); return; }
+  if (PL.game === "coin") { const c = $("coin"), f = r.result === "tails" ? 180 : 0; PL.flipT = 1; c.style.transition = ""; void c.offsetWidth; c.style.transform = `rotateY(${1800 + f}deg)`; await new Promise((ok) => setTimeout(ok, 1450)); PL.flipT = 0; PL.face = f; }
+  if (PL.game === "dice") { for (let i = 0; i < 10; i++) { $("plStage").querySelector(".bigval").textContent = 1 + Math.floor(Math.random() * 100); await new Promise((ok) => setTimeout(ok, 60)); } }
+  PL.last = r; PL.busy = false; haptic(r.win ? "heavy" : "light"); paintPlay(); paintTop();
+}
+async function crashStart() {
+  PL.busy = true; paintPlay(); let r;
+  try { if (demo) { me.coins -= PL.stake; const u = Math.random(); r = { id: "demo", k: .08, demoCrash: Math.max(1, Math.floor(97 / (1 - u)) / 100) }; } else { r = await api("crash/start", { stake: PL.stake }); Object.assign(me, r); } }
+  catch (e) { toast(e.message); PL.busy = false; paintPlay(); return; }
+  PL.busy = false; PL.last = null; PL.cr = { id: r.id, k: r.k, t0: performance.now(), mult: 1, demoCrash: r.demoCrash }; paintPlay(); paintTop(); haptic("medium");
+  $("plStage").innerHTML = `<div class="crashbox"><div id="crRocket">${ROCKET}</div><div class="bigval" id="crMult">×1,00</div></div>`; crashLoop(); crashPoll();
+}
+function crashLoop() { const c = PL.cr; if (!c) return; const t = (performance.now() - c.t0) / 1000; c.mult = Math.floor(Math.exp(c.k * t) * 100) / 100;
+  if (c.demoCrash && c.mult >= c.demoCrash) return crashEnd({ crashed: true, crash: c.demoCrash });
+  const m = $("crMult"), rk = $("crRocket"); if (m) m.textContent = "×" + c.mult.toFixed(2).replace(".", ","); if (rk) { const p = Math.min(1, Math.log(c.mult) / 2.5); rk.style.left = 12 + p * 66 + "%"; rk.style.bottom = 12 + p * 62 + "%"; rk.style.transform = `rotate(${30 + p * 15}deg)`; }
+  const go = $("plGo"); if (go && !PL.busy) go.textContent = `Забрать ${fmt(Math.floor(PL.stake * c.mult))} 🪙`; requestAnimationFrame(crashLoop); }
+async function crashPoll() { while (PL.cr && !demo) { await new Promise((ok) => setTimeout(ok, 450)); if (!PL.cr) return; try { const r = await api("crash/tick", { id: PL.cr.id }); if (r.crashed) return crashEnd(r); } catch (e) {} } }
+function crashEnd(r) { const id = PL.cr && PL.cr.id; PL.cr = null; if (!demo) Object.assign(me, r); PL.last = { crashed: true, crash: r.crash, win: 0 }; haptic("heavy"); paintPlay(); paintTop(); }
+async function crashCash() {
+  const c = PL.cr; if (!c || PL.busy) return; PL.busy = true; let r;
+  try { if (demo) { if (c.mult >= c.demoCrash) { PL.busy = false; return crashEnd({ crash: c.demoCrash }); } const w = Math.floor(PL.stake * c.mult); me.coins += w; r = { win: w, mult: c.mult }; } else r = await api("crash/cash", { id: c.id }); }
+  catch (e) { toast(e.message); PL.busy = false; return; }
+  PL.busy = false;
+  if (r.crashed) return crashEnd(r);
+  PL.cr = null; if (!demo) Object.assign(me, r); PL.last = { win: r.win, mult: r.mult }; haptic("heavy"); paintPlay(); paintTop(); toast(`🚀 +${fmt(r.win)} монет`);
+}
+$("plGo").onclick = () => { const g = PL.game;
+  if (g === "crash") return PL.cr ? crashCash() : crashStart();
+  if (g === "chest") { PL.last = null; return paintPlay(); }
+  quick(g === "coin" ? { side: PL.side } : { target: PL.target }); };
 
 // ---------- магазин: только оформление ----------
 const THEME_C = { classic: ["#20264a", "#343c6e"], neon: ["#120f2e", "#2a1f63"], gold: ["#3a2a0a", "#6b4c12"], cosmos: ["#0d1b3d", "#1d3a7a"], lucky: ["#0f3a33", "#1f6b5d"] };
