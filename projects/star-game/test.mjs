@@ -24,8 +24,8 @@ let r = await call("me", {}, t0);
 assert.equal(r.j.runs, 5); assert.equal(r.j.coins, 30); assert.equal(r.j.freeSpin, true); assert.equal(r.j.daily, true);
 assert.equal((await apiRoute("me", { initData: "user=x&hash=bad" }, env)).status, 401);
 // полёт: очки ограничены временем
-r = await call("run", {}, t0); const run = r.j.runId; assert.equal(r.j.runs, 4);
-r = await call("finish", { runId: run, score: 9999 }, t0 + 20000); assert.equal(r.j.score, 130, "не больше 6 очков/с + 10"); assert.equal(r.j.best, 130); assert.equal(r.j.coins, 30 + 130);
+r = await call("run", { diff: 1 }, t0); const run = r.j.runId; assert.equal(r.j.runs, 4);
+r = await call("finish", { runId: run, score: 9999 }, t0 + 20000); assert.equal(r.j.score, 170, "не больше 8 очков/с + 10"); assert.equal(r.j.best, 170); assert.equal(r.j.coins, 30 + 255, "средняя сложность ×1,5");
 assert.equal((await call("finish", { runId: run, score: 5 }, t0 + 30000)).status, 400, "второй раз тот же полёт не засчитать");
 // лимит запусков
 for (let i = 0; i < 4; i++) await call("run", {}, t0);
@@ -52,9 +52,11 @@ await onUpdate({ message: { chat: { id: 7 }, from: { id: 7 }, successful_payment
 r = await call("me", {}, t0 + 86400000); assert.ok(r.j.skins.includes("gold")); assert.equal(r.j.skin, "gold");
 assert.equal((await call("skin", { skin: "neon" }, t0 + 86400000)).status, 403, "нельзя выбрать не купленную ракету");
 // рейтинг
-r = await call("top", {}, t0); assert.equal(r.j.top[0].score, 130); assert.equal(r.j.top[0].me, true);
+r = await call("top", {}, t0); assert.equal(r.j.top[0].score, 170); assert.equal(r.j.top[0].me, true);
 // игра отдаётся по GET /
 const page = await worker.fetch(new Request("https://g/"), env, {}); assert.equal(page.status, 200); assert.match(await page.text(), /Звёздный рейс/);
 // /setup без ключа закрыт
 assert.equal((await worker.fetch(new Request("https://g/setup"), { ...env, SETUP_KEY: "k" }, {})).status, 403);
+r = await call("run", { diff: 3 }, t0 + 86400000); const hr = r.j.runId;
+r = await call("finish", { runId: hr, score: 10 }, t0 + 86400000 + 10000); assert.equal(r.j.earned, 30, "хардкор ×3");
 console.log("Звёздный рейс: все проверки пройдены ✅");

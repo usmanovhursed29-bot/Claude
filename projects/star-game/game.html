@@ -6,119 +6,195 @@
 <title>Звёздный рейс</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@700;800;900&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-/* Ночное небо, золото звёзд, бирюза щита. Игра — на весь экран, интерфейс крупный, под большой палец. */
-:root{--sky:#0b1226;--sky2:#152245;--panel:rgba(20,32,64,.86);--line:rgba(255,255,255,.12);--ink:#f5f1e6;--soft:#a9b4cf;--gold:#ffc94a;--gold2:#ff9f1c;--teal:#53e0c8;--red:#ff5d6c;
-  --disp:"Unbounded","Arial Black",sans-serif;--body:"Manrope",system-ui,sans-serif}
+/* Стиль как у RubUP (с разрешения владельца): тёмно-синий фон, крупные карточки-иллюстрации, фиолетово-синие градиентные кнопки,
+   верхняя панель с балансом и «Пополнить», плавающее нижнее меню. Механика своя: звёзды только на полёты и ракеты. */
+:root{--bg:#181c2e;--bg2:#1f2439;--card:#252b45;--card2:#2d3452;--line:rgba(255,255,255,.08);--ink:#f2f3fa;--soft:#8e96b8;
+  --acc1:#5a6bff;--acc2:#8b5cf6;--gold:#ffc83d;--green:#3fd47a;--red:#ff5d6c;--teal:#53e0c8;
+  --disp:"Unbounded","Arial Black",sans-serif;--body:"Manrope",system-ui,sans-serif;--grad:linear-gradient(90deg,var(--acc1),var(--acc2))}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--sky);color:var(--ink);font:500 16px/1.4 var(--body);overflow:hidden;user-select:none;touch-action:none}
-#cv{position:fixed;inset:0;width:100%;height:100%;display:block}
-.sw{display:block}
-.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 20px);text-align:center}
-.scr[hidden]{display:none}
-h1{font:800 clamp(30px,9vw,44px)/1.05 var(--disp);margin:0;letter-spacing:-.01em}
-h1 b{color:var(--gold)}
-h2{font:700 24px/1.1 var(--disp);margin:0}
-.sub{color:var(--soft);max-width:22rem;margin:0}
-.btn{appearance:none;border:0;border-radius:18px;min-height:56px;padding:0 26px;font:800 18px var(--body);color:#2a1700;background:linear-gradient(180deg,var(--gold),var(--gold2));box-shadow:0 10px 30px -10px rgba(255,170,40,.7);cursor:pointer;width:min(320px,100%)}
-.btn:active{transform:scale(.97)}
-.btn.ghost{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
-.btn[disabled]{opacity:.45}
-.row{display:flex;gap:10px;width:min(320px,100%)}
-.row .btn{flex:1;min-width:0;padding:0 10px;font-size:16px}
-.stat{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
-.chip b{color:var(--gold)}
-.hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 0;pointer-events:none;font:800 20px var(--disp)}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:700 15px/1.35 var(--body);user-select:none;overscroll-behavior:none}
+body{overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.top{position:fixed;left:0;right:0;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:linear-gradient(var(--bg) 70%,rgba(24,28,46,0))}
+.logo{font:900 19px/1 var(--disp);letter-spacing:-.02em;white-space:nowrap}
+.logo b{color:var(--gold);font-weight:900}
+.bal{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:800;white-space:nowrap}
+.bal i{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.chipb{display:flex;align-items:center;gap:6px;height:42px;padding:0 12px;border-radius:14px;background:var(--bg2);border:1px solid var(--line);font-size:16px;font-weight:800;margin-left:auto}
+.pay{height:42px;padding:0 16px;border-radius:14px;background:var(--grad);font-weight:800;font-size:15px;box-shadow:0 6px 18px -6px rgba(110,90,255,.8)}
+.ava{width:42px;height:42px;border-radius:50%;background:#111;display:grid;place-items:center;font:900 17px var(--disp);flex:none;border:2px solid var(--card2)}
+@media(max-width:420px){.ava{display:none}.logo{font-size:17px}}
+@media(max-width:360px){.logo{font-size:15px}.pay{padding:0 11px;font-size:14px}.chipb{padding:0 8px}}
+.page{position:fixed;inset:0;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 72px) 14px calc(env(safe-area-inset-bottom,0px) + 110px);-webkit-overflow-scrolling:touch}
+.page[hidden]{display:none}
+h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em}
+.banner{position:relative;overflow:hidden;border-radius:24px;min-height:190px;padding:22px;background:radial-gradient(120% 120% at 80% 20%,#6a4bff 0%,#3b2fb8 45%,#241f6e 100%);display:flex;flex-direction:column;justify-content:space-between;gap:14px}
+.banner h3{font:900 30px/1 var(--disp);margin:0;max-width:60%;position:relative}
+.banner p{margin:6px 0 0;font-size:15px;max-width:58%;position:relative}
+.banner .art{position:absolute;right:-10px;top:10px;width:52%;max-width:220px}
+.pill{position:relative;align-self:flex-start;height:48px;padding:0 22px;border-radius:999px;background:var(--grad);font-weight:800;font-size:17px;display:inline-flex;align-items:center;gap:8px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.18)}
+.timer{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(10,12,40,.55);font-size:13px}
+.timer i{width:8px;height:8px;border-radius:50%;background:var(--green)}
+.live{display:flex;gap:8px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.live::-webkit-scrollbar{display:none}
+.live .lbl{flex:none;width:34px;border-radius:14px;background:var(--card);display:grid;place-items:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;letter-spacing:.12em;color:var(--soft)}
+.live .w{flex:none;min-width:150px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:linear-gradient(180deg,#3a2f86,#2b2766);border:1px solid rgba(140,120,255,.35)}
+.live .w b{display:block;color:var(--green);font-size:17px}.live .w span{font-size:13px;color:#d8dcff;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;flex:none}
+.games{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.game{position:relative;overflow:hidden;border-radius:22px;aspect-ratio:3/4;border:2px solid rgba(255,255,255,.07);text-align:left;padding:0;display:block}
+.game svg{position:absolute;inset:0;width:100%;height:100%}
+.game .nm{position:absolute;left:14px;bottom:12px;font:900 21px/1 var(--disp);text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.game .bd{position:absolute;left:10px;top:10px;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(10,12,30,.6);font-size:13px}
+.game .bd i{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.tabs{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:30;display:flex;gap:4px;padding:6px;border-radius:999px;background:rgba(32,37,60,.92);backdrop-filter:blur(14px);border:1px solid var(--line)}
+.tabs button{flex:1;height:50px;border-radius:999px;font-size:16px;font-weight:800;color:var(--soft)}
+.tabs button.on{background:#373c66;color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.08)}
+.tabs[hidden]{display:none}
+@media(max-width:370px){.tabs button{font-size:14px}}
+#cv{position:fixed;left:0;right:0;top:0;display:block;touch-action:none}
+#cv[hidden]{display:none}
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:25;padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 86px);background:var(--bg2);border-radius:22px 22px 0 0;display:flex;flex-direction:column;gap:10px}
+.panel[hidden]{display:none}
+.seg{display:flex;gap:4px;padding:4px;border-radius:16px;background:var(--bg);border:1px solid var(--line)}
+.seg button{flex:1;height:44px;border-radius:12px;color:var(--soft);font-weight:800;font-size:14px}
+.seg button.on{background:#343a63;color:var(--ink)}
+.box{display:flex;align-items:center;gap:10px;height:56px;padding:0 14px;border-radius:16px;background:var(--bg);border:1px solid var(--line);font-size:17px;font-weight:800}
+.box .r{margin-left:auto;font-size:13px;color:var(--soft);font-weight:700}
+.go{height:58px;border-radius:18px;background:var(--grad);font-size:19px;font-weight:800;box-shadow:0 10px 26px -10px rgba(110,90,255,.9)}
+.go[disabled]{background:#2d3352;color:var(--soft);box-shadow:none}
+.go small{display:block;font-size:13px;font-weight:700;opacity:.8}
+.hud{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 66px);z-index:21;display:flex;justify-content:space-between;padding:0 16px;pointer-events:none}
+.hud span{background:rgba(15,18,36,.7);border-radius:12px;padding:6px 12px;font:900 18px var(--disp)}
+.hud .h{color:var(--red);font-family:var(--body);letter-spacing:3px}
 .hud[hidden]{display:none}
-.hearts{letter-spacing:4px;color:var(--red);font-family:var(--body)}
-.list{width:min(360px,100%);display:flex;flex-direction:column;gap:10px;max-height:58vh;overflow:auto}
-.item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;text-align:left}
-.item .t{flex:1;min-width:0}.item .t b{display:block;font-size:16px}.item .t span{color:var(--soft);font-size:13px}
-.item button{appearance:none;border:0;border-radius:12px;min-height:44px;padding:0 14px;font:800 15px var(--body);background:var(--gold);color:#2a1700;white-space:nowrap}
-.item button.on{background:var(--teal);color:#06302a}
-.item button.own{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
-.sw{width:40px;height:40px;flex:none}
-.top li{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;background:var(--panel);border-radius:12px;border:1px solid var(--line)}
-.top{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;width:min(360px,100%);max-height:56vh;overflow:auto;counter-reset:n}
-.top li span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.top li span:first-child::before{counter-increment:n;content:counter(n)". ";color:var(--gold);font-weight:800}
-.top li.me{box-shadow:inset 0 0 0 2px var(--gold)}
-.big{font:800 64px/1 var(--disp);color:var(--gold)}
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:12px 18px;border-radius:14px;font-weight:700;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none}
+.result{position:fixed;left:50%;top:24%;transform:translate(-50%,-50%);z-index:22;background:rgba(40,46,84,.95);border-radius:18px;padding:14px 26px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+.result[hidden]{display:none}
+.result b{display:block;font:900 26px var(--disp)}
+.result span{color:var(--soft);font-size:14px}
+.wheel{position:relative;width:min(320px,82vw);aspect-ratio:1;margin:8px auto 18px}
+.wheel canvas{width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.8,.12,1)}
+.wheel::after{content:"";position:absolute;left:50%;top:-8px;transform:translateX(-50%);border:15px solid transparent;border-top:26px solid var(--gold);filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
+.note{color:var(--soft);font-size:13px;text-align:center;margin:10px 4px}
+.bon{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bc{border-radius:22px;background:var(--card);border:1px solid var(--line);padding:10px 10px 14px;display:flex;flex-direction:column;gap:8px}
+.bc .pic{border-radius:16px;background:radial-gradient(circle at 50% 40%,#3c4a8a,#252c52);aspect-ratio:1.1;display:grid;place-items:center;border-bottom:3px solid var(--acc1)}
+.bc .pic svg{width:62%;height:62%}
+.bc p{margin:0 4px;font-size:14px;color:var(--soft)}.bc p b{color:var(--ink);font:900 22px var(--disp)}
+.bc button{height:46px;border-radius:999px;background:var(--grad);font-weight:800;font-size:16px;margin-top:auto}
+.bc button[disabled]{background:#2d3352;color:var(--soft)}
+.rows{display:flex;flex-direction:column;gap:8px}
+.rw{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
+.rw .n{font:900 15px var(--disp);color:var(--soft);width:26px}
+.rw .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rw .sc{font:900 17px var(--disp)}
+.rw.me{border-color:var(--acc1);background:#2a2f5a}
+.rw.g1 .n{color:var(--gold)}
+.shopg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.si{border-radius:20px;background:var(--card);border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:8px}
+.si .pic{border-radius:14px;background:radial-gradient(circle at 50% 40%,#43357f,#262b4f);aspect-ratio:1.2;display:grid;place-items:center}
+.si canvas,.si svg{width:70px;height:70px}
+.si h4{margin:0;font-size:15px}.si span{font-size:12px;color:var(--soft)}
+.si button{height:42px;border-radius:12px;background:var(--grad);font-weight:800;margin-top:auto}
+.si button.own{background:#343a63}.si button.on{background:#1f6b5d;color:#bff5e9}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(8,10,22,.6);display:flex;align-items:flex-end}
+.sheet[hidden]{display:none}
+.sheet .in{width:100%;max-height:86vh;overflow-y:auto;background:var(--bg);border-radius:26px 26px 0 0;padding:18px 14px calc(env(safe-area-inset-bottom,0px) + 18px)}
+.sheet .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sheet .hd h3{font:900 24px var(--disp);margin:0}
+.x{width:40px;height:40px;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:18px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);transform:translateX(-50%);z-index:50;background:#2d3352;border:1px solid var(--line);padding:12px 18px;border-radius:14px;max-width:90vw;opacity:0;transition:opacity .25s;pointer-events:none;text-align:center}
 .toast.show{opacity:1}
-.fine{color:var(--soft);font-size:12px;max-width:22rem;margin:0}
-.wheel{position:relative;width:min(300px,76vw);aspect-ratio:1}
-.wheel canvas{position:static;width:100%;height:100%;transition:transform 4.2s cubic-bezier(.12,.8,.12,1)}
-.wheel::after{content:"";position:absolute;left:50%;top:-6px;transform:translateX(-50%);border:14px solid transparent;border-top:24px solid var(--gold);filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))}
-.coin{color:var(--gold)}
 </style>
 </head>
 <body>
-<canvas id="cv"></canvas>
-<div class="hud" id="hud" hidden><span id="hScore">0</span><span class="hearts" id="hLives">♥♥♥</span></div>
+<header class="top">
+  <span class="logo">Star<b>Race</b></span>
+  <span class="bal" title="Монеты"><i></i><span id="tCoins">0</span></span>
+  <span class="chipb" title="Полёты">🚀 <span id="tRuns">—</span></span>
+  <button class="pay" id="tPay">Пополнить</button>
+  <span class="ava" id="tAva">?</span>
+</header>
 
-<section class="scr" id="sMenu">
-  <h1>Звёздный<br><b>рейс</b></h1>
-  <p class="sub">Веди ракету пальцем, собирай звёзды и уворачивайся от астероидов. Чем дальше, тем быстрее.</p>
-  <div class="stat"><span class="chip">Рекорд <b id="mBest">0</b></span><span class="chip">Запусков <b id="mRuns">—</b></span><span class="chip">Монеты <b id="mCoins">0</b></span></div>
-  <button class="btn" id="bPlay">Полетели</button>
-  <div class="row"><button class="btn ghost" id="bShop">Магазин ⭐</button><button class="btn ghost" id="bWheel">Колесо 🎡</button></div>
-  <button class="btn ghost" id="bTop">Рейтинг недели</button>
-  <p class="fine" id="mNote">5 бесплатных запусков каждый день.</p>
+<main class="page" id="pGames">
+  <div class="banner">
+    <svg class="art" viewBox="0 0 200 200" aria-hidden="true"><defs><radialGradient id="pl" cx=".35" cy=".35"><stop offset="0" stop-color="#ffb3f0"/><stop offset="1" stop-color="#9b4dff"/></radialGradient></defs>
+      <circle cx="150" cy="150" r="42" fill="url(#pl)"/><ellipse cx="150" cy="150" rx="66" ry="14" fill="none" stroke="#ffd36e" stroke-width="5" transform="rotate(-18 150 150)"/>
+      <g transform="translate(80 90) rotate(35)"><path d="M0-58c26 20 24 62 18 84h-36c-6-22-8-64 18-84z" fill="#f3f0ea"/><path d="M0-58c13 10 19 20 21 30h-42c2-10 8-20 21-30z" fill="#ff5d6c"/><circle cy="-6" r="11" fill="#53e0c8" stroke="#2a2f55" stroke-width="3"/><path d="M-18 14l-18 26 18-6zM18 14l18 26-18-6z" fill="#ff5d6c"/><path d="M-12 26q12 40 24 0z" fill="#ffc83d"/></g>
+      <g fill="#fff"><circle cx="30" cy="40" r="3"/><circle cx="180" cy="30" r="2"/><circle cx="40" cy="170" r="2.5"/></g></svg>
+    <div><h3>Звёздный рейс</h3><p>Веди ракету, собирай звёзды и бей рекорд недели</p></div>
+    <button class="pill" data-open="race">Играть <span>›</span></button>
+  </div>
+  <div class="live" id="live"><span class="lbl">ТОП</span></div>
+  <h2 class="sec">Игры</h2>
+  <div class="games">
+    <button class="game" data-open="race"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1f7a"/><stop offset="1" stop-color="#8b3fd1"/></linearGradient></defs><rect width="300" height="400" fill="url(#g1)"/><g fill="#fff" opacity=".8"><circle cx="40" cy="60" r="2"/><circle cx="250" cy="40" r="3"/><circle cx="220" cy="140" r="2"/><circle cx="60" cy="220" r="2"/></g><path d="M0 330q75-40 150 0t150 0v70H0z" fill="#b067ff" opacity=".5"/><circle cx="245" cy="240" r="26" fill="#ffb3f0" opacity=".9"/><g transform="translate(140 190) rotate(30)"><path d="M0-90c40 30 36 96 28 130h-56c-8-34-12-100 28-130z" fill="#f3f0ea"/><path d="M0-90c20 15 30 30 32 46h-64c2-16 12-31 32-46z" fill="#ff5d6c"/><circle cy="-10" r="17" fill="#53e0c8" stroke="#2a2f55" stroke-width="5"/><path d="M-28 20l-28 40 28-9zM28 20l28 40-28-9z" fill="#ff5d6c"/><path d="M-18 40q18 70 36 0z" fill="#ffc83d"/></g></svg><span class="bd"><i></i><span id="gBest">новая</span></span><span class="nm">Ракета</span></button>
+    <button class="game" data-tab="pWheel"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><radialGradient id="g2" cx=".5" cy=".3"><stop offset="0" stop-color="#ff8a3d"/><stop offset="1" stop-color="#b8233f"/></radialGradient></defs><rect width="300" height="400" fill="url(#g2)"/><g transform="translate(150 185)"><circle r="104" fill="#ffd36e"/><path d="M0 0L0-94A94 94 0 0 1 66-66z" fill="#5a6bff"/><path d="M0 0L66-66A94 94 0 0 1 94 0z" fill="#8b5cf6"/><path d="M0 0L94 0A94 94 0 0 1 66 66z" fill="#3fd47a"/><path d="M0 0L66 66A94 94 0 0 1 0 94z" fill="#ff5d6c"/><path d="M0 0L0 94A94 94 0 0 1-66 66z" fill="#5a6bff"/><path d="M0 0L-66 66A94 94 0 0 1-94 0z" fill="#8b5cf6"/><path d="M0 0L-94 0A94 94 0 0 1-66-66z" fill="#3fd47a"/><path d="M0 0L-66-66A94 94 0 0 1 0-94z" fill="#ff5d6c"/><circle r="22" fill="#ffd36e"/><path d="M0-118l14 26h-28z" fill="#fff"/></g></svg><span class="bd"><i></i><span id="gSpin">крутить</span></span><span class="nm">Колесо</span></button>
+    <button class="game" data-tab="pTop"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a5bd8"/><stop offset="1" stop-color="#1b2a7a"/></linearGradient></defs><rect width="300" height="400" fill="url(#g3)"/><g transform="translate(150 175)"><path d="M-60-60h120v30c0 50-30 80-60 80s-60-30-60-80z" fill="#ffc83d"/><path d="M-60-45h-26c0 40 20 55 36 55M60-45h26c0 40-20 55-36 55" stroke="#ffc83d" stroke-width="12" fill="none"/><rect x="-14" y="48" width="28" height="34" fill="#e6a417"/><rect x="-44" y="80" width="88" height="22" rx="6" fill="#ffc83d"/><path d="M0-40l9 18 20 3-14 14 3 20-18-9-18 9 3-20-14-14 20-3z" fill="#fff6d0"/></g></svg><span class="bd"><i></i><span>неделя</span></span><span class="nm">Рейтинг</span></button>
+    <button class="game" data-tab="pBonus"><svg viewBox="0 0 300 400" aria-hidden="true"><defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a2fc4"/><stop offset="1" stop-color="#2a1d6e"/></linearGradient></defs><rect width="300" height="400" fill="url(#g4)"/><g transform="translate(150 190)"><rect x="-80" y="-20" width="160" height="100" rx="10" fill="#7c4dff"/><rect x="-90" y="-50" width="180" height="40" rx="10" fill="#9a73ff"/><rect x="-14" y="-50" width="28" height="130" fill="#ffc83d"/><path d="M0-50c-30-50-70-20-40 0M0-50c30-50 70-20 40 0" stroke="#ffc83d" stroke-width="12" fill="none"/></g><g fill="#9ad8ff"><path d="M50 90l8 14-8 14-8-14z"/><path d="M250 300l6 10-6 10-6-10z"/></g></svg><span class="bd"><i></i><span>каждый день</span></span><span class="nm">Бонусы</span></button>
+  </div>
+</main>
+
+<main class="page" id="pWheel" hidden>
+  <h2 class="sec">Колесо удачи</h2>
+  <div class="wheel"><canvas id="wc" width="640" height="640"></canvas></div>
+  <button class="go" id="bSpin" style="width:100%">Крутить</button>
+  <p class="note">Колесо крутится только на монеты из полётов. Монеты нельзя купить или вывести.</p>
+</main>
+
+<main class="page" id="pTop" hidden>
+  <h2 class="sec">Рейтинг недели</h2>
+  <div class="rows" id="topList"></div>
+  <p class="note">Лучший полёт каждого игрока с понедельника.</p>
+</main>
+
+<main class="page" id="pBonus" hidden>
+  <div class="banner" style="min-height:160px"><span class="timer"><i></i><span id="bTimer">Новые бонусы скоро</span></span><div><h3 style="max-width:100%">Каждый день</h3><p style="max-width:100%">5 бесплатных полётов, монеты и прокрутка колеса</p></div></div>
+  <h2 class="sec">Бонусы</h2>
+  <div class="bon" id="bonList"></div>
+</main>
+
+<canvas id="cv" hidden></canvas>
+<div class="hud" id="hud" hidden><span id="hScore">0</span><span class="h" id="hLives">♥♥♥</span></div>
+<div class="result" id="result" hidden><b id="rTitle">+0</b><span id="rText"></span></div>
+<section class="panel" id="panel" hidden>
+  <div class="seg" id="diff"><button data-d="0">Лёгкая</button><button data-d="1" class="on">Средняя</button><button data-d="2">Тяжёлая</button><button data-d="3">Хардкор</button></div>
+  <div class="box">🪙 <span id="pMult">×1,5 монет</span><span class="r" id="pShield"></span></div>
+  <button class="go" id="bStart">Начать игру</button>
 </section>
 
-<section class="scr" id="sOver" hidden>
-  <h2 id="oTitle">Полёт окончен</h2>
-  <div class="big" id="oScore">0</div>
-  <p class="sub" id="oText"></p>
-  <button class="btn" id="bAgain">Ещё раз</button>
-  <div class="row"><button class="btn ghost" id="bMenu">Меню</button><button class="btn ghost" id="bTop2">Рейтинг</button></div>
-</section>
+<nav class="tabs" id="tabs"><button class="on" data-tab="pGames">Игры</button><button data-tab="pWheel">Колесо</button><button data-tab="pTop">Рейтинг</button><button data-tab="pBonus">Бонусы</button></nav>
 
-<section class="scr" id="sShop" hidden>
-  <h2>Магазин</h2>
-  <p class="sub">Покупки за звёзды Telegram. Звёзды тратятся на запуски и ракеты, выиграть их в игре нельзя.</p>
-  <div class="list" id="shopList"></div>
-  <button class="btn ghost" id="bBack1">Назад</button>
-</section>
-
-<section class="scr" id="sTop" hidden>
-  <h2>Рейтинг недели</h2>
-  <p class="sub">Лучший полёт каждого игрока с понедельника.</p>
-  <ul class="top" id="topList"></ul>
-  <button class="btn ghost" id="bBack2">Назад</button>
-</section>
-
-<section class="scr" id="sWheel" hidden>
-  <h2>Колесо удачи</h2>
-  <p class="sub" id="wText">Крути за монеты из полётов. Призы: монеты, запуски, щит и редкая ракета.</p>
-  <div class="wheel"><canvas id="wc" width="600" height="600"></canvas></div>
-  <button class="btn" id="bSpin">Крутить</button>
-  <p class="fine">Монеты нельзя купить или вывести. Колесо крутится только на них.</p>
-  <button class="btn ghost" id="bBack3">Назад</button>
-</section>
+<div class="sheet" id="shop" hidden><div class="in">
+  <div class="hd"><h3>Пополнить</h3><button class="x" id="shopX" aria-label="Закрыть">✕</button></div>
+  <div class="shopg" id="shopList"></div>
+  <p class="note">Оплата звёздами Telegram. Звёзды тратятся на полёты и ракеты, выиграть их в игре нельзя.</p>
+</div></div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 const tg = window.Telegram && Telegram.WebApp;
 const INIT = tg && tg.initData;
-if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#0b1226"); tg.setBackgroundColor("#0b1226"); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {} }
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor("#181c2e"); tg.setBackgroundColor("#181c2e"); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {} }
 const API = location.origin + "/api/";
 const $ = (id) => document.getElementById(id);
 const haptic = (t) => { try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(t); } catch (e) {} };
-
-const SKINS = {
-  classic: { name: "Классика", body: "#f3f0ea", wing: "#ff5d6c", win: "#53e0c8", flame: "#ffb02e" },
-  neon: { name: "Неон", body: "#1b1f3a", wing: "#7a5cff", win: "#53e0c8", flame: "#53e0c8" },
-  gold: { name: "Золотая", body: "#ffd768", wing: "#ff9f1c", win: "#2a1700", flame: "#fff1b0" },
-  comet: { name: "Комета", body: "#cfe8ff", wing: "#3a86ff", win: "#ffffff", flame: "#8ecbff" },
-  lucky: { name: "Удача", body: "#53e0c8", wing: "#ffc94a", win: "#0b1226", flame: "#ff5d6c" },
-};
-let me = { runs: null, best: 0, coins: 0, freeSpin: false, shield: 0, spinCost: 50, skins: ["classic"], skin: "classic", shop: [], wheel: [] };
+const fmt = (n) => Math.round(n).toLocaleString("ru-RU");
+const esc = (s) => String(s).replace(/[<>&"]/g, "");
 const demo = !INIT;
+const DIFF = [{ sp: .8, m: 1 }, { sp: 1, m: 1.5 }, { sp: 1.25, m: 2 }, { sp: 1.55, m: 3 }];
+let diff = 1;
+const SKINS = {
+  classic: { body: "#f3f0ea", wing: "#ff5d6c", win: "#53e0c8", flame: "#ffb02e" },
+  neon: { body: "#1b1f3a", wing: "#7a5cff", win: "#53e0c8", flame: "#53e0c8" },
+  gold: { body: "#ffd768", wing: "#ff9f1c", win: "#2a1700", flame: "#fff1b0" },
+  comet: { body: "#cfe8ff", wing: "#3a86ff", win: "#ffffff", flame: "#8ecbff" },
+  lucky: { body: "#53e0c8", wing: "#ffc83d", win: "#0b1226", flame: "#ff5d6c" },
+};
+let me = { runs: null, best: 0, coins: 0, freeSpin: false, shield: 0, spinCost: 50, dailyCoins: 30, skins: ["classic"], skin: "classic", shop: [], wheel: [] };
 
 async function api(path, body) {
   const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: INIT, ...body }) });
@@ -127,156 +203,187 @@ async function api(path, body) {
   return d;
 }
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
-function show(id) { for (const s of ["sMenu", "sOver", "sShop", "sTop", "sWheel"]) $(s).hidden = s !== id; $("hud").hidden = !!id; }
-function paintMenu() { $("mCoins").textContent = me.coins; $("bWheel").textContent = me.freeSpin ? "Колесо 🎁" : "Колесо 🎡"; $("mBest").textContent = me.best; $("mRuns").textContent = me.runs == null ? "—" : me.runs; $("mNote").textContent = demo ? "Демо в браузере. Рейтинг и магазин работают внутри Telegram." : me.runs > 0 ? "5 бесплатных запусков каждый день." : "Запуски на сегодня закончились. Завтра будут новые или купи в магазине."; }
-async function load() { if (demo) { me.runs = 99; me.best = +(localStorage.getItem("sr_best") || 0); me.coins = 120; me.freeSpin = true; } else { try { Object.assign(me, await api("me")); if (me.daily) toast(`Ежедневный бонус: +${me.dailyCoins} монет и бесплатная прокрутка 🎁`); } catch (e) { toast(e.message); } } paintMenu(); }
+function paintTop() {
+  $("tCoins").textContent = fmt(me.coins); $("tRuns").textContent = me.runs == null ? "—" : demo ? "∞" : me.runs;
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user; $("tAva").textContent = (u && u.first_name ? u.first_name[0] : "Я").toUpperCase();
+  $("gBest").textContent = me.best ? `рекорд ${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : `${me.spinCost} монет`;
+}
+async function load() {
+  if (demo) { let b = 0, c = 120; try { b = +(localStorage.getItem("sr_best") || 0); c = +(localStorage.getItem("sr_coins") || 120); } catch (e) {} me.runs = 99; me.best = b; me.coins = c; me.freeSpin = true; }
+  else { try { Object.assign(me, await api("me")); if (me.daily) toast(`Ежедневный бонус: +${me.dailyCoins} монет и бесплатная прокрутка 🎁`); } catch (e) { toast(e.message); } }
+  paintTop(); loadLive();
+}
 
-// ---------- игра ----------
+// ---------- вкладки ----------
+const PAGES = ["pGames", "pWheel", "pTop", "pBonus"];
+function go(id) { for (const p of PAGES) $(p).hidden = p !== id; document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === id)); if (id === "pWheel") { drawWheel(); paintWheel(); } if (id === "pTop") openTop(); if (id === "pBonus") paintBonus(); haptic("light"); }
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { closeGame(); go(t.dataset.tab); return; } if (e.target.closest("[data-open]")) openGame(); });
+
+// ---------- лента лучших: настоящие рекорды недели ----------
+const AVC = ["#ff8a3d", "#5a6bff", "#3fd47a", "#ff5d6c", "#8b5cf6", "#ffc83d"];
+async function loadLive() {
+  let rows = [];
+  if (!demo) { try { rows = (await api("top")).top.slice(0, 8); } catch (e) {} }
+  $("live").innerHTML = `<span class="lbl">ТОП</span>` + (rows.length ? rows.map((r, i) => `<div class="w"><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><div><span>${esc(r.name)}</span><b>${fmt(r.score)}</b></div></div>`).join("") : `<div class="w"><div><span>${demo ? "Рейтинг виден в Telegram" : "На этой неделе пока пусто"}</span><b>Стань первым!</b></div></div>`);
+}
+
+// ---------- игровой движок ----------
 const cv = $("cv"), cx = cv.getContext("2d");
-let W, H, DPR;
-function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0); }
-addEventListener("resize", resize); resize();
-const sky = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9 }));
-let G = null, runId = null;
-function newGame() { return { t: 0, x: W / 2, tx: W / 2, y: H * .78, lives: 3, score: 0, speed: 210, objs: [], parts: [], spawn: 0, shield: 0, hurt: 0, over: false }; }
+let W = innerWidth, H = innerHeight, DPR = 1;
+function resize() { DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; const pb = $("panel").hidden ? 0 : $("panel").offsetHeight - 20; H = innerHeight - pb; cv.width = W * DPR; cv.height = H * DPR; cv.style.height = H + "px"; cx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+addEventListener("resize", resize);
+const sky = Array.from({ length: 80 }, () => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9 }));
+let G = null, runId = null, inGame = false;
+function newGame() { const d = DIFF[diff]; return { t: 0, x: W / 2, tx: W / 2, y: H * .8, lives: 3, score: 0, mul: d.sp, speed: 210 * d.sp, objs: [], parts: [], spawn: 0, shield: 0, hurt: 0, over: false }; }
 function spawn(g) {
-  const r = Math.random(), x = 30 + Math.random() * (W - 60);
-  const rockP = Math.min(.55, .3 + g.t / 120);
-  if (r < rockP) g.objs.push({ k: "rock", x, y: -40, r: 16 + Math.random() * 18, rot: Math.random() * 6, vr: (Math.random() - .5) * 3, vx: (Math.random() - .5) * 40 });
+  const r = Math.random(), x = 30 + Math.random() * (W - 60), rockP = Math.min(.58, (.28 + g.t / 120) * (.85 + g.mul * .15));
+  if (r < rockP) g.objs.push({ k: "rock", x, y: -40, r: 16 + Math.random() * 18, rot: Math.random() * 6, vr: (Math.random() - .5) * 3, vx: (Math.random() - .5) * 40 * g.mul });
   else if (r < rockP + .04) g.objs.push({ k: "shield", x, y: -30, r: 16 });
   else if (r < rockP + .1) g.objs.push({ k: "big", x, y: -30, r: 18 });
   else g.objs.push({ k: "star", x, y: -20, r: 12 });
 }
 function burst(g, x, y, col, n) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 180; g.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, l: .6, c: col }); } }
 function step(dt) {
-  const g = G; g.t += dt; g.speed = 210 + g.t * 9; g.x += (g.tx - g.x) * Math.min(1, dt * 14);
-  g.spawn -= dt; if (g.spawn <= 0) { spawn(g); g.spawn = Math.max(.22, .62 - g.t / 90); }
+  const g = G; g.t += dt; g.speed = (210 + g.t * 9) * g.mul; g.x += (g.tx - g.x) * Math.min(1, dt * 14);
+  g.spawn -= dt; if (g.spawn <= 0) { spawn(g); g.spawn = Math.max(.2, (.62 - g.t / 90) / Math.sqrt(g.mul)); }
   if (g.shield > 0) g.shield -= dt; if (g.hurt > 0) g.hurt -= dt;
   for (const o of g.objs) { o.y += g.speed * dt * (o.k === "rock" ? 1.05 : .9); if (o.vx) o.x += o.vx * dt; if (o.rot != null) o.rot += o.vr * dt;
-    const dx = o.x - g.x, dy = o.y - g.y, hit = Math.hypot(dx, dy) < o.r + 18;
-    if (hit && !o.dead) {
-      if (o.k === "star") { g.score += 1; o.dead = 1; burst(g, o.x, o.y, "#ffc94a", 8); haptic("light"); }
+    if (!o.dead && Math.hypot(o.x - g.x, o.y - g.y) < o.r + 18) {
+      if (o.k === "star") { g.score += 1; o.dead = 1; burst(g, o.x, o.y, "#ffc83d", 8); haptic("light"); }
       else if (o.k === "big") { g.score += 5; o.dead = 1; burst(g, o.x, o.y, "#fff1b0", 16); haptic("medium"); }
       else if (o.k === "shield") { g.shield = 6; o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 14); haptic("medium"); }
       else if (g.shield > 0) { o.dead = 1; burst(g, o.x, o.y, "#53e0c8", 18); }
-      else if (g.hurt <= 0) { g.lives--; g.hurt = 1.2; o.dead = 1; burst(g, o.x, o.y, "#ff5d6c", 22); haptic("heavy"); if (g.lives <= 0) g.over = true; }
-    } }
+      else if (g.hurt <= 0) { g.lives--; g.hurt = 1.2; o.dead = 1; burst(g, o.x, o.y, "#ff5d6c", 22); haptic("heavy"); if (g.lives <= 0) g.over = true; } } }
   g.objs = g.objs.filter((o) => !o.dead && o.y < H + 60);
-  for (const p of g.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.l -= dt; }
-  g.parts = g.parts.filter((p) => p.l > 0);
+  for (const p of g.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.l -= dt; } g.parts = g.parts.filter((p) => p.l > 0);
   $("hScore").textContent = g.score; $("hLives").textContent = "♥".repeat(Math.max(0, g.lives)) + "♡".repeat(3 - Math.max(0, g.lives));
 }
-function starPath(x, y, r, n = 5, k = .45) { cx.beginPath(); for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, rr = i % 2 ? r * k : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath(); }
-function drawRocket(x, y, skin, t, ghost) {
-  const s = SKINS[skin] || SKINS.classic; cx.save(); cx.translate(x, y); if (ghost) cx.globalAlpha = .5;
-  const f = 14 + Math.sin(t * 40) * 5; const fl = cx.createLinearGradient(0, 18, 0, 18 + f + 14); fl.addColorStop(0, s.flame); fl.addColorStop(1, "rgba(255,120,0,0)");
-  cx.fillStyle = fl; cx.beginPath(); cx.moveTo(-8, 18); cx.quadraticCurveTo(0, 18 + f + 16, 8, 18); cx.fill();
-  cx.fillStyle = s.wing; cx.beginPath(); cx.moveTo(-12, 8); cx.lineTo(-24, 24); cx.lineTo(-10, 20); cx.fill(); cx.beginPath(); cx.moveTo(12, 8); cx.lineTo(24, 24); cx.lineTo(10, 20); cx.fill();
-  cx.fillStyle = s.body; cx.beginPath(); cx.moveTo(0, -30); cx.bezierCurveTo(16, -16, 14, 10, 10, 22); cx.lineTo(-10, 22); cx.bezierCurveTo(-14, 10, -16, -16, 0, -30); cx.fill();
-  cx.fillStyle = s.wing; cx.beginPath(); cx.moveTo(0, -30); cx.bezierCurveTo(8, -24, 11, -18, 12, -14); cx.lineTo(-12, -14); cx.bezierCurveTo(-11, -18, -8, -24, 0, -30); cx.fill();
-  cx.fillStyle = s.win; cx.beginPath(); cx.arc(0, -2, 6.5, 0, 6.28); cx.fill(); cx.strokeStyle = "rgba(0,0,0,.25)"; cx.lineWidth = 2; cx.stroke();
-  cx.restore();
-}
+function starPath(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
+function rocket(g, skin, t, flame) { const s = SKINS[skin] || SKINS.classic;
+  if (flame) { const f = 14 + Math.sin(t * 40) * 5, fl = g.createLinearGradient(0, 18, 0, 18 + f + 14); fl.addColorStop(0, s.flame); fl.addColorStop(1, "rgba(255,120,0,0)"); g.fillStyle = fl; g.beginPath(); g.moveTo(-8, 18); g.quadraticCurveTo(0, 18 + f + 16, 8, 18); g.fill(); }
+  g.fillStyle = s.wing; g.beginPath(); g.moveTo(-12, 8); g.lineTo(-24, 24); g.lineTo(-10, 20); g.fill(); g.beginPath(); g.moveTo(12, 8); g.lineTo(24, 24); g.lineTo(10, 20); g.fill();
+  g.fillStyle = s.body; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(16, -16, 14, 10, 10, 22); g.lineTo(-10, 22); g.bezierCurveTo(-14, 10, -16, -16, 0, -30); g.fill();
+  g.fillStyle = s.wing; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(8, -24, 11, -18, 12, -14); g.lineTo(-12, -14); g.bezierCurveTo(-11, -18, -8, -24, 0, -30); g.fill();
+  g.fillStyle = s.win; g.beginPath(); g.arc(0, -2, 6.5, 0, 6.28); g.fill(); }
 function draw(t) {
-  const g = G; const bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#152245"); bg.addColorStop(1, "#0b1226"); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
-  const sp = g ? g.speed : 60;
-  for (const s of sky) { s.y += (sp * s.z * .0009) * (1 / 60); if (s.y > 1) { s.y = 0; s.x = Math.random(); } cx.fillStyle = `rgba(255,255,255,${.25 + s.z * .5})`; cx.fillRect(s.x * W, s.y * H, s.z * 2, s.z * 2 + (g ? s.z * 4 : 0)); }
-  if (!g) return;
+  if (!inGame) return;
+  const g = G, bg = cx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#232a52"); bg.addColorStop(1, "#181c2e"); cx.fillStyle = bg; cx.fillRect(0, 0, W, H);
+  const sp = g ? g.speed : 50;
+  for (const s of sky) { s.y += sp * s.z * .0009 / 60; if (s.y > 1) { s.y = 0; s.x = Math.random(); } cx.fillStyle = `rgba(255,255,255,${.25 + s.z * .5})`; cx.fillRect(s.x * W, s.y * H, s.z * 2, s.z * 2 + (g ? s.z * 4 : 0)); }
+  if (!g) { cx.save(); cx.translate(W / 2, H * .62 + Math.sin(t * 2) * 6); cx.scale(1.6, 1.6); rocket(cx, me.skin, t, true); cx.restore(); return; }
   for (const o of g.objs) {
-    if (o.k === "rock") { cx.save(); cx.translate(o.x, o.y); cx.rotate(o.rot); cx.fillStyle = "#6b5a7a"; cx.beginPath(); for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28, rr = o.r * (.82 + ((i * 37) % 7) / 30); cx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } cx.closePath(); cx.fill(); cx.fillStyle = "#54465f"; cx.beginPath(); cx.arc(o.r * .25, -o.r * .2, o.r * .22, 0, 6.28); cx.arc(-o.r * .3, o.r * .3, o.r * .15, 0, 6.28); cx.fill(); cx.restore(); }
+    if (o.k === "rock") { cx.save(); cx.translate(o.x, o.y); cx.rotate(o.rot); cx.fillStyle = "#6b5a8a"; cx.beginPath(); for (let i = 0; i < 9; i++) { const a = i / 9 * 6.28, rr = o.r * (.82 + ((i * 37) % 7) / 30); cx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } cx.closePath(); cx.fill(); cx.fillStyle = "#54466f"; cx.beginPath(); cx.arc(o.r * .25, -o.r * .2, o.r * .22, 0, 6.28); cx.arc(-o.r * .3, o.r * .3, o.r * .15, 0, 6.28); cx.fill(); cx.restore(); }
     else if (o.k === "shield") { cx.strokeStyle = "#53e0c8"; cx.lineWidth = 3; cx.fillStyle = "rgba(83,224,200,.18)"; cx.beginPath(); cx.arc(o.x, o.y, o.r, 0, 6.28); cx.fill(); cx.stroke(); cx.fillStyle = "#53e0c8"; cx.font = "800 15px Manrope"; cx.textAlign = "center"; cx.fillText("S", o.x, o.y + 5); }
-    else { const big = o.k === "big"; cx.save(); cx.shadowColor = "#ffc94a"; cx.shadowBlur = big ? 22 : 12; cx.fillStyle = big ? "#fff1b0" : "#ffc94a"; starPath(o.x, o.y, o.r + Math.sin(t * 6 + o.x) * 1.5); cx.fill(); cx.restore(); }
-  }
+    else { const big = o.k === "big"; cx.save(); cx.shadowColor = "#ffc83d"; cx.shadowBlur = big ? 22 : 12; cx.fillStyle = big ? "#fff1b0" : "#ffc83d"; starPath(cx, o.x, o.y, o.r + Math.sin(t * 6 + o.x) * 1.5); cx.fill(); cx.restore(); } }
   for (const p of g.parts) { cx.globalAlpha = Math.max(0, p.l / .6); cx.fillStyle = p.c; cx.fillRect(p.x - 2, p.y - 2, 4, 4); } cx.globalAlpha = 1;
-  drawRocket(g.x, g.y, me.skin, t, g.hurt > 0 && Math.floor(t * 12) % 2);
+  if (!(g.hurt > 0 && Math.floor(t * 12) % 2)) { cx.save(); cx.translate(g.x, g.y); rocket(cx, me.skin, t, true); cx.restore(); }
   if (g.shield > 0) { cx.strokeStyle = `rgba(83,224,200,${.5 + .3 * Math.sin(t * 10)})`; cx.lineWidth = 3; cx.beginPath(); cx.arc(g.x, g.y - 2, 36, 0, 6.28); cx.stroke(); }
 }
 let last = performance.now();
 function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; if (G && !G.over) step(dt); draw(now / 1000); if (G && G.over && !G.ended) { G.ended = true; finish(); } requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 const move = (e) => { if (!G) return; const p = e.touches ? e.touches[0] : e; G.tx = Math.max(24, Math.min(W - 24, p.clientX)); };
-addEventListener("pointermove", move); addEventListener("pointerdown", move); addEventListener("touchmove", (e) => { move(e); e.preventDefault(); }, { passive: false });
+cv.addEventListener("pointermove", move); cv.addEventListener("pointerdown", move); cv.addEventListener("touchmove", (e) => { move(e); e.preventDefault(); }, { passive: false });
 
-async function play() {
-  if (!demo && !(me.runs > 0)) { toast("Запуски закончились. Загляни в магазин ⭐"); show("sShop"); renderShop(); return; }
+function paintPanel() { const d = DIFF[diff]; $("pMult").textContent = `×${String(d.m).replace(".", ",")} монет за звезду`; $("pShield").textContent = me.shield ? `🛡 щит ×${me.shield}` : "";
+  document.querySelectorAll("#diff button").forEach((b) => b.classList.toggle("on", +b.dataset.d === diff));
+  const can = demo || me.runs > 0; $("bStart").innerHTML = can ? "Начать игру" : `Полёты закончились<small>нажми, чтобы пополнить</small>`; }
+function openGame() { inGame = true; G = null; for (const p of PAGES) $(p).hidden = true; cv.hidden = false; $("panel").hidden = false; $("result").hidden = true; paintPanel(); resize(); haptic("light"); }
+function closeGame() { if (!inGame) return; inGame = false; G = null; cv.hidden = true; $("panel").hidden = true; $("hud").hidden = true; $("result").hidden = true; $("tabs").hidden = false; }
+$("diff").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || G) return; diff = +b.dataset.d; paintPanel(); haptic("light"); });
+$("bStart").onclick = async () => {
+  if (!demo && !(me.runs > 0)) { openShop(); return; }
   let shield = 0;
-  try { if (!demo) { const d = await api("run"); runId = d.runId; me.runs = d.runs; shield = d.shield; } } catch (e) { toast(e.message); return; }
-  G = newGame(); if (shield) { G.shield = 8; toast("Щит из колеса включён 🛡"); } show(null); haptic("medium");
-}
+  try { if (!demo) { const d = await api("run", { diff }); runId = d.runId; me.runs = d.runs; shield = d.shield; if (shield) me.shield--; } } catch (e) { toast(e.message); return; }
+  $("panel").hidden = true; $("tabs").hidden = true; $("result").hidden = true; resize(); G = newGame(); if (shield) { G.shield = 8; toast("Щит из колеса включён 🛡"); } $("hud").hidden = false; paintTop(); haptic("medium");
+};
 async function finish() {
-  const g = G, sc = g.score;
-  let best = me.best, record = sc > me.best;
-  if (demo) { if (record) localStorage.setItem("sr_best", sc); me.best = Math.max(me.best, sc); }
-  let earned = sc;
-  if (demo) me.coins += sc;
+  const sc = G.score; let record = sc > me.best, earned = Math.round(sc * DIFF[diff].m);
+  if (demo) { me.coins += earned; me.best = Math.max(me.best, sc); try { localStorage.setItem("sr_best", me.best); localStorage.setItem("sr_coins", me.coins); } catch (e) {} }
   else { try { const d = await api("finish", { runId, score: sc }); Object.assign(me, d); record = d.record; earned = d.earned; } catch (e) { toast(e.message); } }
-  $("oScore").textContent = sc; $("oTitle").textContent = record ? "Новый рекорд!" : "Полёт окончен";
-  $("oText").textContent = (record ? "Ты побил свой лучший результат. " : `Рекорд: ${me.best}. `) + `+${earned} монет. Запусков: ${demo ? "∞" : me.runs}.`;
-  setTimeout(() => { G = null; show("sOver"); paintMenu(); }, 650); if (record) haptic("heavy");
+  $("rTitle").textContent = record && sc > 0 ? `Рекорд: ${fmt(sc)}!` : `${fmt(sc)} ★`; $("rText").textContent = `+${fmt(earned)} монет`;
+  setTimeout(() => { G = null; $("hud").hidden = true; $("result").hidden = false; $("panel").hidden = false; $("tabs").hidden = false; resize(); paintPanel(); paintTop(); loadLive(); }, 600);
+  haptic(record ? "heavy" : "medium");
 }
+
+// ---------- магазин ----------
+const SHOP_DEF = [{ id: "runs5", title: "+5 полётов", stars: 5 }, { id: "runs20", title: "+20 полётов", stars: 15 }, { id: "skin_neon", title: "Ракета «Неон»", stars: 25, skin: "neon" }, { id: "skin_comet", title: "Ракета «Комета»", stars: 35, skin: "comet" }, { id: "skin_gold", title: "Ракета «Золотая»", stars: 50, skin: "gold" }];
+function openShop() { $("shop").hidden = false; renderShop(); }
 function renderShop() {
-  const L = $("shopList"); const items = me.shop.length ? me.shop : [
-    { id: "runs5", title: "+5 запусков", stars: 5 }, { id: "runs20", title: "+20 запусков", stars: 15 },
-    { id: "skin_neon", title: "Ракета «Неон»", stars: 25, skin: "neon" }, { id: "skin_comet", title: "Ракета «Комета»", stars: 35, skin: "comet" }, { id: "skin_gold", title: "Ракета «Золотая»", stars: 50, skin: "gold" }];
-  const owned = (s) => me.skins.includes(s);
-  L.innerHTML = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...items].map((it) => {
-    const sw = it.skin ? `<canvas class="sw" data-skin="${it.skin}" width="80" height="80"></canvas>` : `<svg class="sw" viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc94a"/></svg>`;
+  const shop = (me.shop.length ? me.shop : SHOP_DEF).map((x) => ({ ...x, title: x.title.replace("запусков", "полётов") }));
+  const items = [{ id: "skin_classic", title: "Ракета «Классика»", stars: 0, skin: "classic" }, ...shop, { id: "skin_lucky", title: "Ракета «Удача»", stars: -1, skin: "lucky" }];
+  $("shopList").innerHTML = items.map((it) => {
+    const own = it.skin && me.skins.includes(it.skin);
+    const pic = it.skin ? `<canvas data-skin="${it.skin}" width="140" height="140"></canvas>` : `<svg viewBox="0 0 40 40"><path d="M20 4l4.7 10.5 11.3 1-8.6 7.5 2.6 11.2L20 28.3 10 34.2l2.6-11.2L4 15.5l11.3-1z" fill="#ffc83d"/></svg>`;
     let btn;
-    if (it.skin && owned(it.skin)) btn = me.skin === it.skin ? `<button class="on" disabled>Выбрана</button>` : `<button class="own" data-use="${it.skin}">Выбрать</button>`;
+    if (own) btn = me.skin === it.skin ? `<button class="on" disabled>Выбрана</button>` : `<button class="own" data-use="${it.skin}">Выбрать</button>`;
+    else if (it.stars === -1) btn = `<button class="own" data-wheel="1">Только в колесе</button>`;
     else btn = `<button data-buy="${it.id}">${it.stars} ⭐</button>`;
-    return `<div class="item">${sw}<div class="t"><b>${it.title}</b><span>${it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span></div>${btn}</div>`;
+    return `<div class="si"><div class="pic">${pic}</div><h4>${it.title}</h4><span>${it.skin ? "Внешний вид ракеты" : "Сверх 5 бесплатных в день"}</span>${btn}</div>`;
   }).join("");
-  L.querySelectorAll("canvas.sw").forEach((c) => { const g = c.getContext("2d"); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 80, 80); g.translate(40, 44); g.scale(1.15, 1.15); drawRocketCtx(g, c.dataset.skin); });
+  $("shopList").querySelectorAll("canvas").forEach((c) => { const g = c.getContext("2d"); g.translate(70, 76); g.scale(1.6, 1.6); rocket(g, c.dataset.skin, 0, false); });
 }
-function drawRocketCtx(g, skin) { const s = SKINS[skin] || SKINS.classic;
-  g.fillStyle = s.wing; g.beginPath(); g.moveTo(-12, 8); g.lineTo(-24, 24); g.lineTo(-10, 20); g.fill(); g.beginPath(); g.moveTo(12, 8); g.lineTo(24, 24); g.lineTo(10, 20); g.fill();
-  g.fillStyle = s.body; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(16, -16, 14, 10, 10, 22); g.lineTo(-10, 22); g.bezierCurveTo(-14, 10, -16, -16, 0, -30); g.fill();
-  g.fillStyle = s.wing; g.beginPath(); g.moveTo(0, -30); g.bezierCurveTo(8, -24, 11, -18, 12, -14); g.lineTo(-12, -14); g.bezierCurveTo(-11, -18, -8, -24, 0, -30); g.fill();
-  g.fillStyle = s.win; g.beginPath(); g.arc(0, -2, 6.5, 0, 6.28); g.fill(); }
-$("shopList").addEventListener("click", async (e) => {
+$("tPay").onclick = openShop; $("shopX").onclick = () => { $("shop").hidden = true; };
+$("shop").addEventListener("click", async (e) => {
+  if (e.target === $("shop")) { $("shop").hidden = true; return; }
   const use = e.target.dataset.use, buy = e.target.dataset.buy;
+  if (e.target.dataset.wheel) { $("shop").hidden = true; closeGame(); go("pWheel"); return; }
   if (use) { me.skin = use; if (!demo) api("skin", { skin: use }).catch(() => {}); renderShop(); haptic("light"); return; }
   if (!buy) return;
   if (demo) { toast("Покупки работают внутри Telegram"); return; }
-  try { const { link } = await api("buy", { item: buy }); tg.openInvoice(link, async (st) => { if (st === "paid") { toast("Оплачено! Спасибо ⭐"); setTimeout(async () => { Object.assign(me, await api("me")); renderShop(); paintMenu(); }, 1200); } else if (st === "failed") toast("Оплата не прошла"); }); }
+  try { const { link } = await api("buy", { item: buy }); tg.openInvoice(link, (st) => { if (st === "paid") { toast("Оплачено! Спасибо ⭐"); setTimeout(async () => { Object.assign(me, await api("me")); renderShop(); paintTop(); if (inGame) paintPanel(); }, 1200); } else if (st === "failed") toast("Оплата не прошла"); }); }
   catch (err) { toast(err.message); }
 });
-async function openTop() {
-  show("sTop"); const L = $("topList"); L.innerHTML = `<li><span>Загружаю…</span></li>`;
-  if (demo) { L.innerHTML = `<li><span>Рейтинг работает внутри Telegram</span></li>`; return; }
-  try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r) => `<li class="${r.me ? "me" : ""}"><span>${r.name.replace(/[<>&]/g, "")}</span><b>${r.score}</b></li>`).join("") : `<li><span>На этой неделе ещё никто не летал. Будь первым!</span></li>`; }
-  catch (e) { L.innerHTML = `<li><span>${e.message}</span></li>`; }
-}
-$("bPlay").onclick = play; $("bAgain").onclick = play;
-$("bMenu").onclick = () => { show("sMenu"); paintMenu(); };
-$("bShop").onclick = () => { show("sShop"); renderShop(); };
-$("bWheel").onclick = openWheel; $("bBack3").onclick = () => { show("sMenu"); paintMenu(); }; $("bSpin").onclick = spin;
-$("bTop").onclick = openTop; $("bTop2").onclick = openTop;
-$("bBack1").onclick = $("bBack2").onclick = () => { show("sMenu"); paintMenu(); };
-// ---------- колесо удачи (только монеты и игровые призы) ----------
-const DEMO_WHEEL = ["10 монет", "30 монет", "80 монет", "200 монет", "+1 запуск", "+3 запуска", "Щит на старт", "Ракета «Удача»"];
-const WCOL = ["#1f3b73", "#2a4f94", "#1f3b73", "#c98a1a", "#16595a", "#1f7a72", "#2a4f94", "#7a3fb0"];
+
+// ---------- колесо (только монеты) ----------
+const DEMO_WHEEL = ["10 монет", "30 монет", "80 монет", "200 монет", "+1 полёт", "+3 полёта", "Щит", "Ракета «Удача»"];
+const WCOL = ["#3b4aa8", "#5a3fc0", "#3b4aa8", "#c98a1a", "#1f7a62", "#26936f", "#5a3fc0", "#b0326e"];
 let wAngle = 0, spinning = false;
+const wLabels = () => me.wheel.length ? me.wheel.map((w) => w.label.replace("+1 запуск", "+1 полёт").replace("+3 запуска", "+3 полёта").replace("Щит на старт", "Щит")) : DEMO_WHEEL;
 function drawWheel() {
-  const c = $("wc"), g = c.getContext("2d"), labels = me.wheel.length ? me.wheel.map((w) => w.label) : DEMO_WHEEL, n = labels.length, R = 290;
-  g.clearRect(0, 0, 600, 600); g.save(); g.translate(300, 300);
-  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + i * 2 * Math.PI / n - Math.PI / n, a1 = a0 + 2 * Math.PI / n;
-    g.fillStyle = WCOL[i % WCOL.length]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 3; g.stroke();
-    g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = "#f5f1e6"; g.font = "800 26px Manrope, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(labels[i], R - 22, 0); g.restore(); }
-  g.fillStyle = "#ffc94a"; g.beginPath(); g.arc(0, 0, 42, 0, 6.28); g.fill(); g.fillStyle = "#0b1226"; starPathG(g, 0, 0, 24); g.fill(); g.restore();
+  const g = $("wc").getContext("2d"), L = wLabels(), n = L.length, R = 300;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 640, 640); g.translate(320, 320);
+  g.fillStyle = "#ffd36e"; g.beginPath(); g.arc(0, 0, R + 10, 0, 6.28); g.fill();
+  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + (i - .5) * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
+    g.fillStyle = WCOL[i % 8]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); g.strokeStyle = "rgba(255,255,255,.2)"; g.lineWidth = 3; g.stroke();
+    g.save(); g.rotate((a0 + a1) / 2); g.fillStyle = "#fff"; g.font = "800 26px Manrope, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(L[i], R - 22, 0); g.restore(); }
+  g.fillStyle = "#ffd36e"; g.beginPath(); g.arc(0, 0, 46, 0, 6.28); g.fill(); g.fillStyle = "#181c2e"; starPath(g, 0, 0, 26); g.fill();
 }
-function starPathG(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); }
-function paintWheel() { $("bSpin").textContent = me.freeSpin ? "Крутить бесплатно 🎁" : `Крутить за ${me.spinCost} монет`; $("bSpin").disabled = spinning || (!me.freeSpin && me.coins < me.spinCost); $("wText").textContent = `Монеты: ${me.coins}. Призы: монеты, запуски, щит и редкая ракета.`; }
-function openWheel() { show("sWheel"); drawWheel(); paintWheel(); }
-async function spin() {
-  if (spinning) return; spinning = true; paintWheel(); haptic("medium");
-  let res;
+function paintWheel() { const b = $("bSpin"); b.textContent = me.freeSpin ? "Крутить бесплатно 🎁" : `Крутить за ${me.spinCost} монет`; b.disabled = spinning || (!me.freeSpin && me.coins < me.spinCost); }
+$("bSpin").onclick = async () => {
+  if (spinning) return; spinning = true; paintWheel(); haptic("medium"); let res;
   try { if (demo) { const i = Math.floor(Math.random() * 8); res = { index: i, prize: { label: DEMO_WHEEL[i] } }; if (me.freeSpin) me.freeSpin = false; else me.coins -= me.spinCost; } else res = await api("spin"); }
   catch (e) { toast(e.message); spinning = false; paintWheel(); return; }
-  const n = (me.wheel.length || 8), seg = 360 / n, target = 360 * 5 + (360 - res.index * seg) + (Math.random() - .5) * seg * .6;
-  wAngle = wAngle - (wAngle % 360) + target; $("wc").style.transform = `rotate(${wAngle}deg)`;
-  setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintMenu(); haptic("heavy"); toast("Приз: " + res.prize.label); }, 4300);
+  const n = wLabels().length, seg = 360 / n; wAngle = wAngle - (wAngle % 360) + 360 * 5 + ((360 - res.index * seg) % 360) + (Math.random() - .5) * seg * .6; $("wc").style.transform = `rotate(${wAngle}deg)`;
+  setTimeout(() => { if (!demo) Object.assign(me, res); spinning = false; paintWheel(); paintTop(); haptic("heavy"); toast("Приз: " + res.prize.label.replace("запуск", "полёт")); }, 4300);
+};
+
+// ---------- рейтинг ----------
+async function openTop() {
+  const L = $("topList"); L.innerHTML = `<div class="rw"><span class="nm">Загружаю…</span></div>`;
+  if (demo) { L.innerHTML = `<div class="rw"><span class="nm">Рейтинг работает внутри Telegram</span></div>`; return; }
+  try { const d = await api("top"); L.innerHTML = d.top.length ? d.top.map((r, i) => `<div class="rw ${r.me ? "me" : ""} ${i === 0 ? "g1" : ""}"><span class="n">${i + 1}</span><span class="av" style="background:${AVC[i % 6]}">${esc((r.name[0] || "?").toUpperCase())}</span><span class="nm">${esc(r.name)}</span><span class="sc">${fmt(r.score)}</span></div>`).join("") : `<div class="rw"><span class="nm">На этой неделе ещё никто не летал. Будь первым!</span></div>`; }
+  catch (e) { L.innerHTML = `<div class="rw"><span class="nm">${esc(e.message)}</span></div>`; }
 }
+
+// ---------- бонусы ----------
+function paintBonus() {
+  const d = new Date(), ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1) - Date.now();
+  $("bTimer").textContent = `Новые бонусы через ${Math.floor(ms / 3600000)} ч ${Math.floor(ms / 60000) % 60} мин`;
+  const I = { coin: `<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="24" fill="#ffc83d"/><circle cx="30" cy="30" r="17" fill="#e6a417"/><path d="M30 18l3.5 8 8.5.8-6.4 5.6 1.9 8.4-7.5-4.4-7.5 4.4 1.9-8.4-6.4-5.6 8.5-.8z" fill="#fff3c4"/></svg>`,
+    wheel: `<svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="25" fill="#ffd36e"/><path d="M30 30V7a23 23 0 0 1 16 7zM30 30l16-16a23 23 0 0 1 7 16zM30 30h23a23 23 0 0 1-7 16zM30 30l16 16a23 23 0 0 1-16 7z" fill="#5a6bff"/><path d="M30 30v23a23 23 0 0 1-16-7zM30 30L14 46a23 23 0 0 1-7-16zM30 30H7a23 23 0 0 1 7-16zM30 30L14 14a23 23 0 0 1 16-7z" fill="#8b5cf6"/><circle cx="30" cy="30" r="6" fill="#ffd36e"/></svg>`,
+    rocket: `<svg viewBox="0 0 60 60"><g transform="translate(30 32) scale(.9)"><path d="M0-26c12 9 11 28 8 38H-8c-3-10-4-29 8-38z" fill="#f3f0ea"/><path d="M0-26c6 4 9 9 10 14h-20c1-5 4-10 10-14z" fill="#ff5d6c"/><circle cy="-3" r="5" fill="#53e0c8"/><path d="M-8 6l-9 12 8-3zM8 6l9 12-8-3z" fill="#ff5d6c"/></g></svg>`,
+    shield: `<svg viewBox="0 0 60 60"><path d="M30 6l20 8v14c0 13-9 22-20 26-11-4-20-13-20-26V14z" fill="#53e0c8"/><path d="M22 30l6 6 11-12" stroke="#0f3a33" stroke-width="5" fill="none" stroke-linecap="round"/></svg>` };
+  const can = demo || me.runs > 0;
+  const C = [
+    { pic: I.rocket, t: "Полёты сегодня", v: demo ? "∞" : `${me.runs ?? 0}`, sub: "5 бесплатных каждый день", b: can ? "Играть" : "Пополнить", act: can ? "play" : "shop" },
+    { pic: I.wheel, t: "Прокрутка колеса", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
+    { pic: I.coin, t: "Монеты за вход", v: `+${me.dailyCoins}`, sub: "начисляются каждый день", b: "Получено", dis: true },
+    { pic: I.shield, t: "Щиты на старт", v: `${me.shield || 0}`, sub: "выпадают в колесе", b: me.shield ? "В полёт" : "Колесо", act: me.shield ? "play" : "wheel" } ];
+  $("bonList").innerHTML = C.map((c) => `<div class="bc"><div class="pic">${c.pic}</div><p>${c.t}<br><b>${c.v}</b></p><p style="font-size:12px">${c.sub}</p><button ${c.dis ? "disabled" : ""} data-act="${c.act || ""}">${c.b}</button></div>`).join("");
+}
+$("bonList").addEventListener("click", (e) => { const a = e.target.dataset.act; if (a === "play") openGame(); else if (a === "wheel") go("pWheel"); else if (a === "shop") openShop(); });
+
 load();
 </script>
 </body>

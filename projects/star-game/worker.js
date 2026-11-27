@@ -7,6 +7,7 @@ import GAME from "./game.html";
 const FREE_RUNS = 5;               // бесплатных запусков в день
 const DAILY_COINS = 30;            // монет за первый вход дня
 const SPIN_COST = 50;              // монет за прокрутку колеса
+const DIFF_MULT = [1, 1.5, 2, 3];   // сложность: Лёгкая, Средняя, Тяжёлая, Хардкор — множитель монет
 const SHOP = {
   runs5: { title: "+5 запусков", stars: 5, runs: 5 },
   runs20: { title: "+20 запусков", stars: 15, runs: 20 },
@@ -102,7 +103,8 @@ async function apiRoute(path, body, env, now = Date.now()) {
     await env.DB.prepare(free ? "UPDATE players SET free_used = free_used + 1 WHERE id = ?" : "UPDATE players SET runs_extra = runs_extra - 1 WHERE id = ?").bind(u.id).run();
     const id = crypto.randomUUID(), shield = (p.shield || 0) > 0 ? 1 : 0;
     if (shield) await env.DB.prepare("UPDATE players SET shield = shield - 1 WHERE id = ?").bind(u.id).run();
-    await env.DB.prepare("INSERT INTO runs (id, user_id, started, done) VALUES (?, ?, ?, 0)").bind(id, u.id, now).run();
+    const diff = [0, 1, 2, 3].includes(Number(body.diff)) ? Number(body.diff) : 1;
+    await env.DB.prepare("INSERT INTO runs (id, user_id, started, done, diff) VALUES (?, ?, ?, 0, ?)").bind(id, u.id, now, diff).run();
     return json(200, { runId: id, runs: runsLeft(p) - 1, shield });
   }
 
@@ -110,9 +112,9 @@ async function apiRoute(path, body, env, now = Date.now()) {
     const r = await env.DB.prepare("SELECT * FROM runs WHERE id = ? AND user_id = ?").bind(String(body.runId || ""), u.id).first();
     if (!r || r.done) return json(400, { error: "Полёт не найден" });
     const secs = (now - r.started) / 1000;
-    // защита от накрутки: не больше 6 очков в секунду полёта (+10 на старт)
-    const score = Math.max(0, Math.min(Math.floor(Number(body.score) || 0), Math.floor(secs * 6) + 10));
-    const coins = Math.min(score, 300);
+    // защита от накрутки: не больше 8 очков в секунду полёта (+10 на старт)
+    const score = Math.max(0, Math.min(Math.floor(Number(body.score) || 0), Math.floor(secs * 8) + 10));
+    const coins = Math.min(Math.round(score * (DIFF_MULT[r.diff ?? 1] ?? 1.5)), 900);
     await env.DB.batch([
       env.DB.prepare("UPDATE runs SET done = 1, score = ? WHERE id = ?").bind(score, r.id),
       env.DB.prepare("UPDATE players SET best = MAX(best, ?), week_best = MAX(week_best, ?), coins = coins + ? WHERE id = ?").bind(score, score, coins, u.id),
