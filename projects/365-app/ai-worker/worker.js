@@ -486,7 +486,7 @@ async function ensureWebhookUpdates(env) {
 }
 // Один раз после выкладки: кнопки бота должны доходить до сервера.
 async function ensureWebhookOnce(env) {
-  const flag = "webhook-updates-v10";
+  const flag = "webhook-updates-v11";
   if (await env.LIMITS.get(flag)) return;
   await ensureWebhookUpdates(env);
   // меню бота (кнопка «Меню» у поля ввода)
@@ -499,6 +499,7 @@ async function ensureWebhookOnce(env) {
     { command: "water", description: "💧 Напоминания пить воду" },
     { command: "plan", description: "☀️ План дня и утренняя рассылка" },
     { command: "habit", description: "⏰ Напоминания привычек" },
+    { command: "recipes", description: "🍳 Рецепты, рационы и список покупок" },
     { command: "namaz", description: "🕌 Время намаза и уведомления" },
     { command: "invite", description: "🎁 Пригласить друга — неделя Plus" },
     { command: "health", description: "❤️ Связать со «Здоровьем» iPhone" },
@@ -511,7 +512,7 @@ async function ensureWebhookOnce(env) {
   for (const id of String(env.ADMIN_IDS || "").split(",").map((x) => x.trim()).filter(Boolean)) {
     await telegram(env, "setMyCommands", { scope: { type: "chat", chat_id: Number(id) }, commands: [{ command: "diary", description: "📔 Дневник дня" }, { command: "guide", description: "📘 Гайд по блогу" }, ...cmds] }).catch(() => {});
     // один раз прислать владельцу гайд по блогу (и закрепить)
-    await sendGuide(async (m, p) => (await telegram(env, m, p)).json().catch(() => null), Number(id)).catch(() => {});
+    if (!(await env.LIMITS.get("guide-sent"))) { await sendGuide(async (m, p) => (await telegram(env, m, p)).json().catch(() => null), Number(id)).catch(() => {}); await env.LIMITS.put("guide-sent", "1"); }
   }
   await env.LIMITS.put(flag, "1");
 }
@@ -570,6 +571,11 @@ async function handleMessage(message, env) {
       reply_markup: { inline_keyboard: [[{ text: "📨 Отправить другу", style: "primary", url: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Попробуй Kwantoww — бот, который сам записывает задачи, воду, сон и еду по фото. По моей ссылке неделя Plus бесплатно!")}` }]] } });
   }
   if ((text.startsWith("/namaz") || /^время намаза$/i.test(text)) && env.DB) return namazCommand(env, (m, p) => telegram(env, m, p), chatId, userId, text.split(/\s+/)[1]);
+  if (text.startsWith("/recipes") || text === "🍳 Рецепты") {
+    const u = new URL(env.APP_URL || "https://usmanovhursed29-bot.github.io/Claude/"); u.searchParams.set("view", "recipes");
+    return telegram(env, "sendMessage", { chat_id: chatId, text: "🍳 Рецепты: завтраки, обеды, ужины и перекусы с фото и КБЖУ.\n\nВо вкладке «Рационы» — готовые меню на 2000 / 2500 / 3000 ккал. Отметь 1–2 дня, и во вкладке «Покупки» будет список продуктов.",
+      reply_markup: { inline_keyboard: [[{ text: "🍳 Открыть рецепты", web_app: { url: u.toString() }, style: "primary" }]] } });
+  }
   if ((text.startsWith("/plan") || text === "☀️ План дня") && env.DB) {
     const l = localNow((await env.DB.prepare("SELECT tz FROM users WHERE id = ?").bind(userId).first())?.tz || "Europe/Moscow");
     const d = `${l.y}-${String(l.m).padStart(2, "0")}-${String(l.d).padStart(2, "0")}`;

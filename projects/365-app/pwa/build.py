@@ -60,4 +60,6 @@ def icon(size,maskable=False):
     return im
 icon(192).save(os.path.join(dist,"icon-192.png"));icon(512).save(os.path.join(dist,"icon-512.png"))
 icon(180,True).convert("RGB").save(os.path.join(dist,"icon-180.png"));icon(512,True).save(os.path.join(dist,"icon-maskable-512.png"))
+import shutil
+shutil.copytree(os.path.join(here,"recipes"),os.path.join(dist,"recipes"),dirs_exist_ok=True)
 print("built",dist,ver)
