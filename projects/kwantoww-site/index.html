@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kwantoww — сайты, которые приносят заявки</title>
+<meta name="description" content="Сайт для салона, клиники, кафе или цветочного магазина за 1–2 дня. Клиенты записываются и заказывают сами. Сайт — 5 000 ₽, макет бесплатно.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&display=swap">
+<style>
+/* Одна гарнитура (Onest), один акцентный цвет. Цветные только превью работ — это сайты клиентов. */
+:root{
+  --bg:#f6f5f2; --card:#ffffff; --raised:#efede8; --line:rgba(26,24,20,.1);
+  --fg:#1a1814; --fg2:#55504a; --acc:#c2552c; --acc-d:#a8441f; --on-acc:#fff; --ok:#2f7d4f;
+  --font:"Onest",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --ease:cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141312; --card:#1c1b19; --raised:#262420; --line:rgba(240,236,228,.12);
+  --fg:#efebe4; --fg2:#b3aca2; --acc:#e48a62; --acc-d:#f09a74; --on-acc:#1f0c04; --ok:#6cc48f; color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 17px/1.6 var(--font);-webkit-font-smoothing:antialiased;overflow-x:clip}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.1;text-wrap:balance}
+p{margin:0}
+a{color:inherit}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1160px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+
+/* кнопки */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 24px;border-radius:14px;border:0;font:600 17px var(--font);text-decoration:none;cursor:pointer;transition:background .2s,transform .15s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--acc);color:var(--on-acc)}
+.btn.pri:hover{background:var(--acc-d)}
+.btn.sec{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.sec:hover{box-shadow:inset 0 0 0 1.5px var(--fg)}
+.btn svg{width:20px;height:20px;flex:none}
+
+/* шапка */
+header.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-block:20px}
+.logo{font-weight:600;font-size:20px;text-decoration:none}
+.logo span{color:var(--acc)}
+header.top .btn{min-height:44px;padding:0 18px;font-size:15px}
+
+/* первый экран */
+.hero{padding:40px 0 64px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:48px;align-items:center}
+.kicker{display:inline-block;font-size:15px;font-weight:500;color:var(--acc);margin-bottom:14px}
+.hero h1{font-size:clamp(36px,5.4vw,64px)}
+.hero .lead{font-size:19px;color:var(--fg2);margin-top:18px;max-width:30em}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+.cta-note{margin-top:12px;font-size:15px;color:var(--fg2)}
+.gets{background:var(--card);border-radius:20px;padding:26px;box-shadow:inset 0 0 0 1px var(--line)}
+.gets h2{font-size:20px;margin-bottom:14px}
+.money{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:10px;counter-reset:m;max-width:34em}
+.money li{display:grid;grid-template-columns:30px 1fr;column-gap:12px;row-gap:2px;counter-increment:m}
+.money li::before{content:counter(m);grid-row:span 2;width:30px;height:30px;border-radius:50%;background:var(--acc);color:var(--on-acc);display:grid;place-items:center;font-weight:600;font-size:15px}
+.money b{font-weight:600}
+.money span{color:var(--fg2);font-size:16px}
+.calc-f{display:grid;gap:8px;font-size:15px;color:var(--fg2)}
+.calc-f input{font:600 22px var(--font);color:var(--fg);background:var(--raised);border:0;border-radius:12px;padding:12px 14px;box-shadow:inset 0 0 0 1.5px var(--line);width:100%;min-width:0}
+.calc-f input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--acc)}
+.calc-r{margin:16px 0 4px;display:grid;gap:2px}
+.calc-r span{font-size:15px;color:var(--fg2)}
+.calc-r strong{font-size:clamp(30px,4vw,40px);font-weight:600;color:var(--acc);line-height:1.1}
+.calc-x{font-size:15px;color:var(--fg2);margin:0 0 16px}
+.calc-x b{color:var(--fg)}
+.calc ul{padding-top:14px;border-top:1px solid var(--line)}
+
+.gets ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.gets li{display:grid;grid-template-columns:24px 1fr;gap:10px;font-size:16px}
+.gets li svg{width:22px;height:22px;color:var(--ok);margin-top:2px}
+.gets .price-line{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:16px}
+.gets .price-line b{font-size:24px}
+
+/* секции */
+section{padding:32px 0 72px}
+.sh{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.sh h2{font-size:clamp(28px,3.4vw,40px)}
+.sh p{color:var(--fg2);font-size:16px;max-width:32em}
+
+/* работы */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.work{display:flex;flex-direction:column;background:var(--card);border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);text-decoration:none;overflow:hidden;transition:transform .35s var(--ease),box-shadow .35s var(--ease)}
+.work:hover{transform:translateY(-4px);box-shadow:inset 0 0 0 1px var(--line),0 24px 48px -32px rgba(0,0,0,.5)}
+.shot{aspect-ratio:16/9;position:relative;overflow:hidden}
+.meta{padding:18px 20px 20px;display:flex;flex-direction:column;gap:6px;flex:1}
+.meta .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.meta h3{font-size:20px}
+.meta p{color:var(--fg2);font-size:15px}
+.stamp{font-size:13px;color:var(--fg2);white-space:nowrap}
+.go{margin-top:auto;padding-top:8px;font-size:15px;font-weight:500;color:var(--acc);display:inline-flex;gap:6px;align-items:center}
+.go svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;transition:transform .2s var(--ease)}
+.work:hover .go svg{transform:translateX(3px)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.tags span{font-size:13px;color:var(--fg2);background:var(--raised);padding:2px 8px;border-radius:6px}
+
+/* обложки работ: скриншот компьютера + телефона */
+.shot{background:linear-gradient(160deg,var(--raised),var(--bg))}
+.shot .desk{position:absolute;left:5%;top:7%;width:80%;height:auto;border-radius:10px;box-shadow:0 0 0 1px var(--line),0 18px 40px -24px rgba(0,0,0,.45);transition:transform .5s var(--ease)}
+.shot .phone{position:absolute;right:5%;bottom:-18%;width:23%;height:auto;border-radius:16px;border:4px solid #1a1814;box-shadow:0 18px 40px -18px rgba(0,0,0,.55);transition:transform .5s var(--ease)}
+.work:hover .shot .desk{transform:translateY(-4px)}
+.work:hover .shot .phone{transform:translateY(-10px)}
+
+/* обо мне */
+.about{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px;align-items:center;background:var(--card);border-radius:24px;padding:32px;box-shadow:inset 0 0 0 1px var(--line)}
+.about h2{font-size:clamp(28px,3.4vw,40px);margin-bottom:14px}
+.about-text p{color:var(--fg2);margin-bottom:12px}
+.about-text .btn{margin-top:8px}
+.about-note{font-size:15px;margin-top:10px}
+.about-list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.about-list li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:14px 16px;border-radius:14px;background:var(--bg);font-size:16px}
+.about-list svg{width:22px;height:22px;color:var(--acc);margin-top:2px}
+.about-list b{font-weight:600}
+
+/* цены */
+.prices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.plan{background:var(--card);border-radius:20px;padding:26px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px}
+.plan.main{box-shadow:inset 0 0 0 2px var(--acc)}
+.plan .badge{align-self:flex-start;font-size:13px;font-weight:600;color:var(--on-acc);background:var(--acc);padding:3px 10px;border-radius:999px}
+.plan h3{font-size:22px}
+.plan .cost{font-size:36px;font-weight:600;letter-spacing:-.02em}
+.plan .cost small{font-size:17px;font-weight:500;color:var(--fg2)}
+.plan ul{margin:0;padding-left:20px;color:var(--fg2);font-size:15px;display:grid;gap:4px}
+.plan .btn{margin-top:auto}
+.pay-note{margin-top:20px;font-size:16px;color:var(--fg2)}
+.pay-note b{color:var(--fg)}
+
+/* доверие */
+.trust{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.trust div{background:var(--card);border-radius:18px;padding:22px;box-shadow:inset 0 0 0 1px var(--line)}
+.trust svg{width:28px;height:28px;color:var(--acc)}
+.trust b{display:block;margin:10px 0 4px;font-size:17px}
+.trust span{color:var(--fg2);font-size:15px}
+
+/* как работаем */
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.how div{padding:20px 0;border-top:2px solid var(--fg)}
+.how .n{font-size:15px;font-weight:600;color:var(--acc)}
+.how b{display:block;font-weight:600;margin:8px 0 6px;font-size:18px}
+.how span{color:var(--fg2);font-size:16px}
+
+/* заявка */
+.order{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:center;padding:32px;border-radius:24px;background:var(--fg);color:var(--bg)}
+.order h2{font-size:clamp(28px,3.4vw,40px)}
+.order p{opacity:.8;margin-top:10px}
+.order form{display:grid;gap:12px}
+.order label{font-size:15px;opacity:.85}
+.order input{width:100%;min-height:56px;border-radius:14px;border:0;padding:0 16px;font:400 17px var(--font);background:var(--bg);color:var(--fg)}
+.btn.tgb{background:#2aabee;color:#fff}
+.btn.tgb:hover{background:#229ed9}
+.hdr-btns{display:flex;gap:8px}
+header.top .btn{white-space:nowrap}
+header.top .btn.tg{color:#229ed9}
+.order .alt{display:flex;flex-wrap:wrap;gap:16px;font-size:15px;opacity:.85}
+.order .alt a{color:inherit}
+
+footer{padding:32px 0 calc(120px + env(safe-area-inset-bottom,0px));color:var(--fg2);font-size:14px}
+
+/* плавающая кнопка на телефоне */
+.sticky{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:20;display:none;box-shadow:0 14px 30px -12px rgba(0,0,0,.45);transition:transform .35s var(--ease),opacity .35s}
+.sticky{transform:translateY(140%);opacity:0;pointer-events:none}
+.sticky.show{transform:none;opacity:1;pointer-events:auto}
+.sticky.hide-x{transform:translateY(140%);opacity:0;pointer-events:none}
+
+/* анимации */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+.enter{animation:rise .6s var(--ease) both}.enter.d1{animation-delay:.08s}.enter.d2{animation-delay:.16s}
+.rv{transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.rv-on .rv:not(.in){opacity:0;transform:translateY(20px)}
+
+@media (max-width:900px){
+  .hero,.how,.order,.about{grid-template-columns:minmax(0,1fr)}
+  .grid,.prices{grid-template-columns:minmax(0,1fr)}
+  .trust{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sticky{display:flex}
+}
+@media (max-width:560px){
+  header.top{padding-block:14px}
+  .hero{padding:16px 0 40px;gap:28px}
+  .hero .lead{font-size:18px}
+  .cta .btn{width:100%}
+  section{padding:24px 0 48px}
+  .trust{grid-template-columns:minmax(0,1fr)}
+    .meta{padding:16px 16px 18px}
+  .order{padding:22px}
+  .about{padding:22px}
+  .about-text .btn{width:100%}
+  .gets{padding:20px}
+}
+@media (max-width:480px){header.top .btn.tg span{display:none}header.top .btn.tg{padding:0 12px}}
+@media (max-width:360px){header.top .btn{padding:0 12px;font-size:14px}header.top .w{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top enter"><a class="logo" href="#">kwantoww<span>.</span></a><div class="hdr-btns"><a class="btn sec tg" href="https://t.me/kwantoww" target="_blank" rel="noopener" aria-label="Написать в Telegram"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 4.2 18.4 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L5.8 13.1l-4.9-1.5c-1-.3-1.1-1 .2-1.5L20.3 2.8c.9-.3 1.6.2 1.3 1.4Z"/></svg><span>Telegram</span></a><a class="btn pri" href="#order">Заказать<span class="w"> сайт</span></a></div></header>
+
+  <div class="hero">
+    <div class="enter d1">
+      <span class="kicker">Сайты, которые приносят заявки</span>
+      <h1>Вам нужен не красивый сайт, а&nbsp;клиенты</h1>
+      <p class="lead">Я начинаю не с дизайна, а с ваших денег: где вы сейчас теряете клиентов, что именно чиню и с какого клиента сайт выйдет в плюс.</p>
+      <ol class="money">
+        <li><b>Где теряются деньги</b><span>Клиент вечером ищет, как записаться. Кнопки не видно, никто не отвечает — он уходит к конкуренту.</span></li>
+        <li><b>Что я чиню</b><span>Кнопка записи на первом экране, запись или заказ в 2 нажатия, заявки сразу в WhatsApp или Telegram.</span></li>
+        <li><b>Когда сайт в плюсе</b><span>Посчитайте сами в калькуляторе. Обычно хватает 1–3 клиентов.</span></li>
+      </ol>
+      <div class="cta">
+        <a class="btn pri" href="#order">Бесплатный разбор и макет</a>
+        <a class="btn sec" href="#works">Посмотреть работы</a>
+      </div>
+      <p class="cta-note">Посмотрю ваш сайт или страницу и покажу, где уходят клиенты. Бесплатно, до оплаты.</p>
+    </div>
+    <div class="gets calc enter d2" id="calc">
+      <h2>Окупится ли сайт для вас?</h2>
+      <label class="calc-f" for="calc-check">Средний чек одного клиента, ₽
+        <input id="calc-check" type="number" inputmode="numeric" min="100" step="100" value="2500">
+      </label>
+      <div class="calc-r" aria-live="polite">
+        <span>Сайт за <b class="num">5 000 ₽</b> окупится с</span>
+        <strong class="num" id="calc-n">2 клиентов</strong>
+      </div>
+      <p class="calc-x">1 новый клиент в неделю через сайт — это <b class="num" id="calc-m">+10 000 ₽</b> в месяц.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Онлайн-запись или заказ — даже ночью</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Заявки сразу в WhatsApp или Telegram</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Готово за 1–2 дня, макет до оплаты</li>
+      </ul>
+      <div class="price-line"><span>Сайт под ключ</span><b class="num">5 000 ₽</b></div>
+    </div>
+  </div>
+<script>
+(function(){var i=document.getElementById("calc-check"),n=document.getElementById("calc-n"),m=document.getElementById("calc-m");if(!i)return;
+var f=function(x){return Math.round(x).toLocaleString("ru-RU")};
+var pl=function(k){var a=k%10,b=k%100;return (a===1&&b!==11)?"клиента":"клиентов"};
+function u(){var c=Math.max(0,parseFloat(i.value)||0);if(c<100){n.textContent="—";m.textContent="—";return}var k=Math.max(1,Math.ceil(5000/c));n.textContent=f(k)+" "+pl(k);m.textContent="+"+f(c*4)+" ₽"}
+i.addEventListener("input",u);u();})();
+</script>
+
+  <section id="works">
+    <div class="sh rv"><h2>Работы</h2><p>Это живые сайты — откройте любой с телефона и попробуйте записаться или собрать заказ.</p></div>
+    <div class="grid">
+      <a class="work fl rv" href="https://kwantoww.pages.dev/fleur/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/fleur-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Мастерская букетов «Флёр»» на компьютере"><img class="phone" src="/shots/fleur-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Мастерская букетов «Флёр»» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Мастерская букетов «Флёр»</h3><span class="stamp">пример</span></div>
+          <p>Цветочный магазин: каталог с фильтрами, конструктор букета с живой ценой, корзина и заказ в Telegram, выбор времени доставки.</p>
+          <div class="tags"><span>конструктор букета</span><span>корзина</span><span>анимации</span></div>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work t rv" href="https://kwantoww.pages.dev/triumf/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/triumf-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Клиника на Триумфальной» на компьютере"><img class="phone" src="/shots/triumf-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Клиника на Триумфальной» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Клиника на Триумфальной</h3><span class="stamp">концепт</span></div>
+          <p>Семейная клиника в Одинцово: 20 направлений, врачи с фильтром, цены по вкладкам, вызов врача на дом, запись.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work d rv" href="https://kwantoww.pages.dev/dializ/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/dializ-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Диализный центр» на компьютере"><img class="phone" src="/shots/dializ-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Диализный центр» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Диализный центр</h3><span class="stamp">концепт</span></div>
+          <p>Живое расписание смен, путь пациента в 4 шага и чек-лист документов. Спокойный, понятный дизайн для пациентов.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work l rv" href="https://kwantoww.pages.dev/lezvie/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/lezvie-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цирюльня «Лезвие»» на компьютере"><img class="phone" src="/shots/lezvie-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цирюльня «Лезвие»» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Цирюльня «Лезвие»</h3><span class="stamp">пример</span></div>
+          <p>Барбершоп с онлайн-записью по расписанию мастеров: выбрал свободное время и записался за полминуты.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work z rv" href="https://kwantoww.pages.dev/kazan/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/kazan-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Плов-центр «Казан»» на компьютере"><img class="phone" src="/shots/kazan-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Плов-центр «Казан»» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Плов-центр «Казан»</h3><span class="stamp">пример</span></div>
+          <p>Меню с ценами, живой статус казана «сколько плова осталось», фото блюд и бронь стола.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work rv" href="https://kwantoww.pages.dev/gippokrat/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/gippokrat-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Сеть клиник «Гиппократ»» на компьютере"><img class="phone" src="/shots/gippokrat-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Сеть клиник «Гиппократ»» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Сеть клиник «Гиппократ»</h3><span class="stamp">концепт</span></div>
+          <p>Сеть клиник в Химках: переключатель филиалов, поиск врача по отзывам, запись в 4 шага с талоном.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work rv" href="https://kwantoww.pages.dev/tsiryulnya/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/tsiryulnya-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цирюльня на Триумфальной» на компьютере"><img class="phone" src="/shots/tsiryulnya-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цирюльня на Триумфальной» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Цирюльня на Триумфальной</h3><span class="stamp">концепт</span></div>
+          <p>Салон красоты в Одинцово: прайс по вкладкам с палитрой оттенков, мастера из отзывов, запись сразу в WhatsApp.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+      <a class="work rv" href="https://kwantoww.pages.dev/flowers/" target="_blank" rel="noopener">
+        <div class="shot"><img class="desk" src="/shots/flowers-d.webp" width="960" height="600" loading="lazy" alt="Сайт «Цветочная баллада» на компьютере"><img class="phone" src="/shots/flowers-m.webp" width="300" height="650" loading="lazy" alt="Сайт «Цветочная баллада» на телефоне"></div>
+        <div class="meta"><div class="row"><h3>Цветочная баллада</h3><span class="stamp">концепт</span></div>
+          <p>Цветочный магазин: связка шаров вместо прайса, ассортимент, фото, заказ с доставкой через Telegram.</p>
+          <span class="go">Открыть <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+      </a>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="about rv">
+      <div class="about-text">
+        <span class="kicker">Обо мне</span>
+        <h2>Я Хуршед, разработчик сайтов</h2>
+        <p>Уже более 2,5 лет создаю сайты для экспертов и малого бизнеса, которые помогают выделяться и привлекать клиентов.</p>
+        <p class="how-short">Как мы работаем: созваниваемся, обсуждаем задачу, я разрабатываю дизайн и собираю сайт, а вы получаете готовый инструмент для своего бизнеса.</p>
+        <a class="btn tgb" href="https://t.me/kwantoww?text=%D0%A1%D0%90%D0%99%D0%A2" target="_blank" rel="noopener">Написать «САЙТ» в Telegram</a>
+        <p class="about-note">Бесплатно разберу ваш проект или идею и подскажу, что можно улучшить.</p>
+      </div>
+      <ul class="about-list">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Уникальный дизайн</b> без шаблонов</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Логичная структура</b>, которая ведёт к заявке</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Адаптация</b> под все устройства</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span><b>Комфортная работа</b> и связь на каждом этапе</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="prices">
+    <div class="sh rv"><h2>Цены</h2><p>Фиксированные цены без скрытых доплат.</p></div>
+    <div class="prices">
+      <div class="plan main rv">
+        <span class="badge">Чаще всего берут</span>
+        <h3>Сайт</h3>
+        <div class="cost num">5 000 ₽</div>
+        <ul><li>Услуги или каталог с ценами и фото</li><li>Онлайн-запись или заказ в WhatsApp / Telegram</li><li>Адрес, карта, контакты</li><li>Удобная версия для телефона</li></ul>
+        <a class="btn pri" href="#order">Хочу сайт</a>
+      </div>
+      <div class="plan rv">
+        <h3>Telegram-бот</h3>
+        <div class="cost num">3 000 ₽</div>
+        <ul><li>Запись, заказы или ответы на частые вопросы</li><li>Уведомления вам о новых заявках</li><li>Хорошо работает вместе с сайтом</li></ul>
+        <a class="btn sec" href="#order">Хочу бота</a>
+      </div>
+      <div class="plan rv">
+        <h3>Доп. услуги</h3>
+        <div class="cost num">1 000 ₽</div>
+        <ul><li>Новый раздел или страница</li><li>Правки текстов, цен и фото</li><li>Подключение своего домена</li></ul>
+        <a class="btn sec" href="#order">Обсудить</a>
+      </div>
+    </div>
+    <p class="pay-note rv"><b>Макет — бесплатно.</b> Оплата 50% только после того, как макет вам понравится, остальное — после запуска.</p>
+  </section>
+
+  <section>
+    <div class="sh rv"><h2>Почему без риска</h2></div>
+    <div class="trust rv">
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><b>Сначала макет</b><span>Бесплатно покажу ваш будущий сайт. Не понравится — ничего не платите.</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M4 7l11-3v3M16 13.5h1.5"/></svg><b>Оплата частями</b><span>50% после одобрения макета, 50% после запуска.</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg><b>Месяц правок бесплатно</b><span>Поменять цены, фото или текст в первый месяц — без доплат.</span></div>
+      <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg><b>8 живых примеров</b><span>Все работы выше открываются — проверьте сами, как они работают.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sh rv"><h2>Как это работает</h2></div>
+    <div class="how rv">
+      <div><span class="n">Шаг 1</span><b>Вы оставляете заявку</b><span>Одно поле: чем занимается ваш бизнес. Остальное уточню сам.</span></div>
+      <div><span class="n">Шаг 2</span><b>Бесплатный макет за 1 день</b><span>Показываю, как будет выглядеть ваш сайт с вашим названием и услугами.</span></div>
+      <div><span class="n">Шаг 3</span><b>Запуск за 1–2 дня</b><span>Добавляю ваши фото и цены, сайт начинает принимать заявки.</span></div>
+    </div>
+  </section>
+
+  <section id="order" style="padding-top:0">
+    <div class="order rv">
+      <div><h2>Получите бесплатный макет</h2><p>Напишите, чем занимается ваш бизнес, — я пришлю пример вашего сайта в течение дня.</p></div>
+      <form id="leadForm">
+        <label for="biz">Ваш бизнес</label>
+        <input id="biz" name="biz" placeholder="Например: салон красоты" autocomplete="organization" required>
+        <button class="btn pri" type="submit"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l2 .9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Отправить в WhatsApp</button>
+        <button class="btn tgb" type="button" id="sendTg"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.6 4.2 18.4 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.3-5 9.2-8.3c.4-.4-.1-.6-.6-.2L5.8 13.1l-4.9-1.5c-1-.3-1.1-1 .2-1.5L20.3 2.8c.9-.3 1.6.2 1.3 1.4Z"/></svg>Отправить в Telegram</button>
+        <div class="alt"><a href="https://t.me/kwantoww" target="_blank" rel="noopener">Telegram: @kwantoww</a><a href="tel:+79912596122" class="num">+7 991 259-61-22</a></div>
+      </form>
+    </div>
+  </section>
+</div>
+<footer><div class="wrap">Работы с пометкой «концепт» подготовлены как предложения для реальных компаний и не являются их официальными сайтами. Работы с пометкой «пример» — вымышленные заведения.</div></footer>
+
+<a class="btn pri sticky" id="sticky" href="#order">Получить бесплатный макет</a>
+
+<script>
+// заявка в одно поле → WhatsApp с готовым текстом
+const leadText = () => {
+  const biz = document.getElementById("biz").value.trim();
+  return "Здравствуйте! Хочу бесплатный макет сайта." + (biz ? ` Мой бизнес: ${biz}` : "");
+};
+document.getElementById("leadForm").addEventListener("submit", e => {
+  e.preventDefault();
+  window.open("https://wa.me/79912596122?text=" + encodeURIComponent(leadText()), "_blank");
+});
+// Telegram: открываем чат @kwantoww с готовым текстом
+document.getElementById("sendTg").addEventListener("click", () => {
+  window.open("https://t.me/kwantoww?text=" + encodeURIComponent(leadText()), "_blank");
+});
+// плавающая кнопка прячется, когда форма заявки на экране
+const sticky = document.getElementById("sticky");
+// показываем, только когда кнопка первого экрана ушла из вида, и прячем у формы заявки
+if ("IntersectionObserver" in window) {
+  let heroSeen = true, orderSeen = false;
+  const upd = () => sticky.classList.toggle("show", !heroSeen && !orderSeen);
+  new IntersectionObserver(([e]) => { heroSeen = e.isIntersecting; upd(); }).observe(document.querySelector(".cta"));
+  new IntersectionObserver(([e]) => { orderSeen = e.isIntersecting; upd(); }, { threshold: .2 }).observe(document.getElementById("order"));
+}
+// плавное появление блоков
+if ("IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  document.documentElement.classList.add("rv-on");
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".rv").forEach(el => io.observe(el));
+}
+</script>
+</body>
+</html>
