@@ -94,9 +94,10 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 .pava{width:72px;height:72px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font:900 30px var(--disp);overflow:hidden;flex:none}
 .pava img{width:100%;height:100%;object-fit:cover}
 .pnm{min-width:0}.pnm b{display:block;font:900 22px var(--disp);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pnm span{color:var(--soft)}
+.top .bal{margin-right:auto}
 .pbal{border-radius:22px;padding:18px 20px;background:radial-gradient(120% 120% at 80% 20%,#6a4bff,#2b2a8a);display:flex;align-items:baseline;gap:10px}
 .pbal b{font:900 38px var(--disp);color:var(--gold)}.pbal span{color:#d8dcff}
-.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.pstats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
 .pstats div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 10px;text-align:center;min-width:0}
 .pstats b{display:block;font:900 19px var(--disp)}.pstats span{font-size:12px;color:var(--soft)}
 .pthemes{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
@@ -167,7 +168,6 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
 <header class="top">
   <span class="logo">Star<b>Race</b></span>
   <span class="bal" title="StarCoin"><svg class="sci" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#ffc83d"/><circle cx="12" cy="12" r="8.2" fill="#f0a91c"/><path d="M12 6.2l1.7 3.6 3.9.4-2.9 2.6.8 3.9-3.5-2-3.5 2 .8-3.9-2.9-2.6 3.9-.4z" fill="#fff6d0"/></svg><span id="tCoins">0</span><small>SC</small></span>
-  <span class="chipb" title="Лучший выигрыш недели">🏆 <span id="tBest">0</span></span>
   <button class="pay" id="tPay">Магазин</button>
   <span class="ava" id="tAva">?</span>
 </header>
@@ -235,8 +235,6 @@ h2.sec{font:900 26px/1.05 var(--disp);margin:22px 4px 14px;letter-spacing:-.01em
     <div><b id="prPlayed">0</b><span>игр</span></div>
     <div><b id="prWins">0</b><span>побед</span></div>
     <div><b id="prRate">0%</b><span>удачных</span></div>
-    <div><b id="prBest">0</b><span>лучший выигрыш</span></div>
-    <div><b id="prWeek">0</b><span>за неделю</span></div>
     <div><b id="prDays">1</b><span>дней с нами</span></div>
   </div>
   <h2 class="sec" style="font-size:20px">Оформление поля</h2>
@@ -289,9 +287,9 @@ async function api(path, body) {
 }
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 2600); }
 function paintTop() {
-  $("tCoins").textContent = fmt(me.coins); $("tBest").textContent = fmt(me.weekBest || 0);
+  $("tCoins").textContent = fmt(me.coins); 
   const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user; $("tAva").textContent = (u && u.first_name ? u.first_name[0] : "Я").toUpperCase();
-  $("gBest").textContent = me.best ? `лучший +${fmt(me.best)}` : "новая"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : "50 на 50";
+  $("gBest").textContent = "3–24 мины"; $("gSpin").textContent = me.freeSpin ? "бесплатно 🎁" : "50 на 50";
 }
 async function load() {
   if (demo) { let c = 600; try { c = +(localStorage.getItem("sr_coins") || 600); } catch (e) {} me.coins = c; me.freeSpin = true; me.dailyCoins = 100; }
@@ -541,8 +539,7 @@ function paintProfile() {
   $("prName").textContent = name; $("prUser").textContent = me.username || u.username ? "@" + (me.username || u.username) : "";
   $("prAva").innerHTML = u.photo_url ? `<img src="${esc(u.photo_url)}" alt="">` : esc((name[0] || "?").toUpperCase());
   $("prCoins").textContent = fmt(me.coins); $("prPlayed").textContent = fmt(me.played || 0); $("prWins").textContent = fmt(me.wins || 0);
-  $("prRate").textContent = me.played ? Math.round(100 * me.wins / me.played) + "%" : "—"; $("prBest").textContent = "+" + fmt(me.best || 0); $("prWeek").textContent = "+" + fmt(me.weekBest || 0);
-  $("prDays").textContent = me.since ? Math.max(1, Math.ceil((Date.now() - me.since) / 864e5)) : 1;
+  $("prRate").textContent = me.played ? Math.round(100 * me.wins / me.played) + "%" : "—"; $("prDays").textContent = me.since ? Math.max(1, Math.ceil((Date.now() - me.since) / 864e5)) : 1;
   $("prId").textContent = me.id || u.id || "—";
   $("prThemes").innerHTML = (me.themes || ["classic"]).map((t) => `<button class="${(me.theme || "classic") === t ? "on" : ""}" data-th="${t}">${themePic(t)}${THEME_N[t] || t}</button>`).join("");
 }
@@ -562,7 +559,7 @@ function paintBonus() {
     { pic: I.coin, t: "StarCoin за вход", v: `+${me.dailyCoins}`, sub: "начисляются каждый день", b: "Получено", dis: true },
     { pic: I.wheel, t: "Прокрутка 50/50", v: me.freeSpin ? "1" : "0", sub: me.freeSpin ? "бесплатная доступна" : "завтра снова", b: me.freeSpin ? "Крутить" : "Получено", act: me.freeSpin ? "wheel" : "", dis: !me.freeSpin },
     { pic: GEM.replace('viewBox="0 0 40 40"', 'viewBox="0 0 40 40" width="60" height="60"'), t: "Мины", v: `${fmt(me.coins)}`, sub: "SC на игру", b: "Играть", act: "play" },
-    { pic: I.rocket, t: "Лучший выигрыш", v: `+${fmt(me.weekBest || 0)}`, sub: "на этой неделе", b: "Рейтинг", act: "top" } ];
+    { pic: themePic(me.theme || "classic"), t: "Оформление", v: `${(me.themes || ["classic"]).length}`, sub: "открыто тем поля", b: "Магазин", act: "shop" } ];
   $("bonList").innerHTML = C.map((c) => `<div class="bc"><div class="pic">${c.pic}</div><p>${c.t}<br><b>${c.v}</b></p><p style="font-size:12px">${c.sub}</p><button ${c.dis ? "disabled" : ""} data-act="${c.act || ""}">${c.b}</button></div>`).join("");
 }
 $("bonList").addEventListener("click", (e) => { const a = e.target.dataset.act; if (a === "play") go("pMines"); else if (a === "wheel") go("pWheel"); else if (a === "top") go("pTop"); else if (a === "shop") openShop(); });
