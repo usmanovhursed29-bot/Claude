@@ -8,6 +8,7 @@ const KEY = "ВСТАВЬ_КЛЮЧ";
 // ↑↑↑ например "a1b2c3..." ↑↑↑
 
 const API = "https://kwantoww-ai.usmanovhursed747.workers.dev/widget";
+const APP = "https://usmanovhursed29-bot.github.io/Claude/?key=" + KEY; // куда ведёт нажатие на виджет
 const BG1 = new Color("#1d1b17"), BG2 = new Color("#2a2722");
 const FG = new Color("#f6f5f2"), MUT = new Color("#a8a29a"), ACC = new Color("#6c8cf0"), OK = new Color("#5bbd7a");
 
@@ -34,6 +35,7 @@ function row(stack, text, color, size, bold) {
 let w = new ListWidget();
 bg(w);
 w.setPadding(14, 15, 14, 15);
+w.url = APP; // нажатие на виджет открывает приложение Kwantoww
 
 try {
   const d = await getData();
@@ -70,20 +72,24 @@ try {
 
   w.addSpacer();
   // нижняя строка: намаз
+  let nextMin = 30; // через сколько минут обновить виджет
   if (d.namaz) {
     const f = w.addStack(); f.centerAlignContent();
     const inTxt = d.namaz.tomorrow ? "завтра" : (d.namaz.in != null ? `через ${Math.floor(d.namaz.in / 60)}ч ${d.namaz.in % 60}м` : "");
     row(f, `🕌 ${d.namaz.name} ${d.namaz.at}`, FG, 12, true);
     f.addSpacer();
     row(f, inTxt, MUT, 11);
+    // как только наступит следующий намаз — обновиться и показать уже следующий
+    if (d.namaz.in != null) nextMin = Math.min(nextMin, d.namaz.in + 1);
   }
+  w.refreshAfterDate = new Date(Date.now() + Math.max(2, nextMin) * 60 * 1000);
 } catch (e) {
   row(w, "Kwantoww", FG, 14, true);
   w.addSpacer(6);
   row(w, KEY === "ВСТАВЬ_КЛЮЧ" ? "Вставь ключ из бота /widget" : "Нет связи. Проверь ключ и интернет", MUT, 12);
+  w.refreshAfterDate = new Date(Date.now() + 10 * 60 * 1000);
 }
 
-w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
 if (config.runsInWidget) Script.setWidget(w);
 else await w.presentMedium();
 Script.complete();
