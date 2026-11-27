@@ -4,6 +4,7 @@ compatibility_date = "2026-11-01"
 
 [vars]
 GAME_URL = "https://star-race.usmanovhursed747.workers.dev/"
+ADMIN_IDS = "7041620841"  # кто может менять везение командой /luck
 
 [[d1_databases]]
 binding = "DB"
