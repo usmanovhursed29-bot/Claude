@@ -1,0 +1,12 @@
+name = "madina-orders"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[vars]
+SETUP_KEY = "madina_setup_7731"
+ALLOW_ORIGIN = "*"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b95e47e9559047d6a0672d20fed0a89c"

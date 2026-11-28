@@ -135,7 +135,7 @@ footer a{color:var(--gold2);text-decoration:none}
 <div class="wrap">
   <div class="info">
     <div class="c"><b>Адрес</b><span id="addr">Одинцово, Союзная ул., 1А</span><span class="warn">⚠️ уточнить</span></div>
-    <div class="c"><b>Телефон</b><span><a href="tel:+79645626661" style="text-decoration:none">+7 964 562‑66‑61</a></span><span class="warn">⚠️ уточнить</span></div>
+    <div class="c"><b>Телефон</b><span><a href="tel:+79067765150" style="text-decoration:none">+7 906 776‑51‑50</a></span></div>
     <div class="c"><b>Часы</b><span>Ежедневно 08:00–23:00</span><span class="warn">⚠️ уточнить</span></div>
     <div class="c"><b>Заказ</b><span>Прямо на сайте → отправим в чайхану</span></div>
   </div>
@@ -151,7 +151,7 @@ footer a{color:var(--gold2);text-decoration:none}
       <b style="font-size:18px">Чайхана Мадина</b><br>
       Одинцово, Союзная ул., 1А ⚠️<br>
       Ежедневно 08:00–23:00 ⚠️<br>
-      <a href="tel:+79645626661">+7 964 562‑66‑61</a> ⚠️
+      <a href="tel:+79067765150">+7 906 776‑51‑50</a>
     </div>
     <div style="font-size:13px;max-width:320px">
       <b>Это демо-сайт, сделанный ИИ.</b> Фото блюд — иллюстративные, из бесплатного фотостока Pexels, а не снимки самой чайханы. Перед запуском замените их на реальные фото, подтвердите адрес, телефон, часы и цены.
@@ -273,26 +273,33 @@ function renderOrder(){
       <button class="${O.pay==='sbp'?'on':''}" onclick="setO('pay','sbp')">⚡ СБП</button></div></div>
     <div class="tot"><span>Итого</span><span>${rub(total())}</span></div>
     <button class="btn" onclick="sendOrder()">Отправить заказ</button>
-    <div class="note">Заказ уйдёт в чайхану через WhatsApp/Telegram — там подтвердят и скажут время. Оплата: ${O.pay==='sbp'?'переводом по СБП на номер чайханы':(O.pay==='card'?'картой при получении':'наличными при получении')}.<br>⚠️ Онлайн-оплата картой прямо на сайте пока не подключена — для неё нужен расчётный счёт и эквайринг (ЮKassa/СБП для бизнеса).</div>`;
+    <div class="note">Заказ уйдёт в чайхану в Telegram — там подтвердят и скажут время. Оплата: ${O.pay==='sbp'?'переводом по СБП на номер чайханы':(O.pay==='card'?'картой при получении':'наличными при получении')}.<br>⚠️ Онлайн-оплата картой прямо на сайте пока не подключена — для неё нужен расчётный счёт и эквайринг (ЮKassa/СБП для бизнеса).</div>`;
 }
 function setO(k,v){O[k]=v;renderOrder()}
 
 // Куда отправлять заказ. ⚠️ Подставь реальные контакты чайханы.
-const CAFE_PHONE="79645626661"; // для WhatsApp (без +)
-function sendOrder(){
+const ORDER_API="https://madina-orders.usmanovhursed747.workers.dev"; // куда уходит заказ (Telegram-бот)
+async function sendOrder(){
   const name=($("#f_name")?.value||"").trim();
   const phone=($("#f_phone")?.value||"").trim();
   const addr=($("#f_addr")?.value||"").trim();
   if(!name||!phone){toast("Укажите имя и телефон");return}
   if(O.type==="delivery"&&!addr){toast("Укажите адрес доставки");return}
-  const lines=Object.values(cart).map(x=>`• ${x.n} × ${x.q} = ${x.p*x.q} ₽`);
-  const pay={cash:"Наличными при получении",card:"Картой при получении",sbp:"СБП перевод"}[O.pay];
-  const msg=`Заказ — Чайхана Мадина%0A%0A`+
-    encodeURIComponent(lines.join("\n"))+`%0A%0A`+
-    encodeURIComponent(`Итого: ${total()} ₽\n${O.type==="delivery"?"Доставка: "+addr:"Навынос (самовывоз)"}\nОплата: ${pay}\nИмя: ${name}\nТелефон: ${phone}`);
-  // WhatsApp чайхане
-  window.open(`https://wa.me/${CAFE_PHONE}?text=${msg}`,"_blank");
-  toast("Открываю WhatsApp — отправьте сообщение чайхане");
+  const payT={cash:"Наличными при получении",card:"Картой при получении",sbp:"СБП перевод"}[O.pay];
+  const order={items:Object.values(cart).map(x=>({n:x.n,q:x.q,p:x.p})),total:total(),
+    type:O.type,addr,pay:payT,name,phone};
+  const btn=$("#cfoot .btn");if(btn){btn.disabled=true;btn.textContent="Отправляю…"}
+  try{
+    const r=await fetch(ORDER_API+"/order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)});
+    if(!r.ok)throw 0;
+    cart={};save();upd();
+    $("#citems").innerHTML='<div class="empty">✅ Заказ отправлен в чайхану!<br>С вами свяжутся по телефону, чтобы подтвердить.</div>';
+    $("#cfoot").innerHTML='<button class="btn" onclick="closeCart()">Готово</button>';
+    toast("Заказ отправлен!");
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent="Отправить заказ"}
+    toast("Не удалось отправить. Позвоните: +7 906 776‑51‑50");
+  }
 }
 
 function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");clearTimeout(window._tt);window._tt=setTimeout(()=>el.classList.remove("show"),2200)}
